@@ -81,6 +81,8 @@
 "editor.script.choose_file" = "Datei auswählen...";
 "editor.script.file_path" = "Dateipfad";
 "editor.script.no_file" = "Keine Datei ausgewählt";
+"editor.script.path_placeholder" = "Dateipfad eingeben oder Datei auswählen";
+"editor.script.file_missing" = "Unter diesem Pfad existiert keine Datei";
 "editor.script.placeholder" = "Shell-Skript zur Ausführung eingeben";
 "editor.script.expand" = "Editor vergrößern";
 "editor.script.collapse" = "Fertig";

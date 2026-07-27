@@ -81,6 +81,8 @@
 "editor.script.choose_file" = "Scegli file...";
 "editor.script.file_path" = "Percorso file";
 "editor.script.no_file" = "Nessun file selezionato";
+"editor.script.path_placeholder" = "Inserisci un percorso file o scegli un file";
+"editor.script.file_missing" = "Nessun file in questo percorso";
 "editor.script.placeholder" = "Inserisci lo script shell da eseguire";
 "editor.script.expand" = "Espandi editor";
 "editor.script.collapse" = "Fatto";

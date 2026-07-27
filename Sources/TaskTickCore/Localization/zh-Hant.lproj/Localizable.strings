@@ -81,6 +81,8 @@
 "editor.script.choose_file" = "選擇檔案...";
 "editor.script.file_path" = "檔案路徑";
 "editor.script.no_file" = "未選擇檔案";
+"editor.script.path_placeholder" = "輸入檔案路徑，或選擇檔案";
+"editor.script.file_missing" = "該路徑下沒有檔案";
 "editor.script.placeholder" = "輸入要執行的 Shell 腳本";
 "editor.script.expand" = "展開編輯器";
 "editor.script.collapse" = "完成";

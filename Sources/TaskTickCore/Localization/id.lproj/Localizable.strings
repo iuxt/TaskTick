@@ -81,6 +81,8 @@
 "editor.script.choose_file" = "Pilih File...";
 "editor.script.file_path" = "Lokasi File";
 "editor.script.no_file" = "Belum ada file dipilih";
+"editor.script.path_placeholder" = "Masukkan lokasi file, atau pilih file";
+"editor.script.file_missing" = "Tidak ada file di lokasi ini";
 "editor.script.placeholder" = "Masukkan skrip shell untuk dieksekusi";
 "editor.script.expand" = "Perluas Editor";
 "editor.script.collapse" = "Selesai";

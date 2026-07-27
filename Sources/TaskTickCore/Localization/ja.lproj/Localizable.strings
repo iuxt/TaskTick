@@ -81,6 +81,8 @@
 "editor.script.choose_file" = "ファイルを選択...";
 "editor.script.file_path" = "ファイルパス";
 "editor.script.no_file" = "ファイルが選択されていません";
+"editor.script.path_placeholder" = "ファイルパスを入力、またはファイルを選択";
+"editor.script.file_missing" = "このパスにファイルがありません";
 "editor.script.placeholder" = "実行するシェルスクリプトを入力";
 "editor.script.expand" = "エディタを拡大";
 "editor.script.collapse" = "完了";

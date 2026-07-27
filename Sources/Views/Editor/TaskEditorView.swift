@@ -114,7 +114,7 @@ struct TaskEditorView: View {
         case .inline, .template:
             hasScript = !scriptBody.trimmingCharacters(in: .whitespaces).isEmpty
         case .file:
-            hasScript = !scriptFilePath.isEmpty && FileManager.default.fileExists(atPath: scriptFilePath)
+            hasScript = fileExistsAtScriptPath
         case .shortcut:
             hasScript = !shortcutName.trimmingCharacters(in: .whitespaces).isEmpty
         }
@@ -483,24 +483,28 @@ struct TaskEditorView: View {
                     HStack {
                         Image(systemName: "doc.text")
                             .foregroundStyle(.secondary)
-                        if scriptFilePath.isEmpty {
-                            Text(L10n.tr("editor.script.no_file"))
-                                .foregroundStyle(.tertiary)
-                        } else {
-                            Text(scriptFilePath)
-                                .font(.system(.body, design: .monospaced))
-                                .lineLimit(1)
-                                .truncationMode(.middle)
-                        }
-                        Spacer()
+                        // Typed as well as picked: pasting a path is often
+                        // faster than navigating the open panel to it.
+                        TextField(L10n.tr("editor.script.path_placeholder"),
+                                  text: $scriptFilePath)
+                            .textFieldStyle(.plain)
+                            .font(.system(.body, design: .monospaced))
+                            .onSubmit { scriptFilePath = Self.normalizePath(scriptFilePath) }
                         Button(L10n.tr("editor.script.choose_file")) {
                             chooseFile()
                         }
                         .pointerCursor()
                     }
 
+                    if !scriptFilePath.isEmpty, !fileExistsAtScriptPath {
+                        Label(L10n.tr("editor.script.file_missing"),
+                              systemImage: "exclamationmark.triangle.fill")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                    }
+
                     if !scriptFilePath.isEmpty,
-                       let content = try? String(contentsOfFile: scriptFilePath, encoding: .utf8) {
+                       let content = try? String(contentsOfFile: Self.normalizePath(scriptFilePath), encoding: .utf8) {
                         ScrollView {
                             Text(content.prefix(2000) + (content.count > 2000 ? "\n..." : ""))
                                 .font(.system(size: 12, design: .monospaced))
@@ -891,7 +895,7 @@ struct TaskEditorView: View {
         let body: String
         if scriptSource == .file {
             if scriptFilePath.isEmpty { return "" }
-            body = (try? String(contentsOfFile: scriptFilePath, encoding: .utf8)) ?? ""
+            body = (try? String(contentsOfFile: Self.normalizePath(scriptFilePath), encoding: .utf8)) ?? ""
         } else {
             body = scriptBody
         }
@@ -1029,6 +1033,33 @@ struct TaskEditorView: View {
         return TaskScheduler.shared.computeNextRunDate(for: tempTask)
     }
 
+    /// Cleans up a hand-entered path so the common paste shapes just work:
+    /// `~` expansion, surrounding whitespace, the quotes a shell adds when you
+    /// copy a path containing spaces, and the backslash escapes Finder's
+    /// "Copy as Pathname" leaves behind.
+    static func normalizePath(_ raw: String) -> String {
+        var path = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        // Strip one matched pair of surrounding quotes.
+        for quote in ["\"", "'"] where path.count >= 2
+            && path.hasPrefix(quote) && path.hasSuffix(quote) {
+            path = String(path.dropFirst().dropLast())
+            break
+        }
+        path = path.replacingOccurrences(of: "\\ ", with: " ")
+        path = path.trimmingCharacters(in: .whitespaces)
+        return (path as NSString).expandingTildeInPath
+    }
+
+    /// Whether the entered path resolves to a readable regular file.
+    /// Drives the inline warning; `canSave` enforces the same rule.
+    private var fileExistsAtScriptPath: Bool {
+        let path = Self.normalizePath(scriptFilePath)
+        guard !path.isEmpty else { return false }
+        var isDir: ObjCBool = false
+        let exists = FileManager.default.fileExists(atPath: path, isDirectory: &isDir)
+        return exists && !isDir.boolValue
+    }
+
     private func chooseFile() {
         let panel = NSOpenPanel()
         panel.allowsMultipleSelection = false
@@ -1038,7 +1069,7 @@ struct TaskEditorView: View {
             .shellScript, .pythonScript,
             .plainText, .sourceCode,
             .unixExecutable,
-            UTType(filenameExtension: "sh")!,
+            UTType(filenameExtension: "sh") ?? .plainText,
             UTType(filenameExtension: "zsh") ?? .plainText,
             UTType(filenameExtension: "rb") ?? .plainText,
             UTType(filenameExtension: "js") ?? .plainText,
@@ -1254,7 +1285,8 @@ struct TaskEditorView: View {
             target.scriptBody = ""
         case .file:
             target.shortcutName = nil
-            target.scriptFilePath = scriptFilePath
+            // Persist the resolved path — a stored `~/…` would fail to run.
+            target.scriptFilePath = Self.normalizePath(scriptFilePath)
             target.scriptBody = ""
         case .inline, .template:
             target.shortcutName = nil

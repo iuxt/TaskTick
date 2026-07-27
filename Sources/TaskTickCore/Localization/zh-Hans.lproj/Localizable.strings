@@ -81,6 +81,8 @@
 "editor.script.choose_file" = "选择文件...";
 "editor.script.file_path" = "文件路径";
 "editor.script.no_file" = "未选择文件";
+"editor.script.path_placeholder" = "输入文件路径，或选择文件";
+"editor.script.file_missing" = "该路径下没有文件";
 "editor.script.placeholder" = "输入要执行的 Shell 脚本";
 "editor.script.expand" = "展开编辑器";
 "editor.script.collapse" = "完成";

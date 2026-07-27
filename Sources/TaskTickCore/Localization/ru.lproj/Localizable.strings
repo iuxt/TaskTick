@@ -81,6 +81,8 @@
 "editor.script.choose_file" = "Выбрать файл...";
 "editor.script.file_path" = "Путь к файлу";
 "editor.script.no_file" = "Файл не выбран";
+"editor.script.path_placeholder" = "Введите путь к файлу или выберите файл";
+"editor.script.file_missing" = "По этому пути нет файла";
 "editor.script.placeholder" = "Введите shell-скрипт для выполнения";
 "editor.script.expand" = "Развернуть редактор";
 "editor.script.collapse" = "Готово";

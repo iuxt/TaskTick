@@ -81,6 +81,8 @@
 "editor.script.choose_file" = "파일 선택...";
 "editor.script.file_path" = "파일 경로";
 "editor.script.no_file" = "선택된 파일 없음";
+"editor.script.path_placeholder" = "파일 경로를 입력하거나 파일을 선택하세요";
+"editor.script.file_missing" = "이 경로에 파일이 없습니다";
 "editor.script.placeholder" = "실행할 셸 스크립트를 입력하세요";
 "editor.script.expand" = "편집기 확장";
 "editor.script.collapse" = "완료";
