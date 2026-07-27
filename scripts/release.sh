@@ -14,13 +14,33 @@ REPO="lifedever/TaskTick"
 GITEE_REPO="lifedever/task-tick"
 MIN_MACOS="14.0"
 
-# ── Parse version ──
-if [ -z "${1:-}" ]; then
-  echo "Usage: $0 <version>"
+# ── Parse args ──
+ASSUME_YES=false
+VERSION=""
+for arg in "$@"; do
+  case "$arg" in
+    -y|--yes) ASSUME_YES=true ;;
+    -*)
+      echo "Unknown option: $arg"
+      echo "Usage: $0 <version> [--yes]"
+      exit 1
+      ;;
+    *)
+      if [ -n "$VERSION" ]; then
+        echo "Unexpected extra argument: $arg"
+        exit 1
+      fi
+      VERSION="$arg"
+      ;;
+  esac
+done
+
+if [ -z "$VERSION" ]; then
+  echo "Usage: $0 <version> [--yes]"
   echo "  e.g. $0 1.2.0"
+  echo "  --yes  skip the upload prompt (required when stdin is not a TTY)"
   exit 1
 fi
-VERSION="$1"
 TAG="v${VERSION}"
 BUILD_NUMBER=$(date +%Y%m%d%H%M)
 
@@ -217,9 +237,28 @@ echo "  ${BUILD_DIR}/${APP_NAME}-${VERSION}-x86_64.dmg"
 echo ""
 
 # ── Upload to GitHub Release ──
-read -p "Upload to GitHub Release ${TAG}? [y/N] " -n 1 -r
-echo ""
-if [[ $REPLY =~ ^[Yy]$ ]]; then
+#
+# The prompt used to be a bare `read`. With no TTY (CI, or an agent driving
+# the script) `read` returns empty instantly, the [y/N] default said "no",
+# and the script exited 0 having built DMGs but published nothing — a
+# successful-looking run that shipped no release. Non-interactive callers
+# must now pass --yes explicitly; anything else is a hard failure.
+if [ "$ASSUME_YES" = true ]; then
+  DO_UPLOAD=true
+elif [ -t 0 ]; then
+  read -p "Upload to GitHub Release ${TAG}? [y/N] " -n 1 -r
+  echo ""
+  [[ $REPLY =~ ^[Yy]$ ]] && DO_UPLOAD=true || DO_UPLOAD=false
+else
+  echo ""
+  echo "  ERROR: stdin is not a TTY, so the upload prompt cannot be answered."
+  echo "  DMGs were built but NOTHING was published — no tag, no release."
+  echo "  Re-run with --yes to publish non-interactively:"
+  echo "    $0 ${VERSION} --yes"
+  exit 1
+fi
+
+if [ "$DO_UPLOAD" = true ]; then
   echo ""
   echo "── Creating GitHub Release ──"
 
