@@ -310,6 +310,13 @@
 "log.export.all" = "Alle exportieren";
 "log.export.title" = "Protokolle exportieren";
 "log.unknown_task" = "Unbekannte Aufgabe";
+"log.delete.menu_one" = "Protokoll löschen";
+"log.delete.menu_many" = "%d Protokolle löschen";
+"log.delete.title" = "Löschen bestätigen";
+"log.delete.message_one" = "Möchtest du dieses Protokoll wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.";
+"log.delete.message_many" = "Möchtest du diese %d Protokolle wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.";
+"log.delete.cancel" = "Abbrechen";
+"log.delete.confirm" = "Löschen";
 
 /* Settings */
 "settings.general" = "Allgemein";

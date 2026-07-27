@@ -310,6 +310,13 @@
 "log.export.all" = "匯出全部";
 "log.export.title" = "匯出日誌";
 "log.unknown_task" = "未知任務";
+"log.delete.menu_one" = "刪除日誌";
+"log.delete.menu_many" = "刪除 %d 筆日誌";
+"log.delete.title" = "確認刪除";
+"log.delete.message_one" = "確定要刪除這筆日誌嗎？此操作無法復原。";
+"log.delete.message_many" = "確定要刪除這 %d 筆日誌嗎？此操作無法復原。";
+"log.delete.cancel" = "取消";
+"log.delete.confirm" = "刪除";
 
 /* Settings */
 "settings.general" = "一般";

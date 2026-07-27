@@ -310,6 +310,13 @@
 "log.export.all" = "Экспортировать все";
 "log.export.title" = "Экспорт журналов";
 "log.unknown_task" = "Неизвестная задача";
+"log.delete.menu_one" = "Удалить запись";
+"log.delete.menu_many" = "Удалить записи: %d";
+"log.delete.title" = "Подтвердите удаление";
+"log.delete.message_one" = "Вы уверены, что хотите удалить эту запись? Это действие нельзя отменить.";
+"log.delete.message_many" = "Вы уверены, что хотите удалить выбранные записи (%d)? Это действие нельзя отменить.";
+"log.delete.cancel" = "Отмена";
+"log.delete.confirm" = "Удалить";
 
 /* Settings */
 "settings.general" = "Основные";

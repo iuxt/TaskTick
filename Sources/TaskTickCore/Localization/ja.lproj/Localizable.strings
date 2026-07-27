@@ -310,6 +310,13 @@
 "log.export.all" = "すべてエクスポート";
 "log.export.title" = "ログをエクスポート";
 "log.unknown_task" = "不明なタスク";
+"log.delete.menu_one" = "ログを削除";
+"log.delete.menu_many" = "%d 件のログを削除";
+"log.delete.title" = "削除の確認";
+"log.delete.message_one" = "このログを削除してもよろしいですか？この操作は取り消せません。";
+"log.delete.message_many" = "これら %d 件のログを削除してもよろしいですか？この操作は取り消せません。";
+"log.delete.cancel" = "キャンセル";
+"log.delete.confirm" = "削除";
 
 /* Settings */
 "settings.general" = "一般";

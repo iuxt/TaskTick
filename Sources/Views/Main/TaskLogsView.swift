@@ -4,13 +4,23 @@ import TaskTickCore
 
 struct TaskLogsView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
     let task: ScheduledTask
     var initialSelectedLogId: UUID?
 
-    @State private var selectedLog: ExecutionLog?
+    @State private var selection: Set<ExecutionLog> = []
+    @State private var logsToDelete: [ExecutionLog] = []
+    @State private var showingDeleteAlert = false
 
     var sortedLogs: [ExecutionLog] {
         task.executionLogs.filter { $0.modelContext != nil }.sorted { $0.startedAt > $1.startedAt }
+    }
+
+    /// The single log driving the detail pane. Multi-select is for bulk
+    /// delete/export; the detail pane keeps showing one entry at a time.
+    private var selectedLog: ExecutionLog? {
+        guard selection.count == 1, let log = selection.first else { return nil }
+        return log.modelContext != nil ? log : nil
     }
 
     var body: some View {
@@ -22,16 +32,51 @@ struct TaskLogsView: View {
             }
         }
         .frame(minWidth: 750, minHeight: 480)
-        .onAppear {
-            if selectedLog == nil {
-                if let targetId = initialSelectedLogId {
-                    selectedLog = sortedLogs.first { $0.id == targetId }
-                }
-                if selectedLog == nil {
-                    selectedLog = sortedLogs.first
-                }
+        .alert(L10n.tr("log.delete.title"), isPresented: $showingDeleteAlert) {
+            Button(L10n.tr("log.delete.cancel"), role: .cancel) { logsToDelete = [] }
+            Button(L10n.tr("log.delete.confirm"), role: .destructive) {
+                deleteLogs(logsToDelete)
+                logsToDelete = []
             }
+        } message: {
+            Text(deleteMessage(count: logsToDelete.count))
         }
+        .onAppear {
+            guard selection.isEmpty else { return }
+            let initial = initialSelectedLogId.flatMap { id in
+                sortedLogs.first { $0.id == id }
+            } ?? sortedLogs.first
+            if let initial { selection = [initial] }
+        }
+    }
+
+    /// Selection filtered down to models still backed by the context, in the
+    /// list's display order.
+    private var liveSelection: [ExecutionLog] {
+        sortedLogs.filter { selection.contains($0) }
+    }
+
+    /// macOS convention: right-clicking inside the selection acts on the whole
+    /// selection; right-clicking outside it acts on just that row.
+    private func deleteTargets(rightClicked log: ExecutionLog) -> [ExecutionLog] {
+        let picked = liveSelection
+        return picked.contains(log) ? picked : [log]
+    }
+
+    private func deleteMenuTitle(count: Int) -> String {
+        count > 1 ? L10n.tr("log.delete.menu_many", count) : L10n.tr("log.delete.menu_one")
+    }
+
+    private func deleteMessage(count: Int) -> String {
+        count > 1 ? L10n.tr("log.delete.message_many", count) : L10n.tr("log.delete.message_one")
+    }
+
+    private func deleteLogs(_ targets: [ExecutionLog]) {
+        // Resolve the successor before deleting — afterwards `sortedLogs`
+        // has already dropped these rows and they're invalidated.
+        let successor = LogDeletion.selectionAfterDeleting(targets, from: sortedLogs)
+        LogDeletion.delete(targets, in: modelContext)
+        selection = successor.map { [$0] } ?? []
     }
 
     private var emptyView: some View {
@@ -51,7 +96,7 @@ struct TaskLogsView: View {
 
     private var splitView: some View {
         NavigationSplitView {
-            List(sortedLogs, selection: $selectedLog) { log in
+            List(sortedLogs, selection: $selection) { log in
                 HStack(spacing: 8) {
                     StatusBadge(status: log.status, compact: true)
 
@@ -70,6 +115,15 @@ struct TaskLogsView: View {
                 }
                 .tag(log)
                 .padding(.vertical, 2)
+                .contextMenu {
+                    let targets = deleteTargets(rightClicked: log)
+                    Button(deleteMenuTitle(count: targets.count),
+                           systemImage: "trash",
+                           role: .destructive) {
+                        logsToDelete = targets
+                        showingDeleteAlert = true
+                    }
+                }
             }
             .frame(minWidth: 240)
             .navigationTitle(task.name)
@@ -81,10 +135,15 @@ struct TaskLogsView: View {
                 ToolbarItem(placement: .cancellationAction) {
                     LogExportMenu(
                         title: L10n.tr("log.export"),
-                        selectedEnabled: selectedLog != nil,
+                        selectedEnabled: !liveSelection.isEmpty,
                         allEnabled: !sortedLogs.isEmpty,
                         onExportSelected: {
-                            if let log = selectedLog { LogExporter.exportLog(log) }
+                            let picked = liveSelection
+                            if picked.count == 1, let log = picked.first {
+                                LogExporter.exportLog(log)
+                            } else if !picked.isEmpty {
+                                LogExporter.exportLogs(picked, nameHint: task.name)
+                            }
                         },
                         onExportAll: {
                             LogExporter.exportLogs(sortedLogs, nameHint: task.name)

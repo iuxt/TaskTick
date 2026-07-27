@@ -5,14 +5,26 @@ import TaskTickCore
 struct LogListView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \ExecutionLog.startedAt, order: .reverse) private var logs: [ExecutionLog]
-    @State private var selectedLog: ExecutionLog?
+    @State private var selection: Set<ExecutionLog> = []
     @State private var statusFilter: ExecutionStatus?
+    @State private var logsToDelete: [ExecutionLog] = []
+    @State private var showingDeleteAlert = false
 
     var filteredLogs: [ExecutionLog] {
+        // Deleted models linger in `@Query` results until the context saves;
+        // reading their properties would trap, so drop them up front.
+        let live = logs.filter { $0.modelContext != nil }
         if let filter = statusFilter {
-            return logs.filter { $0.status == filter }
+            return live.filter { $0.status == filter }
         }
-        return Array(logs)
+        return live
+    }
+
+    /// The single log driving the detail pane. Multi-select is for bulk
+    /// delete/export; the detail pane keeps showing one entry at a time.
+    private var selectedLog: ExecutionLog? {
+        guard selection.count == 1, let log = selection.first else { return nil }
+        return log.modelContext != nil ? log : nil
     }
 
     var body: some View {
@@ -50,10 +62,19 @@ struct LogListView: View {
                     }
                     Spacer()
                 } else {
-                    List(selection: $selectedLog) {
+                    List(selection: $selection) {
                         ForEach(filteredLogs) { log in
                             LogListRow(log: log)
                                 .tag(log)
+                                .contextMenu {
+                                    let targets = deleteTargets(rightClicked: log)
+                                    Button(deleteMenuTitle(count: targets.count),
+                                           systemImage: "trash",
+                                           role: .destructive) {
+                                        logsToDelete = targets
+                                        showingDeleteAlert = true
+                                    }
+                                }
                         }
                     }
                     .listStyle(.sidebar)
@@ -75,10 +96,15 @@ struct LogListView: View {
             ToolbarItem(placement: .primaryAction) {
                 LogExportMenu(
                     title: L10n.tr("log.export"),
-                    selectedEnabled: selectedLog != nil,
+                    selectedEnabled: !liveSelection.isEmpty,
                     allEnabled: !filteredLogs.isEmpty,
                     onExportSelected: {
-                        if let log = selectedLog { LogExporter.exportLog(log) }
+                        let picked = liveSelection
+                        if picked.count == 1, let log = picked.first {
+                            LogExporter.exportLog(log)
+                        } else if !picked.isEmpty {
+                            LogExporter.exportLogs(picked, nameHint: "TaskTick")
+                        }
                     },
                     onExportAll: {
                         LogExporter.exportLogs(filteredLogs, nameHint: "TaskTick")
@@ -87,6 +113,44 @@ struct LogListView: View {
                 .help(L10n.tr("log.export"))
             }
         }
+        .alert(L10n.tr("log.delete.title"), isPresented: $showingDeleteAlert) {
+            Button(L10n.tr("log.delete.cancel"), role: .cancel) { logsToDelete = [] }
+            Button(L10n.tr("log.delete.confirm"), role: .destructive) {
+                deleteLogs(logsToDelete)
+                logsToDelete = []
+            }
+        } message: {
+            Text(deleteMessage(count: logsToDelete.count))
+        }
+    }
+
+    /// Selection filtered down to models still backed by the context, in the
+    /// list's display order.
+    private var liveSelection: [ExecutionLog] {
+        filteredLogs.filter { selection.contains($0) }
+    }
+
+    /// macOS convention: right-clicking inside the selection acts on the whole
+    /// selection; right-clicking outside it acts on just that row.
+    private func deleteTargets(rightClicked log: ExecutionLog) -> [ExecutionLog] {
+        let picked = liveSelection
+        return picked.contains(log) ? picked : [log]
+    }
+
+    private func deleteMenuTitle(count: Int) -> String {
+        count > 1 ? L10n.tr("log.delete.menu_many", count) : L10n.tr("log.delete.menu_one")
+    }
+
+    private func deleteMessage(count: Int) -> String {
+        count > 1 ? L10n.tr("log.delete.message_many", count) : L10n.tr("log.delete.message_one")
+    }
+
+    private func deleteLogs(_ targets: [ExecutionLog]) {
+        // Resolve the successor before deleting — afterwards `filteredLogs`
+        // has already dropped these rows and they're invalidated.
+        let successor = LogDeletion.selectionAfterDeleting(targets, from: filteredLogs)
+        LogDeletion.delete(targets, in: modelContext)
+        selection = successor.map { [$0] } ?? []
     }
 
     private func statusColor(_ status: ExecutionStatus) -> Color {

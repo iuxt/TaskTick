@@ -310,6 +310,13 @@
 "log.export.all" = "Ekspor Semua";
 "log.export.title" = "Ekspor Log";
 "log.unknown_task" = "Tugas Tidak Dikenal";
+"log.delete.menu_one" = "Hapus Log";
+"log.delete.menu_many" = "Hapus %d Log";
+"log.delete.title" = "Konfirmasi Hapus";
+"log.delete.message_one" = "Apakah Anda yakin ingin menghapus log ini? Tindakan ini tidak dapat dibatalkan.";
+"log.delete.message_many" = "Apakah Anda yakin ingin menghapus %d log ini? Tindakan ini tidak dapat dibatalkan.";
+"log.delete.cancel" = "Batal";
+"log.delete.confirm" = "Hapus";
 
 /* Settings */
 "settings.general" = "Umum";

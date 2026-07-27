@@ -310,6 +310,13 @@
 "log.export.all" = "导出全部";
 "log.export.title" = "导出日志";
 "log.unknown_task" = "未知任务";
+"log.delete.menu_one" = "删除日志";
+"log.delete.menu_many" = "删除 %d 条日志";
+"log.delete.title" = "确认删除";
+"log.delete.message_one" = "确定要删除这条日志吗？此操作无法撤销。";
+"log.delete.message_many" = "确定要删除这 %d 条日志吗？此操作无法撤销。";
+"log.delete.cancel" = "取消";
+"log.delete.confirm" = "删除";
 
 /* Settings */
 "settings.general" = "通用";

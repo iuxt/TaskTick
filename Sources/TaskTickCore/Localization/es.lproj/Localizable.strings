@@ -310,6 +310,13 @@
 "log.export.all" = "Exportar todo";
 "log.export.title" = "Exportar registros";
 "log.unknown_task" = "Tarea desconocida";
+"log.delete.menu_one" = "Eliminar registro";
+"log.delete.menu_many" = "Eliminar %d registros";
+"log.delete.title" = "Confirmar eliminación";
+"log.delete.message_one" = "¿Seguro que deseas eliminar este registro? Esta acción no se puede deshacer.";
+"log.delete.message_many" = "¿Seguro que deseas eliminar estos %d registros? Esta acción no se puede deshacer.";
+"log.delete.cancel" = "Cancelar";
+"log.delete.confirm" = "Eliminar";
 
 /* Settings */
 "settings.general" = "General";

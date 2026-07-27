@@ -310,6 +310,13 @@
 "log.export.all" = "전체 내보내기";
 "log.export.title" = "로그 내보내기";
 "log.unknown_task" = "알 수 없는 작업";
+"log.delete.menu_one" = "로그 삭제";
+"log.delete.menu_many" = "로그 %d개 삭제";
+"log.delete.title" = "삭제 확인";
+"log.delete.message_one" = "이 로그를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.";
+"log.delete.message_many" = "이 로그 %d개를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.";
+"log.delete.cancel" = "취소";
+"log.delete.confirm" = "삭제";
 
 /* Settings */
 "settings.general" = "일반";

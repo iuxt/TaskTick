@@ -310,6 +310,13 @@
 "log.export.all" = "Export All";
 "log.export.title" = "Export Logs";
 "log.unknown_task" = "Unknown Task";
+"log.delete.menu_one" = "Delete Log";
+"log.delete.menu_many" = "Delete %d Logs";
+"log.delete.title" = "Confirm Delete";
+"log.delete.message_one" = "Are you sure you want to delete this log? This action cannot be undone.";
+"log.delete.message_many" = "Are you sure you want to delete these %d logs? This action cannot be undone.";
+"log.delete.cancel" = "Cancel";
+"log.delete.confirm" = "Delete";
 
 /* Settings */
 "settings.general" = "General";

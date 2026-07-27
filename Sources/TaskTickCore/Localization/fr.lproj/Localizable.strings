@@ -281,6 +281,13 @@
 "log.export.all" = "Tout exporter";
 "log.export.title" = "Exporter les journaux";
 "log.unknown_task" = "Tache inconnue";
+"log.delete.menu_one" = "Supprimer le journal";
+"log.delete.menu_many" = "Supprimer %d journaux";
+"log.delete.title" = "Confirmer la suppression";
+"log.delete.message_one" = "Etes-vous sur de vouloir supprimer ce journal ? Cette action est irreversible.";
+"log.delete.message_many" = "Etes-vous sur de vouloir supprimer ces %d journaux ? Cette action est irreversible.";
+"log.delete.cancel" = "Annuler";
+"log.delete.confirm" = "Supprimer";
 "settings.general" = "General";
 "settings.appearance" = "Apparence";
 "settings.appearance.system" = "Systeme";
