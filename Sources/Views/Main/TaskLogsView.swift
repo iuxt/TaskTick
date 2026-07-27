@@ -195,7 +195,11 @@ private struct LogDetailContent: View {
     }
 
     var body: some View {
-        ScrollView {
+        // Same layout rule as LogDetailView: metadata takes what it needs,
+        // the output pane absorbs the remaining height (issue #42).
+        VStack(alignment: .leading, spacing: 0) {
+            // Metadata is short and fixed — no scroller, so it can't get
+            // greedy and steal height from the output pane below.
             VStack(alignment: .leading, spacing: 16) {
                 GlassCard {
                     VStack(spacing: 8) {
@@ -234,33 +238,37 @@ private struct LogDetailContent: View {
                 if log.status == .failure, SudoTTYFailure.matches(stderr: log.stderr) {
                     SudoNoticeView()
                 }
-
-                let combined = [currentStdout, currentStderr]
-                    .compactMap { $0?.isEmpty == false ? $0 : nil }
-                    .joined(separator: "\n")
-                if !combined.isEmpty {
-                    let isFailure = log.status == .failure || log.status == .timeout
-                    VStack(alignment: .leading, spacing: 6) {
-                        Label(L10n.tr("log.detail.output"),
-                              systemImage: isFailure ? "exclamationmark.triangle" : "text.alignleft")
-                            .font(.headline)
-                            .foregroundStyle(isFailure ? Color.red : Color.primary)
-                        // Always virtualized — completed logs can carry up to
-                        // 512KB of stdout from SwiftData and SwiftUI Text
-                        // chokes on layout regardless of whether it's live.
-                        LogTextView(text: combined,
-                                    font: .monospacedSystemFont(ofSize: 11, weight: .regular))
-                            .frame(minHeight: 240, idealHeight: 360, maxHeight: 600)
-                            .padding(12)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(RoundedRectangle(cornerRadius: 8)
-                                .fill(isFailure ? Color.red.opacity(0.04) : Color.black.opacity(0.04)))
-                            .overlay(RoundedRectangle(cornerRadius: 8)
-                                .stroke(isFailure ? Color.red.opacity(0.2) : Color(nsColor: .separatorColor), lineWidth: 0.5))
-                    }
-                }
             }
             .padding()
+
+            let combined = [currentStdout, currentStderr]
+                .compactMap { $0?.isEmpty == false ? $0 : nil }
+                .joined(separator: "\n")
+            if !combined.isEmpty {
+                let isFailure = log.status == .failure || log.status == .timeout
+                VStack(alignment: .leading, spacing: 6) {
+                    Label(L10n.tr("log.detail.output"),
+                          systemImage: isFailure ? "exclamationmark.triangle" : "text.alignleft")
+                        .font(.headline)
+                        .foregroundStyle(isFailure ? Color.red : Color.primary)
+                    // Always virtualized — completed logs can carry up to
+                    // 512KB of stdout from SwiftData and SwiftUI Text
+                    // chokes on layout regardless of whether it's live.
+                    // No maxHeight: the pane grows with the window.
+                    LogTextView(text: combined,
+                                font: .monospacedSystemFont(ofSize: 11, weight: .regular))
+                        .frame(minHeight: 120, maxHeight: .infinity)
+                        .padding(12)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(RoundedRectangle(cornerRadius: 8)
+                            .fill(isFailure ? Color.red.opacity(0.04) : Color.black.opacity(0.04)))
+                        .overlay(RoundedRectangle(cornerRadius: 8)
+                            .stroke(isFailure ? Color.red.opacity(0.2) : Color(nsColor: .separatorColor), lineWidth: 0.5))
+                }
+                .padding(.horizontal)
+                .padding(.bottom)
+                .frame(maxHeight: .infinity)
+            }
         }
     }
 

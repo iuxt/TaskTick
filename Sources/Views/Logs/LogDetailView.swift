@@ -26,7 +26,13 @@ struct LogDetailView: View {
     }
 
     var body: some View {
-        ScrollView {
+        // The output pane takes the leftover height instead of sitting in a
+        // page-wide ScrollView: a tall window should show more log lines, not
+        // a taller blank area under a fixed-height box. The metadata above it
+        // keeps its own scroller so it stays reachable in a short window.
+        VStack(alignment: .leading, spacing: 0) {
+            // Metadata is short and fixed — no scroller, so it can't get
+            // greedy and steal height from the output pane below.
             VStack(alignment: .leading, spacing: 20) {
                 // Header
                 HStack(alignment: .top, spacing: 14) {
@@ -103,25 +109,28 @@ struct LogDetailView: View {
                         }
                     }
                 }
-
-                // Combined output (terminal-like). Color reflects run status.
-                let combined = [currentStdout, currentStderr]
-                    .compactMap { $0?.isEmpty == false ? $0 : nil }
-                    .joined(separator: "\n")
-                if !combined.isEmpty {
-                    let isFailure = log.status == .failure || log.status == .timeout
-                    // Always use the virtualized view: completed logs can store
-                    // up to 512KB of stdout and SwiftUI's `Text` still chokes
-                    // on layout for big strings even when there's no streaming.
-                    OutputSection(
-                        title: L10n.tr("log.detail.output"),
-                        content: combined,
-                        icon: isFailure ? "exclamationmark.triangle" : "text.alignleft",
-                        color: isFailure ? .red : .primary
-                    )
-                }
             }
             .padding(20)
+
+            // Combined output (terminal-like). Color reflects run status.
+            let combined = [currentStdout, currentStderr]
+                .compactMap { $0?.isEmpty == false ? $0 : nil }
+                .joined(separator: "\n")
+            if !combined.isEmpty {
+                let isFailure = log.status == .failure || log.status == .timeout
+                // Always use the virtualized view: completed logs can store
+                // up to 512KB of stdout and SwiftUI's `Text` still chokes
+                // on layout for big strings even when there's no streaming.
+                OutputSection(
+                    title: L10n.tr("log.detail.output"),
+                    content: combined,
+                    icon: isFailure ? "exclamationmark.triangle" : "text.alignleft",
+                    color: isFailure ? .red : .primary
+                )
+                .padding(.horizontal, 20)
+                .padding(.bottom, 20)
+                .frame(maxHeight: .infinity)
+            }
         }
     }
 
@@ -166,8 +175,11 @@ struct OutputSection: View {
                     .font(.headline)
                     .foregroundStyle(color == .primary ? .primary : color)
 
+                // No maxHeight — the pane grows with the window so a taller
+                // window shows more lines (issue #42). LogTextView is
+                // virtualized, so an unbounded height costs nothing.
                 LogTextView(text: content)
-                    .frame(minHeight: 240, idealHeight: 360, maxHeight: 600)
+                    .frame(minHeight: 120, maxHeight: .infinity)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(10)
                     .background(
@@ -179,7 +191,7 @@ struct OutputSection: View {
                             .stroke(.separator, lineWidth: 0.5)
                     )
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         }
     }
 }
