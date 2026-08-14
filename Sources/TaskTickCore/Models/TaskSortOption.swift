@@ -25,8 +25,13 @@ public enum TaskSortOption: String, CaseIterable, Sendable {
     }
 
     /// Sort the given tasks according to this option.
+    ///
+    /// Enabled state outranks the time key: a disabled task can't fire on its
+    /// own, so it sinks below the live ones (within whatever section the list
+    /// puts it in) instead of interleaving with them by timestamp.
     public func sort(_ tasks: [ScheduledTask]) -> [ScheduledTask] {
         tasks.sorted { lhs, rhs in
+            if lhs.isEnabled != rhs.isEnabled { return lhs.isEnabled }
             let lk = sortKey(for: lhs), rk = sortKey(for: rhs)
             return isAscending ? lk < rk : lk > rk
         }

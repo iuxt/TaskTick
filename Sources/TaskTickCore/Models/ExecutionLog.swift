@@ -27,6 +27,21 @@ public enum ExecutionStatus: String, Codable, CaseIterable, Sendable {
         case .cancelled: "stop.circle.fill"
         }
     }
+
+    /// Optical size compensation, to be applied as `.scaleEffect`.
+    ///
+    /// `clock.badge.exclamationmark.fill` is the only badged symbol here and
+    /// renders 16×16 at a font size where the `*.circle.fill` family renders
+    /// 15×15 — untreated, a timeout row visibly outsizes every other row.
+    /// A ratio rather than an absolute size, so the same value works at every
+    /// call site (13pt in the task list, `.caption2` in the badge, `.title3`
+    /// in the log header).
+    public var iconScale: CGFloat {
+        switch self {
+        case .timeout: 15.0 / 16.0
+        default: 1
+        }
+    }
 }
 
 public enum TriggerType: String, Codable, Sendable {

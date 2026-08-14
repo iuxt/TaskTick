@@ -25,6 +25,7 @@
 "task.interval.seconds" = "%d秒";
 "task.status.enabled" = "有効";
 "task.status.disabled" = "無効";
+"task.status.last_run" = "最終実行: %@";
 "task.duplicate" = "複製";
 "task.duplicate.name" = "%@（コピー）";
 "task.reveal_script" = "スクリプトを Finder で表示";

@@ -40,4 +40,26 @@ struct TaskSortOptionTests {
         let b = task("b", created: 300, lastRun: nil)
         #expect(TaskSortOption.lastRunAsc.sort([a, b]).map(\.name) == ["b", "a"])
     }
+
+    @Test("disabled tasks sink below enabled ones, whatever the time ordering")
+    func disabledSinks() {
+        let enabled = task("enabled", created: 100, lastRun: nil)   // oldest
+        let disabled = task("disabled", created: 900, lastRun: nil) // newest
+        disabled.isEnabled = false
+        // createdDesc would normally put the newer "disabled" first.
+        #expect(TaskSortOption.createdDesc.sort([disabled, enabled]).map(\.name) == ["enabled", "disabled"])
+        // ...and createdAsc would normally put the older "enabled" first anyway,
+        // so check the option that would otherwise disagree too.
+        #expect(TaskSortOption.createdAsc.sort([disabled, enabled]).map(\.name) == ["enabled", "disabled"])
+    }
+
+    @Test("disabled tasks keep the time ordering among themselves")
+    func disabledOrderedInternally() {
+        let old = task("old", created: 100, lastRun: nil)
+        let new = task("new", created: 900, lastRun: nil)
+        old.isEnabled = false
+        new.isEnabled = false
+        #expect(TaskSortOption.createdDesc.sort([old, new]).map(\.name) == ["new", "old"])
+        #expect(TaskSortOption.createdAsc.sort([new, old]).map(\.name) == ["old", "new"])
+    }
 }

@@ -23,6 +23,7 @@
 "task.interval.seconds" = "%d sec";
 "task.status.enabled" = "Activee";
 "task.status.disabled" = "Desactivee";
+"task.status.last_run" = "Dernière exécution : %@";
 "task.duplicate" = "Dupliquer";
 "task.duplicate.name" = "%@ (Copie)";
 "task.reveal_script" = "Afficher le script dans le Finder";

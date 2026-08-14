@@ -25,6 +25,7 @@
 "task.interval.seconds" = "%d초";
 "task.status.enabled" = "활성";
 "task.status.disabled" = "비활성";
+"task.status.last_run" = "마지막 실행: %@";
 "task.duplicate" = "복제";
 "task.duplicate.name" = "%@ (복사)";
 "task.reveal_script" = "Finder에서 스크립트 보기";

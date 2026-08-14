@@ -25,6 +25,7 @@
 "task.interval.seconds" = "%d dtk";
 "task.status.enabled" = "Aktif";
 "task.status.disabled" = "Nonaktif";
+"task.status.last_run" = "Terakhir dijalankan: %@";
 "task.duplicate" = "Duplikat";
 "task.duplicate.name" = "%@ (Salinan)";
 "task.reveal_script" = "Tampilkan skrip di Finder";

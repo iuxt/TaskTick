@@ -25,6 +25,7 @@
 "task.interval.seconds" = "%d сек";
 "task.status.enabled" = "Активна";
 "task.status.disabled" = "Отключена";
+"task.status.last_run" = "Последний запуск: %@";
 "task.duplicate" = "Дублировать";
 "task.duplicate.name" = "%@ (Копия)";
 "task.reveal_script" = "Показать скрипт в Finder";

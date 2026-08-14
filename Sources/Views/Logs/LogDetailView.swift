@@ -42,6 +42,7 @@ struct LogDetailView: View {
                         .overlay {
                             Image(systemName: log.status.iconName)
                                 .font(.title3)
+                                .scaleEffect(log.status.iconScale)
                                 .foregroundStyle(.white)
                         }
 

@@ -26,6 +26,7 @@ struct StatusBadge: View {
         HStack(spacing: 4) {
             Image(systemName: status.iconName)
                 .font(.caption2)
+                .scaleEffect(status.iconScale)
             if !compact {
                 Text(status.displayName)
                     .font(.caption)

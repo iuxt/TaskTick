@@ -50,12 +50,15 @@ struct TaskListView: View {
     var body: some View {
         VStack(spacing: 0) {
             // Filter bar
-            Picker("", selection: $filter) {
-                ForEach(TaskFilter.allCases, id: \.self) { f in
-                    Text(f.label).tag(f)
+            HStack(spacing: 8) {
+                Picker("", selection: $filter) {
+                    ForEach(TaskFilter.allCases, id: \.self) { f in
+                        Text(f.label).tag(f)
+                    }
                 }
+                .pickerStyle(.segmented)
+                sortMenu
             }
-            .pickerStyle(.segmented)
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
 
@@ -167,6 +170,27 @@ struct TaskListView: View {
         }
     }
 
+    private var sortMenu: some View {
+        Menu {
+            Picker(L10n.tr("task.sort.created"), selection: $sortOptionRaw) {
+                Text(L10n.tr("task.sort.descending")).tag(TaskSortOption.createdDesc.rawValue)
+                Text(L10n.tr("task.sort.ascending")).tag(TaskSortOption.createdAsc.rawValue)
+            }
+            .pickerStyle(.inline)
+            Picker(L10n.tr("task.sort.last_run"), selection: $sortOptionRaw) {
+                Text(L10n.tr("task.sort.descending")).tag(TaskSortOption.lastRunDesc.rawValue)
+                Text(L10n.tr("task.sort.ascending")).tag(TaskSortOption.lastRunAsc.rawValue)
+            }
+            .pickerStyle(.inline)
+        } label: {
+            Image(systemName: "arrow.up.arrow.down")
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .pointerCursor()
+    }
+
     @ViewBuilder
     private func taskRow(_ task: ScheduledTask) -> some View {
         TaskListRow(
@@ -194,6 +218,10 @@ struct TaskListView: View {
                     }
                     ActionToast.notify(.started(taskName: task.name), wantsBanner: task.notifyOnAction)
                 }
+            }
+            Button(task.isEnabled ? L10n.tr("task.detail.disable") : L10n.tr("task.detail.enable"),
+                   systemImage: task.isEnabled ? "pause.circle" : "play.circle") {
+                toggleTaskEnabled(task, context: modelContext)
             }
             Divider()
             Button(L10n.tr("task.duplicate"), systemImage: "doc.on.doc") {
@@ -284,8 +312,20 @@ struct TaskListRow: View {
         return f
     }()
 
-    private var statusDotFill: Color {
-        task.isEnabled ? .green : .gray.opacity(0.35)
+    /// Only reachable for enabled tasks that have never run — disabled tasks
+    /// short-circuit to the pause icon before the dot branch.
+    private var statusDotFill: Color { .green }
+
+    /// Tooltip for the status indicator. The icons carry a lot of meaning for
+    /// something this small, so spell it out on hover: running / disabled /
+    /// last execution's outcome / enabled-but-never-run.
+    private var statusHelpText: String {
+        if isRunning { return ExecutionStatus.running.displayName }
+        if !task.isEnabled { return L10n.tr("task.status.disabled") }
+        if let status = latestExecutionStatus {
+            return L10n.tr("task.status.last_run", status.displayName)
+        }
+        return L10n.tr("task.status.enabled")
     }
 
     /// The most recent completed or in-progress execution's status, derived
@@ -298,28 +338,45 @@ struct TaskListRow: View {
     }
 
     var body: some View {
-        HStack(spacing: 10) {
+        HStack(alignment: .top, spacing: 10) {
             // Status indicator: the latest execution's icon, same family and
-            // colours as the "最近执行" list (issue #44). Tasks that never
-            // ran fall back to the plain enabled/disabled dot; a disabled
-            // task's icon is dimmed so the enabled/disabled signal survives.
+            // colours as the "最近执行" list (issue #44). Disabled tasks show
+            // a uniform grey pause icon instead — "this won't fire on its own"
+            // is the more useful signal there, and identical icons let the
+            // disabled rows be picked out at a glance. A disabled task can
+            // still be run manually, so `isRunning` wins over both.
             ZStack {
-                if let status = isRunning ? .running : latestExecutionStatus {
+                if let status = isRunning ? .running : (task.isEnabled ? latestExecutionStatus : nil) {
                     Image(systemName: status.iconName)
                         .font(.system(size: 13))
+                        .scaleEffect(status.iconScale)
                         .foregroundStyle(status.color)
-                        .opacity(task.isEnabled || isRunning ? 1 : 0.4)
+                } else if !task.isEnabled {
+                    Image(systemName: "pause.circle.fill")
+                        .font(.system(size: 13))
+                        .foregroundStyle(.gray)
                 } else {
                     Circle()
                         .fill(statusDotFill)
                         .frame(width: 10, height: 10)
                 }
             }
-            .frame(width: 18)
+            // Height is the measured line height of `.body` (16pt) so the icon
+            // centres on the title rather than on the whole two-line block.
+            // The extra 2pt is optical compensation: geometric centring reads
+            // as "too high" against all-lowercase Latin names, whose x-height
+            // sits lower than CJK glyphs of the same line height.
+            .frame(width: 18, height: 16)
+            .padding(.top, 2)
+            // `contentShape` so the tooltip covers the whole 18pt slot, not
+            // just the glyph's own pixels — a 15pt icon is a small target.
+            .contentShape(Rectangle())
+            .help(statusHelpText)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(task.name)
                     .font(.system(.body, weight: .medium))
+                    .foregroundStyle(task.isEnabled ? .primary : .secondary)
                     .lineLimit(1)
 
                 HStack(spacing: 4) {
@@ -369,6 +426,10 @@ struct TaskListRow: View {
             if isRunning {
                 ProgressView()
                     .controlSize(.mini)
+                    // Same first-line alignment as the status icon, now that
+                    // the row stack is top-aligned.
+                    .frame(height: 16)
+                    .padding(.top, 2)
                     // Force white on the selected row — without an explicit
                     // tint the spinner stays accent-coloured and disappears
                     // into the selection background.

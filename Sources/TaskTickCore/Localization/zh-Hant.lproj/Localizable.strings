@@ -25,6 +25,7 @@
 "task.interval.seconds" = "%d 秒";
 "task.status.enabled" = "已啟用";
 "task.status.disabled" = "已停用";
+"task.status.last_run" = "最近執行：%@";
 "task.duplicate" = "複製";
 "task.duplicate.name" = "%@（副本）";
 "task.reveal_script" = "在 Finder 顯示腳本";

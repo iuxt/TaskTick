@@ -15,23 +15,11 @@ struct MainWindowView: View {
         NavigationSplitView {
             TaskListView(selectedTask: $selectedTask, sortOptionRaw: $sortOptionRaw)
                 .navigationSplitViewColumnWidth(min: 230, ideal: 270, max: 350)
+                // Keep the sidebar toolbar down to a single item. macOS 26 sizes
+                // toolbar overflow against the *column* width, so a second item
+                // pushed "+" into the "»" overflow menu at narrow sidebar widths
+                // (issue #46). Sorting now lives in the filter bar instead.
                 .toolbar {
-                    ToolbarItem(placement: .automatic) {
-                        Menu {
-                            Picker(L10n.tr("task.sort.created"), selection: $sortOptionRaw) {
-                                Text(L10n.tr("task.sort.descending")).tag(TaskSortOption.createdDesc.rawValue)
-                                Text(L10n.tr("task.sort.ascending")).tag(TaskSortOption.createdAsc.rawValue)
-                            }
-                            .pickerStyle(.inline)
-                            Picker(L10n.tr("task.sort.last_run"), selection: $sortOptionRaw) {
-                                Text(L10n.tr("task.sort.descending")).tag(TaskSortOption.lastRunDesc.rawValue)
-                                Text(L10n.tr("task.sort.ascending")).tag(TaskSortOption.lastRunAsc.rawValue)
-                            }
-                            .pickerStyle(.inline)
-                        } label: {
-                            Image(systemName: "arrow.up.arrow.down")
-                        }
-                    }
                     ToolbarItem(placement: .primaryAction) {
                         Button {
                             EditorState.shared.openNew()

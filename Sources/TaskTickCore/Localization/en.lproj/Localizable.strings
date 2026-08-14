@@ -25,6 +25,7 @@
 "task.interval.seconds" = "%d sec";
 "task.status.enabled" = "Enabled";
 "task.status.disabled" = "Disabled";
+"task.status.last_run" = "Last run: %@";
 "task.duplicate" = "Duplicate";
 "task.duplicate.name" = "%@ (Copy)";
 "task.reveal_script" = "Reveal Script in Finder";

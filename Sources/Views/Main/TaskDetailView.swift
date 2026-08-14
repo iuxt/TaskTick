@@ -152,30 +152,7 @@ struct TaskDetailView: View {
                         // Action buttons
                         HStack(spacing: 8) {
                             Button {
-                                // Snapshot all three fields so a save failure can restore the
-                                // exact persisted state, not a recomputed approximation.
-                                let prevEnabled = task.isEnabled
-                                let prevNextRunAt = task.nextRunAt
-                                let prevUpdatedAt = task.updatedAt
-
-                                task.isEnabled.toggle()
-                                task.updatedAt = Date()
-                                if task.isEnabled {
-                                    task.nextRunAt = TaskScheduler.shared.computeNextRunDate(for: task)
-                                } else {
-                                    task.nextRunAt = nil
-                                }
-                                do {
-                                    try modelContext.save()
-                                    TaskScheduler.shared.rebuildSchedule()
-                                } catch {
-                                    task.isEnabled = prevEnabled
-                                    task.nextRunAt = prevNextRunAt
-                                    task.updatedAt = prevUpdatedAt
-                                    presentErrorAlert(titleKey: "error.save_failed.title",
-                                                      messageKey: "error.save_failed.message",
-                                                      error: error)
-                                }
+                                toggleTaskEnabled(task, context: modelContext)
                             } label: {
                                 Label(
                                     task.isEnabled ? L10n.tr("task.detail.disable") : L10n.tr("task.detail.enable"),
