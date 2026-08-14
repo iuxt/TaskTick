@@ -6,11 +6,10 @@ DerivedData/
 .DS_Store
 CLAUDE.md
 .claude/
-docs/superpowers/*
-!docs/superpowers/specs/
-!docs/superpowers/specs/**
-!docs/superpowers/plans/
-!docs/superpowers/plans/**
+docs/superpowers/
+docs/script-editor-roadmap.md
 .dev-build/
 .release/
+.release-test/
 .worktrees/
+status-cache.json
