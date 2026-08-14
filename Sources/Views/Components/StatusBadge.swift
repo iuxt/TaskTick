@@ -1,13 +1,11 @@
 import SwiftUI
 import TaskTickCore
 
-/// A small badge displaying execution status with color and icon.
-struct StatusBadge: View {
-    let status: ExecutionStatus
-    var compact: Bool = false
-
+extension ExecutionStatus {
+    /// Semantic colour for this status, shared by every place that renders
+    /// execution state (StatusBadge, sidebar row indicator, …).
     var color: Color {
-        switch status {
+        switch self {
         case .running: .blue
         case .success: .green
         case .failure: .red
@@ -15,6 +13,14 @@ struct StatusBadge: View {
         case .cancelled: .gray
         }
     }
+}
+
+/// A small badge displaying execution status with color and icon.
+struct StatusBadge: View {
+    let status: ExecutionStatus
+    var compact: Bool = false
+
+    var color: Color { status.color }
 
     var body: some View {
         HStack(spacing: 4) {
