@@ -209,6 +209,18 @@ public final class ScheduledTask {
     /// scripts stay silent on no-op runs and only chirp when they actually do work
     /// (`echo` something). Default `false` keeps existing tasks' behavior unchanged.
     public var notifyOnlyWhenOutput: Bool = false
+    /// Opt-in for `notificationTemplate` (issue #48). Off by default, so every
+    /// existing task keeps the built-in wording after SwiftData migration.
+    /// Kept separate from the text itself so switching back to the default
+    /// wording doesn't throw away a template the user wrote.
+    public var notificationTemplateEnabled: Bool = false
+    /// Custom reminder body, shared by every delivery channel — system
+    /// notification, Bark push and the strong-reminder panel. The channel
+    /// decides *how* the reminder shows up; this decides *what* it says.
+    /// Supports `{{output}}`, `{{firstLine}}`, `{{lastLine}}`, `{{name}}`,
+    /// `{{duration}}`, `{{exitCode}}` and `{{status}}` placeholders. Only
+    /// consulted when `notificationTemplateEnabled` is on.
+    public var notificationTemplate: String = ""
     public var runMissedExecution: Bool = false
     /// When true, fires once every time `TaskScheduler.start()` runs (i.e. each
     /// app launch). Independent of any time-based schedule. See issue #25.

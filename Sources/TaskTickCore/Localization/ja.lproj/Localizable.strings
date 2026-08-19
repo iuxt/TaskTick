@@ -112,6 +112,10 @@
 "editor.notify_action.hint" = "有効にすると、このタスクを手動で実行・停止・再起動したときに通知バナーが表示されます。";
 "editor.notify_only_when_output" = "出力がある場合のみ通知";
 "editor.notify_only_when_output.hint" = "有効にすると、実行が成功しても stdout に出力がない場合は通知されません。`echo` で実際に通知する価値のある内容が出力されたときのみ通知されます。";
+"editor.notify_template" = "リマインダー内容";
+"editor.notify_template.enable" = "通知内容をカスタマイズ";
+"editor.notify_template.hint" = "スクリプト出力の要約の代わりに、入力した内容を表示します。システム通知・Bark プッシュ・強調リマインダーのすべてに適用されます。";
+"editor.notify_template.placeholders" = "使用できる変数：{{output}} 出力 · {{firstLine}} 最初の行 · {{lastLine}} 最後の行 · {{name}} タスク名 · {{duration}} 実行時間 · {{exitCode}} 終了コード · {{status}} 成功/失敗";
 "editor.notify_hint" = "タスク完了時にmacOSのシステム通知で通知されます。";
 "editor.notify_bark" = "Bark プッシュ";
 "editor.notify_bark.hint" = "有効にすると、このタスクの完了時に Bark 通知を送ります。URL は設定で入力します。";
@@ -120,7 +124,7 @@
 "editor.notify_bark.missing_url" = "Bark URL が未設定です。設定で Bark アプリのデバイス URL を入力してください。";
 "editor.notify_bark.on" = "オン";
 "editor.strong_reminder" = "成功時に強調リマインダー";
-"editor.strong_reminder_hint" = "タスク成功時に出力全文を表示するフローティングパネルを表示します。";
+"editor.strong_reminder_hint" = "タスク成功時にフローティングパネルを表示し、上のリマインダー内容を示します。未入力の場合は出力全文を表示します。";
 "editor.strong_reminder_short" = " 強調リマインダー";
 "strong_reminder.dismiss" = "OK";
 "strong_reminder.output" = "出力";

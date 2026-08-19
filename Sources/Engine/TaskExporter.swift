@@ -52,6 +52,10 @@ struct TaskExporter {
         /// Per-task Bark push opt-in. Optional so older exports still decode.
         let barkPushEnabled: Bool?
         let barkNotifyOnOutputChange: Bool?
+        /// Custom reminder body shared by all channels (issue #48). Optional so
+        /// older exports still decode; nil restores as "default wording".
+        let notificationTemplateEnabled: Bool?
+        let notificationTemplate: String?
     }
 
     /// Export all tasks to a JSON file
@@ -187,7 +191,9 @@ struct TaskExporter {
             jitterSeconds: task.jitterSeconds > 0 ? task.jitterSeconds : nil,
             timeZoneIdentifier: task.timeZoneIdentifier,
             barkPushEnabled: task.barkPushEnabled,
-            barkNotifyOnOutputChange: task.barkNotifyOnOutputChange
+            barkNotifyOnOutputChange: task.barkNotifyOnOutputChange,
+            notificationTemplateEnabled: task.notificationTemplateEnabled ? true : nil,
+            notificationTemplate: task.notificationTemplate.isEmpty ? nil : task.notificationTemplate
         )
     }
 
@@ -237,6 +243,8 @@ struct TaskExporter {
         if let v = item.notifyOnlyWhenOutput { task.notifyOnlyWhenOutput = v }
         if let v = item.barkPushEnabled { task.barkPushEnabled = v }
         if let v = item.barkNotifyOnOutputChange { task.barkNotifyOnOutputChange = v }
+        if let v = item.notificationTemplateEnabled { task.notificationTemplateEnabled = v }
+        if let v = item.notificationTemplate { task.notificationTemplate = v }
         if let v = item.isManualOnly { task.isManualOnly = v }
         if let strings = item.additionalTimes, !strings.isEmpty {
             let comps = strings.compactMap { s -> DateComponents? in

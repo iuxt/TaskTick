@@ -112,6 +112,10 @@
 "editor.notify_action.hint" = "啟用後，手動執行、停止或重新啟動該任務時會彈出系統通知橫幅。";
 "editor.notify_only_when_output" = "僅在有輸出時通知";
 "editor.notify_only_when_output.hint" = "啟用後，執行成功但指令稿沒有任何 stdout 輸出（例如輪詢空跑）將不彈出通知；只在指令稿透過 `echo` 主動印出業務資訊時才會通知。";
+"editor.notify_template" = "提醒內容";
+"editor.notify_template.enable" = "自訂通知內容";
+"editor.notify_template.hint" = "用你撰寫的內容取代指令稿輸出摘要，系統通知、Bark 推播、強提醒都會顯示它。";
+"editor.notify_template.placeholders" = "可用變數：{{output}} 指令稿輸出 · {{firstLine}} 首行 · {{lastLine}} 末行 · {{name}} 任務名稱 · {{duration}} 耗時 · {{exitCode}} 結束代碼 · {{status}} 成功/失敗";
 "editor.notify_hint" = "任務完成時透過 macOS 系統通知推播。";
 "editor.notify_bark" = "Bark 推送";
 "editor.notify_bark.hint" = "開啟後，此任務完成時會傳送 Bark 推送。推送地址在 App 設定中填寫。";
@@ -120,7 +124,7 @@
 "editor.notify_bark.missing_url" = "尚未填寫 Bark 推送地址，請先到設定中貼上 Bark App 複製的裝置地址。";
 "editor.notify_bark.on" = "已開啟";
 "editor.strong_reminder" = "成功時強提醒";
-"editor.strong_reminder_hint" = "任務成功後彈出浮動面板，顯示完整輸出內容。";
+"editor.strong_reminder_hint" = "任務成功後彈出浮動面板，顯示上方的提醒內容；未填寫時顯示完整輸出。";
 "editor.strong_reminder_short" = "強提醒";
 "strong_reminder.dismiss" = "我知道了";
 "strong_reminder.output" = "輸出";

@@ -112,6 +112,10 @@
 "editor.notify_action.hint" = "Jika diaktifkan, menjalankan, menghentikan, atau memulai ulang tugas ini secara manual akan menampilkan banner notifikasi.";
 "editor.notify_only_when_output" = "Beri Tahu Hanya Jika Ada Output";
 "editor.notify_only_when_output.hint" = "Jika diaktifkan, eksekusi yang berhasil tanpa stdout akan tetap senyap. Gunakan `echo` hanya saat ada sesuatu yang benar-benar layak diberitahukan.";
+"editor.notify_template" = "Isi Pengingat";
+"editor.notify_template.enable" = "Sesuaikan Isi Notifikasi";
+"editor.notify_template.hint" = "Mengganti ringkasan keluaran skrip dengan teks Anda sendiri. Berlaku untuk semua pengingat — notifikasi sistem, push Bark, dan pengingat kuat.";
+"editor.notify_template.placeholders" = "Variabel: {{output}} keluaran · {{firstLine}} baris pertama · {{lastLine}} baris terakhir · {{name}} nama tugas · {{duration}} durasi · {{exitCode}} kode keluar · {{status}} berhasil/gagal";
 "editor.notify_hint" = "Notifikasi dikirim melalui notifikasi sistem macOS saat tugas selesai.";
 "editor.notify_bark" = "Push Bark";
 "editor.notify_bark.hint" = "Jika diaktifkan, tugas ini mengirim notifikasi Bark saat selesai. URL diatur di Pengaturan.";
@@ -120,7 +124,7 @@
 "editor.notify_bark.missing_url" = "URL Bark belum diisi. Buka Pengaturan dan tempel URL perangkat dari aplikasi Bark.";
 "editor.notify_bark.on" = "Aktif";
 "editor.strong_reminder" = "Pengingat Kuat saat Berhasil";
-"editor.strong_reminder_hint" = "Tampilkan panel mengambang dengan output lengkap saat tugas berhasil.";
+"editor.strong_reminder_hint" = "Menampilkan panel mengambang saat tugas berhasil, berisi isi pengingat di atas. Jika kosong, seluruh keluaran ditampilkan.";
 "editor.strong_reminder_short" = " Pengingat Kuat";
 "strong_reminder.dismiss" = "OK";
 "strong_reminder.output" = "Output";

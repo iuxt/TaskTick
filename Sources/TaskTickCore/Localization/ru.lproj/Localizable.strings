@@ -112,6 +112,10 @@
 "editor.notify_action.hint" = "Если включено, при ручном запуске, остановке или перезапуске этой задачи появляется баннер уведомления.";
 "editor.notify_only_when_output" = "Уведомлять только при наличии вывода";
 "editor.notify_only_when_output.hint" = "Если включено, успешный запуск без вывода в stdout остаётся беззвучным. Используйте `echo` только тогда, когда действительно произошло что-то, о чём стоит уведомить.";
+"editor.notify_template" = "Текст напоминания";
+"editor.notify_template.enable" = "Свой текст уведомления";
+"editor.notify_template.hint" = "Заменяет сводку вывода скрипта вашим текстом. Действует для всех напоминаний — системного уведомления, push в Bark и усиленного напоминания.";
+"editor.notify_template.placeholders" = "Переменные: {{output}} вывод · {{firstLine}} первая строка · {{lastLine}} последняя строка · {{name}} имя задачи · {{duration}} длительность · {{exitCode}} код выхода · {{status}} успех/ошибка";
 "editor.notify_hint" = "Уведомления отправляются через системные уведомления macOS по завершении задачи.";
 "editor.notify_bark" = "Push Bark";
 "editor.notify_bark.hint" = "Если включено, эта задача отправит уведомление Bark по завершении. URL задаётся в настройках.";
@@ -120,7 +124,7 @@
 "editor.notify_bark.missing_url" = "URL Bark не задан. Откройте настройки и вставьте URL устройства из приложения Bark.";
 "editor.notify_bark.on" = "Вкл.";
 "editor.strong_reminder" = "Усиленное напоминание при успехе";
-"editor.strong_reminder_hint" = "Показать плавающую панель с полным выводом при успешном выполнении задачи.";
+"editor.strong_reminder_hint" = "Показывает плавающее окно при успешном выполнении с текстом напоминания выше. Если он пуст, выводится полный вывод скрипта.";
 "editor.strong_reminder_short" = " Усиленное напоминание";
 "strong_reminder.dismiss" = "ОК";
 "strong_reminder.output" = "Вывод";

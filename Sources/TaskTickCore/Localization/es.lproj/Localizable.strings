@@ -112,6 +112,10 @@
 "editor.notify_action.hint" = "Al activarse, ejecutar, detener o reiniciar esta tarea manualmente muestra un banner de notificación.";
 "editor.notify_only_when_output" = "Notificar solo si hay salida";
 "editor.notify_only_when_output.hint" = "Al activarse, una ejecución exitosa sin stdout no genera notificación. Usa `echo` solo cuando ocurra algo que valga la pena notificar.";
+"editor.notify_template" = "Contenido del recordatorio";
+"editor.notify_template.enable" = "Personalizar el contenido de la notificación";
+"editor.notify_template.hint" = "Sustituye el resumen de la salida del script por tu propio texto. Se aplica a todos los recordatorios: notificación del sistema, envío de Bark y recordatorio destacado.";
+"editor.notify_template.placeholders" = "Variables: {{output}} salida · {{firstLine}} primera línea · {{lastLine}} última línea · {{name}} nombre de la tarea · {{duration}} duración · {{exitCode}} código de salida · {{status}} éxito/fallo";
 "editor.notify_hint" = "Las notificaciones se envían a través del sistema de notificaciones de macOS cuando una tarea finaliza.";
 "editor.notify_bark" = "Push de Bark";
 "editor.notify_bark.hint" = "Si está activado, esta tarea envía una notificación Bark al terminar. La URL se configura en Ajustes.";
@@ -120,7 +124,7 @@
 "editor.notify_bark.missing_url" = "No hay URL de Bark. Ábrela en Ajustes y pega la URL del dispositivo de la app Bark.";
 "editor.notify_bark.on" = "Activado";
 "editor.strong_reminder" = "Recordatorio destacado al completar";
-"editor.strong_reminder_hint" = "Mostrar un panel flotante con la salida completa cuando la tarea se ejecuta correctamente.";
+"editor.strong_reminder_hint" = "Muestra un panel flotante cuando la tarea termina con éxito, con el contenido del recordatorio anterior. Si está vacío, muestra la salida completa.";
 "editor.strong_reminder_short" = " Recordatorio destacado";
 "strong_reminder.dismiss" = "Aceptar";
 "strong_reminder.output" = "Salida";

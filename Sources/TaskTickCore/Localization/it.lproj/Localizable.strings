@@ -112,6 +112,10 @@
 "editor.notify_action.hint" = "Se abilitato, l'avvio, l'interruzione o il riavvio manuale di questa attività mostra un banner di notifica.";
 "editor.notify_only_when_output" = "Notifica solo in presenza di output";
 "editor.notify_only_when_output.hint" = "Se abilitato, un'esecuzione riuscita senza stdout resta silenziosa. Usa `echo` solo quando accade davvero qualcosa che vale la pena notificare.";
+"editor.notify_template" = "Contenuto del promemoria";
+"editor.notify_template.enable" = "Personalizza il contenuto della notifica";
+"editor.notify_template.hint" = "Sostituisce il riepilogo dell'output dello script con il testo che scrivi. Vale per tutti i promemoria: notifica di sistema, push Bark e promemoria in evidenza.";
+"editor.notify_template.placeholders" = "Variabili: {{output}} output · {{firstLine}} prima riga · {{lastLine}} ultima riga · {{name}} nome attività · {{duration}} durata · {{exitCode}} codice di uscita · {{status}} successo/errore";
 "editor.notify_hint" = "Le notifiche vengono inviate tramite il sistema di notifiche di macOS al termine di un'attività.";
 "editor.notify_bark" = "Push Bark";
 "editor.notify_bark.hint" = "Se attivato, questa attività invia una notifica Bark al termine. L'URL si imposta in Impostazioni.";
@@ -120,7 +124,7 @@
 "editor.notify_bark.missing_url" = "URL Bark non impostato. Apri Impostazioni e incolla l'URL del dispositivo dall'app Bark.";
 "editor.notify_bark.on" = "Attivo";
 "editor.strong_reminder" = "Promemoria forte in caso di successo";
-"editor.strong_reminder_hint" = "Mostra un pannello mobile con l'output completo quando l'attività ha successo.";
+"editor.strong_reminder_hint" = "Mostra un pannello mobile quando l'attività riesce, con il contenuto del promemoria qui sopra. Se è vuoto, mostra l'output completo.";
 "editor.strong_reminder_short" = " Promemoria forte";
 "strong_reminder.dismiss" = "OK";
 "strong_reminder.output" = "Output";

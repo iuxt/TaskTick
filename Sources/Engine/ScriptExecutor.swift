@@ -123,6 +123,9 @@ final class ScriptExecutor: ObservableObject {
         let barkPushEnabled = task.barkPushEnabled
         let barkNotifyOnOutputChange = task.barkNotifyOnOutputChange
         let strongReminder = task.strongReminder
+        // Switch off → empty template → every channel keeps its default wording,
+        // while the text the user wrote stays on the task for later.
+        let notificationTemplate = task.notificationTemplateEnabled ? task.notificationTemplate : ""
         let logId = log.id
 
         // Shortcut tasks bypass the shell pipeline entirely. The editor blocks
@@ -246,10 +249,28 @@ final class ScriptExecutor: ObservableObject {
         let globalNotificationsEnabled = UserDefaults.standard.object(forKey: "notificationsEnabled") as? Bool ?? true
         let durationText = "\(L10n.tr("notification.duration")) \(ExecutionLog.formatDuration(durationMs))"
 
+        // A task's custom reminder text (issue #48) is rendered once and shared
+        // by all three channels below — notification, Bark, strong reminder —
+        // so the same run reads identically wherever the user sees it. nil
+        // means "no template configured": each channel keeps its own wording.
+        let customBody = NotificationTemplate.render(
+            notificationTemplate,
+            context: NotificationTemplate.Context(
+                taskName: taskName,
+                stdout: result.stdout,
+                stderr: result.stderr,
+                exitCode: result.exitCode,
+                durationMs: durationMs,
+                succeeded: result.status == .success
+            )
+        )
+        let customPushBody = customBody.map(NotificationTemplate.clampForPush)
+
         if result.status != .success {
             let exitInfo = "Exit code: \(result.exitCode ?? -1)"
             let stderrLine = result.stderr.components(separatedBy: .newlines).first(where: { !$0.trimmingCharacters(in: .whitespaces).isEmpty }) ?? ""
-            let body = [exitInfo, durationText, stderrLine].filter { !$0.isEmpty }.joined(separator: " · ")
+            let body = customPushBody
+                ?? [exitInfo, durationText, stderrLine].filter { !$0.isEmpty }.joined(separator: " · ")
             let title = "[\(L10n.tr("notification.failed"))] \(taskName)"
             if globalNotificationsEnabled && notifyOnFailure {
                 NotificationManager.shared.sendNotification(title: title, body: body)
@@ -273,15 +294,11 @@ final class ScriptExecutor: ObservableObject {
             if !(notifyOnlyWhenOutput && trimmedStdout.isEmpty) {
                 // Prefer stdout, fall back to stderr when stdout has no meaningful content
                 let outputSource = ScriptExecutor.hasMeaningfulContent(result.stdout) ? result.stdout : result.stderr
-                let outputLine = outputSource.components(separatedBy: .newlines).first(where: {
-                    let trimmed = $0.trimmingCharacters(in: .whitespaces)
-                    guard !trimmed.isEmpty else { return false }
-                    let stripped = trimmed.filter { !("─═—–-=_*#~".contains($0)) }
-                    return !stripped.isEmpty
-                }) ?? ""
+                let outputLine = NotificationTemplate.firstMeaningfulLine(of: outputSource)
                 let body = [durationText, outputLine].filter { !$0.isEmpty }.joined(separator: " · ")
                 let title = "[\(L10n.tr("notification.succeeded"))] \(taskName)"
-                let resolvedBody = body.isEmpty ? L10n.tr("notification.success") : body
+                let resolvedBody = customPushBody
+                    ?? (body.isEmpty ? L10n.tr("notification.success") : body)
                 if globalNotificationsEnabled && notifyOnSuccess {
                     NotificationManager.shared.sendNotification(title: title, body: resolvedBody)
                 }
@@ -298,11 +315,13 @@ final class ScriptExecutor: ObservableObject {
             }
         }
 
-        // Strong reminder: show floating panel with full output
+        // Strong reminder: show floating panel with the custom reminder text, or
+        // the full output when the task has no template.
         // Prefer stdout (actual results); fall back to stderr only if stdout is truly empty
         if result.status == .success && strongReminder {
             let trimmedStdout = result.stdout.trimmingCharacters(in: .whitespacesAndNewlines)
-            let output = trimmedStdout.isEmpty ? result.stderr : result.stdout
+            // The panel scrolls, so it shows the unclamped text.
+            let output = customBody ?? (trimmedStdout.isEmpty ? result.stderr : result.stdout)
             StrongReminderPanel.shared.show(
                 taskName: taskName,
                 output: output,
@@ -505,7 +524,9 @@ final class ScriptExecutor: ObservableObject {
     }
 
     /// Check if a string contains meaningful printable content (not just whitespace).
-    static func hasMeaningfulContent(_ text: String) -> Bool {
+    /// Pure string math with no actor state, so `NotificationTemplate` can pick
+    /// the same output stream off the main actor.
+    nonisolated static func hasMeaningfulContent(_ text: String) -> Bool {
         text.contains(where: { !$0.isWhitespace && !$0.isNewline && ($0.asciiValue.map({ $0 >= 32 }) ?? true) })
     }
 

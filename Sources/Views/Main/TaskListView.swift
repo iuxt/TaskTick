@@ -280,6 +280,8 @@ struct TaskListView: View {
         copy.runOnLaunch = task.runOnLaunch
         copy.notifyOnAction = task.notifyOnAction
         copy.notifyOnlyWhenOutput = task.notifyOnlyWhenOutput
+        copy.notificationTemplateEnabled = task.notificationTemplateEnabled
+        copy.notificationTemplate = task.notificationTemplate
         copy.barkPushEnabled = task.barkPushEnabled
         copy.barkNotifyOnOutputChange = task.barkNotifyOnOutputChange
         copy.strongReminder = task.strongReminder

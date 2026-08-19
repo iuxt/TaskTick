@@ -112,6 +112,10 @@
 "editor.notify_action.hint" = "활성화하면 이 작업을 수동으로 실행, 중지 또는 재시작할 때 시스템 알림 배너가 표시됩니다.";
 "editor.notify_only_when_output" = "출력이 있을 때만 알림";
 "editor.notify_only_when_output.hint" = "활성화하면 실행에 성공했지만 stdout 출력이 없는 경우 알림을 보내지 않습니다. 스크립트가 `echo`로 알릴 만한 정보를 실제로 출력했을 때만 알림이 전송됩니다.";
+"editor.notify_template" = "알림 내용";
+"editor.notify_template.enable" = "알림 내용 사용자 지정";
+"editor.notify_template.hint" = "스크립트 출력 요약 대신 직접 작성한 내용을 표시합니다. 시스템 알림, Bark 푸시, 강조 알림에 모두 적용됩니다.";
+"editor.notify_template.placeholders" = "사용 가능한 변수: {{output}} 출력 · {{firstLine}} 첫 줄 · {{lastLine}} 마지막 줄 · {{name}} 작업 이름 · {{duration}} 소요 시간 · {{exitCode}} 종료 코드 · {{status}} 성공/실패";
 "editor.notify_hint" = "작업 완료 시 macOS 시스템 알림으로 전송됩니다.";
 "editor.notify_bark" = "Bark 푸시";
 "editor.notify_bark.hint" = "켜면 이 작업이 완료될 때 Bark 알림을 보냅니다. 주소는 설정에서 입력합니다.";
@@ -120,7 +124,7 @@
 "editor.notify_bark.missing_url" = "Bark URL이 없습니다. 설정에서 Bark 앱의 기기 URL을 입력하세요.";
 "editor.notify_bark.on" = "켜짐";
 "editor.strong_reminder" = "성공 시 강조 알림";
-"editor.strong_reminder_hint" = "작업 성공 시 전체 출력이 포함된 플로팅 패널을 표시합니다.";
+"editor.strong_reminder_hint" = "작업이 성공하면 플로팅 패널을 띄워 위의 알림 내용을 표시합니다. 비어 있으면 전체 출력을 표시합니다.";
 "editor.strong_reminder_short" = " 강조 알림";
 "strong_reminder.dismiss" = "확인";
 "strong_reminder.output" = "출력";

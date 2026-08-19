@@ -112,6 +112,10 @@
 "editor.notify_action.hint" = "开启后，手动运行、停止或重启该任务时会弹出系统通知横幅。";
 "editor.notify_only_when_output" = "仅在有输出时通知";
 "editor.notify_only_when_output.hint" = "开启后，执行成功但脚本没有任何 stdout 输出（例如轮询空跑）将不弹通知；只在脚本通过 `echo` 主动打印业务信息时才通知。";
+"editor.notify_template" = "提醒内容";
+"editor.notify_template.enable" = "自定义通知内容";
+"editor.notify_template.hint" = "用你写的内容取代脚本输出摘要，系统通知、Bark 推送、强提醒都会显示它。";
+"editor.notify_template.placeholders" = "可用变量：{{output}} 脚本输出 · {{firstLine}} 首行 · {{lastLine}} 末行 · {{name}} 任务名 · {{duration}} 耗时 · {{exitCode}} 退出码 · {{status}} 成功/失败";
 "editor.notify_hint" = "任务完成时通过 macOS 系统通知推送。";
 "editor.notify_bark" = "Bark 推送";
 "editor.notify_bark.hint" = "开启后，该任务完成时会发送 Bark 推送。推送地址在 App 设置中填写。";
@@ -120,7 +124,7 @@
 "editor.notify_bark.missing_url" = "尚未填写 Bark 推送地址，请先到设置中填入 Bark App 里复制的设备地址。";
 "editor.notify_bark.on" = "已开启";
 "editor.strong_reminder" = "成功时强提醒";
-"editor.strong_reminder_hint" = "任务成功后弹出浮动面板，显示完整输出内容。";
+"editor.strong_reminder_hint" = "任务成功后弹出浮动面板，显示上方的提醒内容；未填写时显示完整输出。";
 "editor.strong_reminder_short" = "强提醒";
 "strong_reminder.dismiss" = "我知道了";
 "strong_reminder.output" = "输出";

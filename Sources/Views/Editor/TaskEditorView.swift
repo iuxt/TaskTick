@@ -85,6 +85,8 @@ struct TaskEditorView: View {
     @State private var notifyOnFailure = true
     @State private var notifyOnAction = false
     @State private var notifyOnlyWhenOutput = false
+    @State private var notificationTemplateEnabled = false
+    @State private var notificationTemplate = ""
     @State private var barkPushEnabled = false
     @State private var barkNotifyOnOutputChange = false
     @AppStorage("barkServerURL") private var barkServerURL = ""
@@ -833,6 +835,35 @@ struct TaskEditorView: View {
 
     private var notificationTab: some View {
         Form {
+            // Content first, delivery channels below: the sections that follow
+            // pick *how* a reminder shows up, this one picks *what* it says —
+            // and it feeds all three of them (issue #48). Off by default, so
+            // the notification wording only changes when the user asks for it.
+            Section {
+                Toggle(isOn: $notificationTemplateEnabled) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(L10n.tr("editor.notify_template.enable"))
+                        Text(L10n.tr("editor.notify_template.hint"))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                if notificationTemplateEnabled {
+                    TextEditor(text: $notificationTemplate)
+                        .font(.system(size: 12, design: .monospaced))
+                        .frame(minHeight: 60)
+                        .scrollContentBackground(.hidden)
+                }
+            } header: {
+                Text(L10n.tr("editor.notify_template"))
+            } footer: {
+                if notificationTemplateEnabled {
+                    Text(L10n.tr("editor.notify_template.placeholders"))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+
             Section {
                 Toggle(L10n.tr("editor.notify_success"), isOn: $notifyOnSuccess)
                 Toggle(L10n.tr("editor.notify_failure"), isOn: $notifyOnFailure)
@@ -1157,6 +1188,8 @@ struct TaskEditorView: View {
         notifyOnFailure = true
         notifyOnAction = false
         notifyOnlyWhenOutput = false
+        notificationTemplateEnabled = false
+        notificationTemplate = ""
         barkPushEnabled = false
         barkNotifyOnOutputChange = false
         strongReminder = false
@@ -1188,6 +1221,8 @@ struct TaskEditorView: View {
         notifyOnFailure = task.notifyOnFailure
         notifyOnAction = task.notifyOnAction
         notifyOnlyWhenOutput = task.notifyOnlyWhenOutput
+        notificationTemplateEnabled = task.notificationTemplateEnabled
+        notificationTemplate = task.notificationTemplate
         barkPushEnabled = task.barkPushEnabled
         barkNotifyOnOutputChange = task.barkNotifyOnOutputChange
         strongReminder = task.strongReminder
@@ -1252,6 +1287,8 @@ struct TaskEditorView: View {
         target.notifyOnFailure = notifyOnFailure
         target.notifyOnAction = notifyOnAction
         target.notifyOnlyWhenOutput = notifyOnlyWhenOutput
+        target.notificationTemplateEnabled = notificationTemplateEnabled
+        target.notificationTemplate = notificationTemplate.trimmingCharacters(in: .whitespacesAndNewlines)
         target.barkPushEnabled = barkPushEnabled
         target.barkNotifyOnOutputChange = barkNotifyOnOutputChange
         target.strongReminder = strongReminder
