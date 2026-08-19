@@ -52,6 +52,12 @@
 "task.detail.recent_logs" = "최근 실행";
 "task.detail.no_logs" = "실행 기록이 없습니다";
 "task.detail.view_logs" = "로그 보기";
+"task.detail.last_output" = "마지막 출력";
+"task.detail.last_output.running" = "실행 중입니다. 완료되면 출력이 표시됩니다";
+"task.detail.last_output.empty" = "이번 실행에는 출력이 없습니다";
+"task.detail.last_output.truncated" = "…(출력이 길어 처음 4000자만 표시합니다)";
+"task.detail.last_output.copy" = "복사";
+"task.detail.last_output.copied" = "출력을 복사했습니다";
 "task.detail.show_full_script" = "전체 스크립트 보기";
 "task.detail.collapse_script" = "접기";
 

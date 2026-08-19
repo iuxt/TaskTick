@@ -52,6 +52,12 @@
 "task.detail.recent_logs" = "Recent Runs";
 "task.detail.no_logs" = "No execution logs yet";
 "task.detail.view_logs" = "View Logs";
+"task.detail.last_output" = "Last Output";
+"task.detail.last_output.running" = "Running — output appears when it finishes";
+"task.detail.last_output.empty" = "This run produced no output";
+"task.detail.last_output.truncated" = "…(output is long, showing the first 4000 characters)";
+"task.detail.last_output.copy" = "Copy";
+"task.detail.last_output.copied" = "Output copied";
 "task.detail.show_full_script" = "Show Full Script";
 "task.detail.collapse_script" = "Collapse";
 

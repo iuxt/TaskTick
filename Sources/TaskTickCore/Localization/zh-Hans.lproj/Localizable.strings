@@ -52,6 +52,12 @@
 "task.detail.recent_logs" = "最近执行";
 "task.detail.no_logs" = "暂无执行记录";
 "task.detail.view_logs" = "查看日志";
+"task.detail.last_output" = "最后一次输出";
+"task.detail.last_output.running" = "执行中，完成后显示输出";
+"task.detail.last_output.empty" = "本次执行没有输出";
+"task.detail.last_output.truncated" = "…（输出较长，仅显示前 4000 个字符）";
+"task.detail.last_output.copy" = "复制";
+"task.detail.last_output.copied" = "已复制输出";
 "task.detail.show_full_script" = "查看全部";
 "task.detail.collapse_script" = "收起";
 

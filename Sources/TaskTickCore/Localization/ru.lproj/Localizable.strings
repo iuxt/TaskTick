@@ -52,6 +52,12 @@
 "task.detail.recent_logs" = "Последние запуски";
 "task.detail.no_logs" = "Журнал выполнения пуст";
 "task.detail.view_logs" = "Просмотр журнала";
+"task.detail.last_output" = "Последний вывод";
+"task.detail.last_output.running" = "Выполняется — вывод появится после завершения";
+"task.detail.last_output.empty" = "Этот запуск не дал вывода";
+"task.detail.last_output.truncated" = "…(вывод длинный, показаны первые 4000 символов)";
+"task.detail.last_output.copy" = "Копировать";
+"task.detail.last_output.copied" = "Вывод скопирован";
 "task.detail.show_full_script" = "Показать скрипт полностью";
 "task.detail.collapse_script" = "Свернуть";
 

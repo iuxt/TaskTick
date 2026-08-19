@@ -52,6 +52,12 @@
 "task.detail.recent_logs" = "Ejecuciones recientes";
 "task.detail.no_logs" = "Aún no hay registros de ejecución";
 "task.detail.view_logs" = "Ver registros";
+"task.detail.last_output" = "Última salida";
+"task.detail.last_output.running" = "En ejecución: la salida aparecerá al terminar";
+"task.detail.last_output.empty" = "Esta ejecución no produjo ninguna salida";
+"task.detail.last_output.truncated" = "…(salida larga, se muestran los primeros 4000 caracteres)";
+"task.detail.last_output.copy" = "Copiar";
+"task.detail.last_output.copied" = "Salida copiada";
 "task.detail.show_full_script" = "Mostrar script completo";
 "task.detail.collapse_script" = "Contraer";
 

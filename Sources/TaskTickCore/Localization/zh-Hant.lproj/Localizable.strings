@@ -52,6 +52,12 @@
 "task.detail.recent_logs" = "最近執行";
 "task.detail.no_logs" = "暫無執行紀錄";
 "task.detail.view_logs" = "檢視日誌";
+"task.detail.last_output" = "最後一次輸出";
+"task.detail.last_output.running" = "執行中，完成後顯示輸出";
+"task.detail.last_output.empty" = "本次執行沒有輸出";
+"task.detail.last_output.truncated" = "…（輸出較長，僅顯示前 4000 個字元）";
+"task.detail.last_output.copy" = "複製";
+"task.detail.last_output.copied" = "已複製輸出";
 "task.detail.show_full_script" = "檢視全部";
 "task.detail.collapse_script" = "收起";
 

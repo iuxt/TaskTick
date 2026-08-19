@@ -45,6 +45,7 @@ struct TaskDetailView: View {
 
                     VStack(spacing: 16) {
                         recentLogsCard
+                        lastOutputCard
                     }
                     .frame(width: 300, alignment: .top)
                 }
@@ -656,6 +657,127 @@ struct TaskDetailView: View {
         .onHover { hovering in
             if hovering { hoveredLogID = log.id }
             else if hoveredLogID == log.id { hoveredLogID = nil }
+        }
+    }
+
+    // MARK: - Last Output Card
+
+    /// `ExecutionLog` already caps stored output at 512 KB. Rendering that much
+    /// monospaced text in a 300pt column would stall the detail view on every
+    /// redraw, so the card previews the head of it and points at the log sheet
+    /// for the rest.
+    private static let lastOutputPreviewLimit = 4000
+
+    /// The newest run's captured output, right under the run list — answers
+    /// "what did it print this time?" without a trip into the logs sheet.
+    private var lastOutputCard: some View {
+        let latest = task.executionLogs
+            .filter { $0.modelContext != nil }
+            .max(by: { $0.startedAt < $1.startedAt })
+        // Prefer stdout, fall back to stderr — the same rule notifications use,
+        // so the card and the banner never disagree about "the output".
+        let raw: String = latest.map {
+            let out = $0.stdout ?? ""
+            return ScriptExecutor.hasMeaningfulContent(out) ? out : ($0.stderr ?? "")
+        } ?? ""
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        let isTruncated = trimmed.count > Self.lastOutputPreviewLimit
+        let preview = isTruncated ? String(trimmed.prefix(Self.lastOutputPreviewLimit)) : trimmed
+
+        return GlassCard {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
+                    Label(L10n.tr("task.detail.last_output"), systemImage: "text.alignleft")
+                        .font(.headline)
+                    Spacer()
+                    if let latest {
+                        StatusBadge(status: latest.status, compact: true)
+                        TimelineView(.periodic(from: .now, by: 60)) { ctx in
+                            Text(Self.timeAgo(latest.startedAt, now: ctx.date))
+                        }
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    }
+                }
+
+                if let latest {
+                    if trimmed.isEmpty {
+                        // A running job hasn't written its output yet — the log
+                        // row is only filled in once the process exits.
+                        outputPlaceholder(
+                            latest.status == .running
+                                ? L10n.tr("task.detail.last_output.running")
+                                : L10n.tr("task.detail.last_output.empty"),
+                            icon: latest.status == .running ? "hourglass" : "text.append"
+                        )
+                    } else {
+                        ScrollView {
+                            Text(preview)
+                                .font(.system(size: 11, design: .monospaced))
+                                .textSelection(.enabled)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(8)
+                        }
+                        .frame(maxHeight: 220)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(.black.opacity(0.04))
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(.separator, lineWidth: 0.5)
+                        )
+
+                        if isTruncated {
+                            Text(L10n.tr("task.detail.last_output.truncated"))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+
+                        HStack(spacing: 8) {
+                            Button {
+                                // Copy the whole thing, not the preview — the
+                                // user asking for it wants the full result.
+                                NSPasteboard.general.clearContents()
+                                NSPasteboard.general.setString(raw, forType: .string)
+                                ToastCenter.shared.success(L10n.tr("task.detail.last_output.copied"))
+                            } label: {
+                                Label(L10n.tr("task.detail.last_output.copy"), systemImage: "doc.on.doc")
+                            }
+                            .pointerCursor()
+
+                            Button {
+                                selectedLogIdForSheet = latest.id
+                                showingTaskLogs = true
+                            } label: {
+                                Label(L10n.tr("task.detail.view_logs"), systemImage: "list.bullet.rectangle")
+                            }
+                            .pointerCursor()
+                        }
+                        .controlSize(.small)
+                    }
+                } else {
+                    outputPlaceholder(L10n.tr("task.detail.no_logs"), icon: "clock.badge.questionmark")
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private func outputPlaceholder(_ text: String, icon: String) -> some View {
+        HStack {
+            Spacer()
+            VStack(spacing: 6) {
+                Image(systemName: icon)
+                    .font(.title3)
+                    .foregroundStyle(.quaternary)
+                Text(text)
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+                    .multilineTextAlignment(.center)
+            }
+            .padding(.vertical, 16)
+            Spacer()
         }
     }
 

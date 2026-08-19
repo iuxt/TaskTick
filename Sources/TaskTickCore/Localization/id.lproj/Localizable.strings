@@ -52,6 +52,12 @@
 "task.detail.recent_logs" = "Eksekusi Terakhir";
 "task.detail.no_logs" = "Belum ada log eksekusi";
 "task.detail.view_logs" = "Lihat Log";
+"task.detail.last_output" = "Keluaran Terakhir";
+"task.detail.last_output.running" = "Sedang berjalan — keluaran muncul setelah selesai";
+"task.detail.last_output.empty" = "Eksekusi ini tidak menghasilkan keluaran";
+"task.detail.last_output.truncated" = "…(keluaran panjang, hanya 4000 karakter pertama yang ditampilkan)";
+"task.detail.last_output.copy" = "Salin";
+"task.detail.last_output.copied" = "Keluaran disalin";
 "task.detail.show_full_script" = "Tampilkan Skrip Lengkap";
 "task.detail.collapse_script" = "Ciutkan";
 

@@ -52,6 +52,12 @@
 "task.detail.recent_logs" = "最近の実行";
 "task.detail.no_logs" = "実行ログはまだありません";
 "task.detail.view_logs" = "ログを表示";
+"task.detail.last_output" = "最後の出力";
+"task.detail.last_output.running" = "実行中です。完了後に出力を表示します";
+"task.detail.last_output.empty" = "今回の実行には出力がありません";
+"task.detail.last_output.truncated" = "…（出力が長いため、先頭 4000 文字のみ表示）";
+"task.detail.last_output.copy" = "コピー";
+"task.detail.last_output.copied" = "出力をコピーしました";
 "task.detail.show_full_script" = "スクリプト全体を表示";
 "task.detail.collapse_script" = "折りたたむ";
 

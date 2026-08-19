@@ -48,6 +48,12 @@
 "task.detail.recent_logs" = "Exécutions récentes";
 "task.detail.no_logs" = "Aucun journal d'exécution";
 "task.detail.view_logs" = "Voir les journaux";
+"task.detail.last_output" = "Dernière sortie";
+"task.detail.last_output.running" = "En cours — la sortie s'affichera à la fin";
+"task.detail.last_output.empty" = "Cette exécution n'a produit aucune sortie";
+"task.detail.last_output.truncated" = "…(sortie longue, seuls les 4000 premiers caractères sont affichés)";
+"task.detail.last_output.copy" = "Copier";
+"task.detail.last_output.copied" = "Sortie copiée";
 "task.detail.show_full_script" = "Afficher le script complet";
 "task.detail.collapse_script" = "Réduire";
 "editor.tab.basic" = "Général";

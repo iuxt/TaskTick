@@ -52,6 +52,12 @@
 "task.detail.recent_logs" = "Letzte Ausführungen";
 "task.detail.no_logs" = "Noch keine Ausführungsprotokolle";
 "task.detail.view_logs" = "Protokolle anzeigen";
+"task.detail.last_output" = "Letzte Ausgabe";
+"task.detail.last_output.running" = "Läuft — die Ausgabe erscheint nach dem Abschluss";
+"task.detail.last_output.empty" = "Dieser Lauf hat keine Ausgabe erzeugt";
+"task.detail.last_output.truncated" = "…(lange Ausgabe, es werden die ersten 4000 Zeichen gezeigt)";
+"task.detail.last_output.copy" = "Kopieren";
+"task.detail.last_output.copied" = "Ausgabe kopiert";
 "task.detail.show_full_script" = "Vollständiges Skript anzeigen";
 "task.detail.collapse_script" = "Einklappen";
 
