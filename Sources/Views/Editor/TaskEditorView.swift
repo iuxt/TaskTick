@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import KeyboardShortcuts
 import UniformTypeIdentifiers
 import TaskTickCore
 
@@ -29,6 +30,10 @@ struct TaskEditorView: View {
     // Basic
     @State private var name = ""
     @State private var isEnabled = true
+    /// Whoever already owns the chord staged in the draft, or nil when it's
+    /// free. Recomputed on every recording so the user finds out before saving,
+    /// not after pressing a key that silently does nothing.
+    @State private var hotkeyConflictOwner: String?
 
     // Schedule
     @State private var isManualOnly = false
@@ -204,6 +209,12 @@ struct TaskEditorView: View {
         .onChange(of: editorState.openTrigger) { _, _ in
             loadTask()
         }
+        .onDisappear {
+            // Covers the paths that never reach closeWindow() — the red button,
+            // ⌘W, the window being torn down. A draft left behind would keep
+            // its chord claimed system-wide with nothing listening.
+            TaskHotkeyManager.shared.discardDraft()
+        }
     }
 
     // MARK: - Basic Tab
@@ -213,6 +224,44 @@ struct TaskEditorView: View {
             Section(L10n.tr("editor.section.basic")) {
                 TextField(L10n.tr("editor.name"), text: $name, prompt: Text(L10n.tr("editor.name.placeholder")))
                 Toggle(L10n.tr("editor.enabled"), isOn: $isEnabled)
+            }
+
+            Section {
+                // Records into a draft name, not the task's own — the Recorder
+                // writes through on every keystroke, so binding it directly
+                // would make this window's Cancel button a lie. `save()` is
+                // what promotes the draft onto the task.
+                // The library's stock Recorder, untouched. Two attempts at
+                // dressing it up (overlay chrome, rewriting its placeholder
+                // while recording) both killed the recording session — writing
+                // `placeholderString` during active editing tears down the
+                // field editor, which ends the recording and uninstalls the
+                // library's event monitor. Don't poke this control's internals
+                // while it's live; static copy goes in the footer below.
+                KeyboardShortcuts.Recorder(
+                    L10n.tr("editor.hotkey.section"),
+                    name: TaskHotkeys.draft,
+                    onChange: { shortcut in
+                        hotkeyConflictOwner = shortcut.flatMap {
+                            TaskHotkeyManager.shared.conflictOwner(for: $0, excluding: task?.id)
+                        }
+                    }
+                )
+                if let hotkeyConflictOwner {
+                    Label(L10n.tr("editor.hotkey.conflict", hotkeyConflictOwner),
+                          systemImage: "exclamationmark.triangle")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                }
+                if !isEnabled && TaskHotkeys.draft.shortcut != nil {
+                    Label(L10n.tr("editor.hotkey.needs_enabled"), systemImage: "info.circle")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            } footer: {
+                Text(L10n.tr("editor.hotkey.help"))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
         }
         .formStyle(.grouped)
@@ -1072,6 +1121,9 @@ struct TaskEditorView: View {
     }
 
     private func closeWindow() {
+        // Whatever was staged and not saved dies here — otherwise its chord
+        // stays claimed system-wide with nothing behind it.
+        TaskHotkeyManager.shared.discardDraft()
         editorState.close()
         // Close the editor window by finding it
         for window in NSApp.windows where window.identifier?.rawValue == "editor" || window.title == L10n.tr("editor.title.edit") || window.title == L10n.tr("editor.title.new") {
@@ -1155,6 +1207,10 @@ struct TaskEditorView: View {
         // Reset to defaults for new task
         name = ""
         isEnabled = true
+        // Stage the shortcut this window is editing. A new task starts empty;
+        // the `guard let task` block below loads the existing binding.
+        TaskHotkeyManager.shared.discardDraft()
+        hotkeyConflictOwner = nil
         isManualOnly = false
         scheduledDate = Date()
         additionalTimes = []
@@ -1211,6 +1267,10 @@ struct TaskEditorView: View {
         guard let task else { return }
         name = task.name
         isEnabled = task.isEnabled
+        TaskHotkeys.draft.shortcut = TaskHotkeys.name(for: task.id).shortcut
+        hotkeyConflictOwner = TaskHotkeys.draft.shortcut.flatMap {
+            TaskHotkeyManager.shared.conflictOwner(for: $0, excluding: task.id)
+        }
         shell = task.shell
         scriptBody = task.scriptBody
         preRunCommand = task.preRunCommand
@@ -1394,6 +1454,11 @@ struct TaskEditorView: View {
                               error: error)
             return
         }
+        // Promote the staged shortcut now that the task is persisted and has a
+        // stable id — for a new task this is the first moment that id exists.
+        TaskHotkeys.name(for: target.id).shortcut = TaskHotkeys.draft.shortcut
+        TaskHotkeyManager.shared.syncHandlers()
+
         TaskScheduler.shared.rebuildSchedule()
         EditorState.shared.lastSavedTask = target
         closeWindow()

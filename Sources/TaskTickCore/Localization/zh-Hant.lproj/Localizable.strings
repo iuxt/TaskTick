@@ -77,6 +77,11 @@
 "editor.name" = "任務名稱";
 "editor.name.placeholder" = "輸入任務名稱";
 "editor.enabled" = "啟用";
+"editor.hotkey.section" = "全域快速鍵";
+"editor.hotkey.label" = "快速鍵";
+"editor.hotkey.help" = "點擊方框後按下想用的組合鍵 —— Esc 取消、⌫ 清除。設定後在任何 App 中按下即可執行此任務。";
+"editor.hotkey.conflict" = "已被「%@」占用，兩者只有一個會生效。";
+"editor.hotkey.needs_enabled" = "任務停用期間快速鍵不會生效。";
 "editor.section.schedule" = "排程方式";
 "editor.schedule_type" = "類型";
 "editor.interval" = "間隔";
@@ -645,6 +650,7 @@
 "toast.action.failed" = "操作失敗";
 "toast.action.failed.notReady" = "TaskTick 正在啟動";
 "toast.action.failed.taskNotFound" = "任務未找到";
+"toast.action.failed.alreadyRunning" = "任務執行中";
 
 "cli.repair.title" = "更新 tasktick CLI 連結";
 "cli.repair.message" = "%@ 指向舊的 CLI 路徑。是否立即更新？（需要管理員權限）";

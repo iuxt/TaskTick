@@ -77,6 +77,11 @@
 "editor.name" = "Название задачи";
 "editor.name.placeholder" = "Введите название задачи";
 "editor.enabled" = "Активна";
+"editor.hotkey.section" = "Глобальное сочетание клавиш";
+"editor.hotkey.label" = "Сочетание клавиш";
+"editor.hotkey.help" = "Нажмите на поле и введите нужное сочетание — Esc отменяет, ⌫ очищает. После настройки оно запускает задачу из любого приложения.";
+"editor.hotkey.conflict" = "Уже занято «%@» — сработает только одно из них.";
+"editor.hotkey.needs_enabled" = "Пока задача отключена, сочетание не действует.";
 "editor.section.schedule" = "Расписание";
 "editor.schedule_type" = "Тип";
 "editor.interval" = "Интервал";
@@ -645,6 +650,7 @@
 "toast.action.failed" = "Действие не выполнено";
 "toast.action.failed.notReady" = "TaskTick запускается";
 "toast.action.failed.taskNotFound" = "Задача не найдена";
+"toast.action.failed.alreadyRunning" = "Уже выполняется";
 
 "cli.repair.title" = "Обновить ссылку tasktick CLI";
 "cli.repair.message" = "%@ указывает на устаревший путь к CLI. Обновить сейчас? (Требуются права администратора)";

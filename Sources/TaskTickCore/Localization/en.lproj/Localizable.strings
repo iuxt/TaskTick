@@ -77,6 +77,11 @@
 "editor.name" = "Task Name";
 "editor.name.placeholder" = "Enter task name";
 "editor.enabled" = "Enabled";
+"editor.hotkey.section" = "Global Shortcut";
+"editor.hotkey.label" = "Shortcut";
+"editor.hotkey.help" = "Click the box, then press the key combination you want — Esc cancels, ⌫ clears. Once set, pressing it in any app runs this task.";
+"editor.hotkey.conflict" = "Already used by \"%@\" — only one of them will work.";
+"editor.hotkey.needs_enabled" = "The shortcut stays inactive while the task is disabled.";
 "editor.section.schedule" = "Schedule";
 "editor.schedule_type" = "Type";
 "editor.interval" = "Interval";
@@ -645,6 +650,7 @@
 "toast.action.failed" = "Action failed";
 "toast.action.failed.notReady" = "TaskTick is still starting";
 "toast.action.failed.taskNotFound" = "Task not found";
+"toast.action.failed.alreadyRunning" = "Already running";
 
 "cli.repair.title" = "Update tasktick CLI link";
 "cli.repair.message" = "The tasktick command at %@ points to an outdated location. Update it to the new path now? (Requires admin permission.)";

@@ -77,6 +77,11 @@
 "editor.name" = "任务名称";
 "editor.name.placeholder" = "输入任务名称";
 "editor.enabled" = "启用";
+"editor.hotkey.section" = "全局快捷键";
+"editor.hotkey.label" = "快捷键";
+"editor.hotkey.help" = "点击方框后按下想用的组合键 —— Esc 取消、⌫ 清除。设定后在任意应用中按下即可运行该任务。";
+"editor.hotkey.conflict" = "已被「%@」占用，两者只有一个会生效。";
+"editor.hotkey.needs_enabled" = "任务停用期间快捷键不会生效。";
 "editor.section.schedule" = "调度方式";
 "editor.schedule_type" = "类型";
 "editor.interval" = "间隔";
@@ -645,6 +650,7 @@
 "toast.action.failed" = "操作失败";
 "toast.action.failed.notReady" = "TaskTick 正在启动";
 "toast.action.failed.taskNotFound" = "任务未找到";
+"toast.action.failed.alreadyRunning" = "任务正在运行中";
 
 "cli.repair.title" = "更新 tasktick CLI 链接";
 "cli.repair.message" = "%@ 指向旧的 CLI 路径。是否现在更新？（需要管理员权限）";

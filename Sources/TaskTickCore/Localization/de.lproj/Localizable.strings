@@ -77,6 +77,11 @@
 "editor.name" = "Aufgabenname";
 "editor.name.placeholder" = "Aufgabenname eingeben";
 "editor.enabled" = "Aktiviert";
+"editor.hotkey.section" = "Globales Tastenkürzel";
+"editor.hotkey.label" = "Tastenkürzel";
+"editor.hotkey.help" = "Feld anklicken und die gewünschte Tastenkombination drücken – Esc bricht ab, ⌫ löscht. Danach führt sie die Aufgabe aus jeder App aus.";
+"editor.hotkey.conflict" = "Bereits von „%@“ belegt – nur eines von beiden funktioniert.";
+"editor.hotkey.needs_enabled" = "Das Kürzel bleibt inaktiv, solange die Aufgabe deaktiviert ist.";
 "editor.section.schedule" = "Zeitplan";
 "editor.schedule_type" = "Typ";
 "editor.interval" = "Intervall";
@@ -645,6 +650,7 @@
 "toast.action.failed" = "Aktion fehlgeschlagen";
 "toast.action.failed.notReady" = "TaskTick startet";
 "toast.action.failed.taskNotFound" = "Aufgabe nicht gefunden";
+"toast.action.failed.alreadyRunning" = "Läuft bereits";
 
 "cli.repair.title" = "tasktick-CLI-Verknüpfung aktualisieren";
 "cli.repair.message" = "%@ zeigt auf einen veralteten CLI-Pfad. Jetzt aktualisieren? (Admin-Rechte erforderlich)";

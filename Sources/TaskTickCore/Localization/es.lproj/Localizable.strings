@@ -77,6 +77,11 @@
 "editor.name" = "Nombre de la tarea";
 "editor.name.placeholder" = "Introduce el nombre de la tarea";
 "editor.enabled" = "Activa";
+"editor.hotkey.section" = "Atajo global";
+"editor.hotkey.label" = "Atajo";
+"editor.hotkey.help" = "Haz clic en el campo y pulsa la combinación que quieras: Esc cancela, ⌫ borra. Una vez definida, ejecuta la tarea desde cualquier app.";
+"editor.hotkey.conflict" = "Ya lo usa «%@»: solo funcionará uno de los dos.";
+"editor.hotkey.needs_enabled" = "El atajo permanece inactivo mientras la tarea esté desactivada.";
 "editor.section.schedule" = "Programación";
 "editor.schedule_type" = "Tipo";
 "editor.interval" = "Intervalo";
@@ -645,6 +650,7 @@
 "toast.action.failed" = "Acción fallida";
 "toast.action.failed.notReady" = "TaskTick está iniciando";
 "toast.action.failed.taskNotFound" = "Tarea no encontrada";
+"toast.action.failed.alreadyRunning" = "Ya se está ejecutando";
 
 "cli.repair.title" = "Actualizar enlace de tasktick CLI";
 "cli.repair.message" = "El comando tasktick en %@ apunta a una ubicación obsoleta. ¿Actualizarlo a la nueva ruta ahora? (Requiere permiso de administrador.)";

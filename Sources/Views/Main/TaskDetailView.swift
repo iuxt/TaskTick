@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import KeyboardShortcuts
 import TaskTickCore
 
 struct TaskDetailView: View {
@@ -89,6 +90,7 @@ struct TaskDetailView: View {
             Button(L10n.tr("delete.cancel"), role: .cancel) {}
             Button(L10n.tr("delete.confirm"), role: .destructive) {
                 let deletedName = task.name
+                TaskHotkeyManager.shared.discardShortcut(for: task.id)
                 modelContext.delete(task)
                 do {
                     try modelContext.save()
@@ -304,6 +306,10 @@ struct TaskDetailView: View {
                         ? L10n.tr("editor.timeout.unlimited")
                         : L10n.tr("task.detail.timeout_value", task.timeoutSeconds)
                     detailRow(L10n.tr("task.detail.timeout"), value: timeoutLabel)
+
+                    if let shortcut = TaskHotkeys.name(for: task.id).shortcut {
+                        detailRow(L10n.tr("editor.hotkey.label"), value: shortcut.description)
+                    }
 
                     // Notification status
                     let notifyLabel: String = {

@@ -77,6 +77,11 @@
 "editor.name" = "タスク名";
 "editor.name.placeholder" = "タスク名を入力";
 "editor.enabled" = "有効";
+"editor.hotkey.section" = "グローバルショートカット";
+"editor.hotkey.label" = "ショートカット";
+"editor.hotkey.help" = "枠をクリックして使いたいキーの組み合わせを押してください（Esc でキャンセル、⌫ で消去）。設定後はどのアプリからでもこのタスクを実行できます。";
+"editor.hotkey.conflict" = "「%@」が使用中です。どちらか一方しか動作しません。";
+"editor.hotkey.needs_enabled" = "タスクが無効の間はショートカットも動作しません。";
 "editor.section.schedule" = "スケジュール";
 "editor.schedule_type" = "種類";
 "editor.interval" = "間隔";
@@ -645,6 +650,7 @@
 "toast.action.failed" = "操作に失敗しました";
 "toast.action.failed.notReady" = "TaskTick は起動中です";
 "toast.action.failed.taskNotFound" = "タスクが見つかりません";
+"toast.action.failed.alreadyRunning" = "すでに実行中です";
 
 "cli.repair.title" = "tasktick CLI のリンクを更新";
 "cli.repair.message" = "%@ は古い CLI パスを指しています。今すぐ更新しますか？（管理者権限が必要）";

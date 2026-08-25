@@ -77,6 +77,11 @@
 "editor.name" = "Nome attività";
 "editor.name.placeholder" = "Inserisci il nome dell'attività";
 "editor.enabled" = "Attiva";
+"editor.hotkey.section" = "Scorciatoia globale";
+"editor.hotkey.label" = "Scorciatoia";
+"editor.hotkey.help" = "Fai clic sul campo e premi la combinazione desiderata: Esc annulla, ⌫ cancella. Una volta impostata, esegue l'attività da qualsiasi app.";
+"editor.hotkey.conflict" = "Già usata da «%@»: ne funzionerà solo una.";
+"editor.hotkey.needs_enabled" = "La scorciatoia resta inattiva finché l'attività è disattivata.";
 "editor.section.schedule" = "Pianificazione";
 "editor.schedule_type" = "Tipo";
 "editor.interval" = "Intervallo";
@@ -645,6 +650,7 @@
 "toast.action.failed" = "Azione fallita";
 "toast.action.failed.notReady" = "TaskTick è in avvio";
 "toast.action.failed.taskNotFound" = "Attività non trovata";
+"toast.action.failed.alreadyRunning" = "Già in esecuzione";
 
 "cli.repair.title" = "Aggiorna il collegamento tasktick CLI";
 "cli.repair.message" = "%@ punta a un vecchio percorso della CLI. Aggiornare ora? (Richiede privilegi di amministratore)";

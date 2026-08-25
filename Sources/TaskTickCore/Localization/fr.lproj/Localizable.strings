@@ -69,6 +69,11 @@
 "editor.name" = "Nom de la tâche";
 "editor.name.placeholder" = "Saisissez le nom de la tâche";
 "editor.enabled" = "Activée";
+"editor.hotkey.section" = "Raccourci global";
+"editor.hotkey.label" = "Raccourci";
+"editor.hotkey.help" = "Cliquez sur le champ puis appuyez sur la combinaison voulue — Échap annule, ⌫ efface. Une fois définie, elle exécute la tâche depuis n'importe quelle app.";
+"editor.hotkey.conflict" = "Déjà utilisé par « %@ » — un seul des deux fonctionnera.";
+"editor.hotkey.needs_enabled" = "Le raccourci reste inactif tant que la tâche est désactivée.";
 "editor.section.schedule" = "Planification";
 "editor.schedule_type" = "Type";
 "editor.interval" = "Intervalle";
@@ -591,6 +596,7 @@
 "toast.action.failed" = "Action échouée";
 "toast.action.failed.notReady" = "TaskTick démarre";
 "toast.action.failed.taskNotFound" = "Tâche introuvable";
+"toast.action.failed.alreadyRunning" = "Déjà en cours d'exécution";
 
 "cli.repair.title" = "Mettre à jour le lien tasktick CLI";
 "cli.repair.message" = "%@ pointe vers un ancien chemin de la CLI. Mettre à jour maintenant ? (Permissions administrateur requises)";

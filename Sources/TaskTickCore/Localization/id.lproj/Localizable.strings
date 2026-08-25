@@ -77,6 +77,11 @@
 "editor.name" = "Nama Tugas";
 "editor.name.placeholder" = "Masukkan nama tugas";
 "editor.enabled" = "Aktif";
+"editor.hotkey.section" = "Pintasan Global";
+"editor.hotkey.label" = "Pintasan";
+"editor.hotkey.help" = "Klik kotaknya lalu tekan kombinasi yang diinginkan — Esc batal, ⌫ hapus. Setelah diatur, menekannya di aplikasi mana pun menjalankan tugas ini.";
+"editor.hotkey.conflict" = "Sudah dipakai oleh \"%@\" — hanya salah satu yang akan berfungsi.";
+"editor.hotkey.needs_enabled" = "Pintasan tidak aktif selama tugas dinonaktifkan.";
 "editor.section.schedule" = "Jadwal";
 "editor.schedule_type" = "Tipe";
 "editor.interval" = "Interval";
@@ -645,6 +650,7 @@
 "toast.action.failed" = "Aksi gagal";
 "toast.action.failed.notReady" = "TaskTick sedang memulai";
 "toast.action.failed.taskNotFound" = "Tugas tidak ditemukan";
+"toast.action.failed.alreadyRunning" = "Sedang berjalan";
 
 "cli.repair.title" = "Perbarui tautan tasktick CLI";
 "cli.repair.message" = "%@ menunjuk ke jalur CLI lama. Perbarui sekarang? (Memerlukan izin admin)";

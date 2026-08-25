@@ -51,6 +51,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Task { @MainActor in
             QuickLauncherController.shared.configure(modelContainer: TaskTickApp._sharedModelContainer)
             QuickLauncherSettings.shared.applyToHotkey()
+            // Per-task shortcuts (issue #49). Lives here rather than in a view's
+            // onAppear because a login-item launch creates no window at all — a
+            // view-scoped hook would simply never run.
+            TaskHotkeyManager.shared.configure(modelContainer: TaskTickApp._sharedModelContainer)
             // Spawn macOS's CursorUIViewService now so it's already warm
             // when the user later opens QL. Without this, the first
             // text-field focus flashes a default-background overlay frame
