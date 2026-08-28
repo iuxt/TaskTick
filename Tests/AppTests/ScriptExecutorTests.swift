@@ -116,4 +116,143 @@ struct ScriptExecutorTests {
             )
         }
     }
+
+    // MARK: - Shebang / interpreter resolution
+
+    @Test("Shebang parsing handles env form, absolute paths and junk")
+    @MainActor
+    func shebangParsing() {
+        // `#!/usr/bin/env <name>` yields a bare name, left for the shell to resolve on PATH.
+        #expect(ScriptExecutor.parseShebang(from: "#!/usr/bin/env python3\nprint(1)") == "python3")
+        #expect(ScriptExecutor.parseShebang(from: "#!/usr/bin/env -S python3 -u\n") == "python3")
+        #expect(ScriptExecutor.parseShebang(from: "#!/usr/bin/env bash\n") == "bash")
+        // Absolute interpreters are only accepted when they exist on disk.
+        #expect(ScriptExecutor.parseShebang(from: "#!/bin/bash\necho hi") == "/bin/bash")
+        #expect(ScriptExecutor.parseShebang(from: "#!/nope/nonexistent\n") == nil)
+        // Malformed / absent.
+        #expect(ScriptExecutor.parseShebang(from: "echo hi") == nil)
+        #expect(ScriptExecutor.parseShebang(from: "") == nil)
+        #expect(ScriptExecutor.parseShebang(from: "#!/usr/bin/env\n") == nil)
+    }
+
+    @Test("Shell interpreters are told apart from language interpreters")
+    @MainActor
+    func shellInterpreterDetection() {
+        #expect(ScriptExecutor.isShellInterpreter("/bin/bash"))
+        #expect(ScriptExecutor.isShellInterpreter("/bin/zsh"))
+        #expect(ScriptExecutor.isShellInterpreter("bash"))  // bare name from the env form
+        #expect(!ScriptExecutor.isShellInterpreter("python3"))
+        #expect(!ScriptExecutor.isShellInterpreter("/usr/bin/python3"))
+        #expect(!ScriptExecutor.isShellInterpreter("node"))
+    }
+
+    @Test("Non-shell script files are exec'd instead of pasted into the shell")
+    @MainActor
+    func nonShellFileIsExeced() {
+        let resolved = ScriptExecutor.resolveFileExecution(
+            fileContent: "#!/usr/bin/env python3\nprint(1)",
+            filePath: "/tmp/a b.py",  // space in the path must survive quoting
+            uiShell: "/bin/zsh"
+        )
+        #expect(resolved.shell == "/bin/zsh")
+        #expect(resolved.body == "exec 'python3' '/tmp/a b.py'")
+    }
+
+    /// A quote in the path must not be able to end the quoted argument and let the
+    /// rest of the filename run as shell code.
+    @Test("Quotes in the script path are neutralised")
+    @MainActor
+    func quotesInPathAreEscaped() {
+        let resolved = ScriptExecutor.resolveFileExecution(
+            fileContent: "#!/usr/bin/env python3\n",
+            filePath: "/tmp/it's; rm -rf ~/.py",
+            uiShell: "/bin/zsh"
+        )
+        #expect(resolved.body == "exec 'python3' '/tmp/it'\\''s; rm -rf ~/.py'")
+    }
+
+    @Test("An absolute non-shell interpreter also gets the exec path")
+    @MainActor
+    func absoluteNonShellInterpreterIsExeced() {
+        let resolved = ScriptExecutor.resolveFileExecution(
+            fileContent: "#!/usr/bin/python3\nprint(1)",
+            filePath: "/tmp/x.py",
+            uiShell: "/bin/zsh"
+        )
+        #expect(resolved.shell == "/bin/zsh")
+        #expect(resolved.body == "exec '/usr/bin/python3' '/tmp/x.py'")
+    }
+
+    @Test("Absolute-shell script files keep the legacy inline-contents path")
+    @MainActor
+    func shellFileKeepsLegacyPath() {
+        let content = "#!/bin/bash\necho hi"
+        let resolved = ScriptExecutor.resolveFileExecution(
+            fileContent: content, filePath: "/tmp/x.sh", uiShell: "/bin/zsh"
+        )
+        #expect(resolved.shell == "/bin/bash")
+        #expect(resolved.body == content)
+    }
+
+    @Test("Missing shebang falls back to the shell picked in the UI")
+    @MainActor
+    func noShebangFallsBack() {
+        let resolved = ScriptExecutor.resolveFileExecution(
+            fileContent: "echo hi", filePath: "/tmp/x", uiShell: "/bin/zsh"
+        )
+        #expect(resolved.shell == "/bin/zsh")
+        #expect(resolved.body == "echo hi")
+    }
+
+    /// Regression for the `zsh:76: parse error near ')'` report: a
+    /// `#!/usr/bin/env python3` file used to be pasted verbatim into `zsh -l -c`,
+    /// so zsh tried to parse Python and died on the first parenthesis. Runs the
+    /// real assembly through a real Process, the way `runProcess` does.
+    @Test("A python script file actually runs end to end")
+    @MainActor
+    func pythonFileRunsEndToEnd() throws {
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("tasktick-shebang-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+
+        // Parentheses and quotes on purpose — this is exactly what a shell chokes on.
+        let file = dir.appendingPathComponent("probe.py")
+        try """
+        #!/usr/bin/env python3
+        import os
+        values = (1, 2, 3)
+        print("sum=%d" % sum(values))
+        print("pid=%d" % os.getpid())
+        """.write(to: file, atomically: true, encoding: .utf8)
+
+        let content = try String(contentsOf: file, encoding: .utf8)
+        let resolved = ScriptExecutor.resolveFileExecution(
+            fileContent: content, filePath: file.path, uiShell: "/bin/zsh"
+        )
+
+        let process = Process()
+        let stdoutPipe = Pipe()
+        let stderrPipe = Pipe()
+        process.executableURL = URL(fileURLWithPath: resolved.shell)
+        process.arguments = ["-l", "-c", resolved.body]
+        process.standardOutput = stdoutPipe
+        process.standardError = stderrPipe
+        try process.run()
+        let shellPID = process.processIdentifier
+        let out = String(decoding: stdoutPipe.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
+        let err = String(decoding: stderrPipe.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
+        process.waitUntilExit()
+
+        #expect(out.contains("sum=6"), "stdout: \(out)\nstderr: \(err)")
+        #expect(process.terminationStatus == 0, "stderr: \(err)")
+
+        // `exec` must replace the shell rather than fork a child, otherwise the
+        // timeout's SIGTERM/SIGKILL and cancellation would hit an idle wrapper
+        // while the interpreter kept running.
+        #expect(
+            out.contains("pid=\(shellPID)"),
+            "interpreter should inherit the shell's PID via exec. stdout: \(out)"
+        )
+    }
 }

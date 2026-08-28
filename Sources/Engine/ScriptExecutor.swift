@@ -142,9 +142,15 @@ final class ScriptExecutor: ObservableObject {
             effectiveShell = shell
         } else if let filePath = task.scriptFilePath, !filePath.isEmpty {
             if let content = try? String(contentsOfFile: filePath, encoding: .utf8) {
-                scriptBody = content
-                // Respect shebang in script file if present
-                effectiveShell = ScriptExecutor.parseShebang(from: content) ?? shell
+                // Respect the shebang — but a shebang names an interpreter, not a shell,
+                // so a .py/.rb/.js file gets exec'd rather than pasted into `<shell> -c`.
+                let resolved = ScriptExecutor.resolveFileExecution(
+                    fileContent: content,
+                    filePath: filePath,
+                    uiShell: shell
+                )
+                effectiveShell = resolved.shell
+                scriptBody = resolved.body
             } else {
                 // File not readable
                 log.status = .failure
@@ -499,28 +505,116 @@ final class ScriptExecutor: ObservableObject {
         }
     }
 
-    /// Extract the interpreter path from a shebang line (e.g. "#!/opt/homebrew/bin/bash" → "/opt/homebrew/bin/bash").
-    /// Returns nil if no valid shebang or the interpreter doesn't exist on disk.
-    static func parseShebang(from script: String) -> String? {
+    /// Extract the interpreter from a shebang line.
+    ///
+    /// - `#!/opt/homebrew/bin/bash` → `/opt/homebrew/bin/bash` (must exist on disk)
+    /// - `#!/usr/bin/env python3` → `python3` — a *bare name*, deliberately left for the
+    ///   wrapping shell to resolve at run time. By then `runProcess` has applied Homebrew's
+    ///   shellenv, so it lands on the same binary the user gets in an interactive terminal.
+    ///   Resolving it here against the app's own PATH would pick /usr/bin/python3 (3.9)
+    ///   instead — the exact mismatch the brewPrefix in `runProcess` exists to avoid.
+    ///
+    /// Returns nil when there's no shebang, or an absolute interpreter doesn't exist.
+    ///
+    /// Note: extra interpreter arguments (`#!/usr/bin/env -S python3 -u`) are dropped —
+    /// only the interpreter itself is honored.
+    nonisolated static func parseShebang(from script: String) -> String? {
         guard let firstLine = script.components(separatedBy: .newlines).first,
               firstLine.hasPrefix("#!") else { return nil }
-        // Strip "#!" and trim whitespace, take the first token (ignore arguments like "#!/usr/bin/env bash")
+        // Strip "#!" and trim whitespace, take the first token
         let interpreterLine = firstLine.dropFirst(2).trimmingCharacters(in: .whitespaces)
         let parts = interpreterLine.components(separatedBy: .whitespaces).filter { !$0.isEmpty }
         guard let first = parts.first, !first.isEmpty else { return nil }
-        // Handle "#!/usr/bin/env <interpreter>" — resolve via PATH
-        if first == "/usr/bin/env", let cmd = parts.dropFirst().first {
-            // Use the full command path if it's absolute, otherwise just return nil and fall back to UI shell
-            if cmd.hasPrefix("/") && FileManager.default.isExecutableFile(atPath: cmd) {
-                return cmd
-            }
-            return nil
+        // "#!/usr/bin/env <interpreter>" — skip env's own flags (e.g. -S), keep the name.
+        if first == "/usr/bin/env" {
+            guard let cmd = parts.dropFirst().first(where: { !$0.hasPrefix("-") }),
+                  !cmd.isEmpty else { return nil }
+            return cmd
         }
         // Direct path like "#!/opt/homebrew/bin/bash"
         if FileManager.default.isExecutableFile(atPath: first) {
             return first
         }
         return nil
+    }
+
+    /// Shell prelude that drops a run into the user's interactive environment:
+    /// Homebrew's shellenv, then the rc file matching the shell.
+    ///
+    /// Shared by execution and validation so `python3` / `node` / `jq` resolve to the
+    /// same binaries in both. Without the Homebrew part they fall back to the system
+    /// copies (e.g. /usr/bin/python3 3.9) rather than what's on the user's interactive
+    /// $PATH — the mismatch that once surfaced as "script output gets truncated" when
+    /// an inline python3 hit a syntax feature newer than 3.9.
+    nonisolated static func environmentPrelude(for shell: String) -> String {
+        let fm = FileManager.default
+        let brewPrefix: String
+        if fm.isExecutableFile(atPath: "/opt/homebrew/bin/brew") {
+            brewPrefix = "eval \"$(/opt/homebrew/bin/brew shellenv 2>/dev/null)\"; "
+        } else if fm.isExecutableFile(atPath: "/usr/local/bin/brew") {
+            brewPrefix = "eval \"$(/usr/local/bin/brew shellenv 2>/dev/null)\"; "
+        } else {
+            brewPrefix = ""
+        }
+        if shell.hasSuffix("zsh") {
+            return brewPrefix + "[ -f ~/.zshrc ] && source ~/.zshrc 2>/dev/null; "
+        }
+        if shell.hasSuffix("bash") {
+            return brewPrefix + "[ -f ~/.bashrc ] && source ~/.bashrc 2>/dev/null; "
+        }
+        return brewPrefix
+    }
+
+    /// Whether an interpreter speaks the `-l -c "<script text>"` calling convention
+    /// that `runProcess` uses. Only shells do; python/ruby/node reject `-l` outright.
+    ///
+    /// The list comes from `/etc/shells` at run time rather than a hardcoded set of
+    /// names, so a user's non-standard login shell is recognized too. Compared by
+    /// basename because a shebang may name the interpreter without a path.
+    nonisolated static func isShellInterpreter(_ interpreter: String) -> Bool {
+        let name = (interpreter as NSString).lastPathComponent
+        return AvailableShells.load().contains { ($0 as NSString).lastPathComponent == name }
+    }
+
+    /// Wrap a value in single quotes so spaces/quotes in a path can't split the command.
+    nonisolated static func singleQuoted(_ value: String) -> String {
+        "'" + value.replacingOccurrences(of: "'", with: "'\\''") + "'"
+    }
+
+    /// Decide which shell wraps the run, and what text that shell is handed, for a
+    /// task backed by a script *file*.
+    ///
+    /// The distinction that matters: a shebang names an **interpreter**, which is not
+    /// necessarily a **shell**. `runProcess` always invokes `<shell> -l -c "<text>"`, so
+    /// the file's contents may only be pasted into `<text>` when the interpreter is
+    /// itself a shell. For anything else (python/ruby/node/…) we keep the user's shell
+    /// as the wrapper — preserving rc files, preRunCommand, env and cwd — and have it
+    /// `exec` the real interpreter against the file on disk.
+    ///
+    /// `exec` matters: it replaces the shell process instead of forking a child, so the
+    /// interpreter inherits the same PID. Timeout (SIGTERM→SIGKILL), cancellation and
+    /// `ProcessReconciler`'s orphan adoption all act on the process actually doing the
+    /// work, not on an idle shell wrapper.
+    ///
+    /// Pure function so it can be tested without SwiftData — see ScriptExecutorTests.
+    nonisolated static func resolveFileExecution(
+        fileContent: String,
+        filePath: String,
+        uiShell: String
+    ) -> (shell: String, body: String) {
+        guard let interpreter = parseShebang(from: fileContent) else {
+            // No usable shebang: fall back to the shell picked in the UI, as before.
+            return (uiShell, fileContent)
+        }
+        // An absolute shell path can run the contents directly — this is the long-standing
+        // path for .sh files, kept byte-for-byte identical to avoid any regression.
+        if interpreter.hasPrefix("/"), isShellInterpreter(interpreter) {
+            return (interpreter, fileContent)
+        }
+        // Everything else — non-shell interpreters, and bare names like `bash` from
+        // `#!/usr/bin/env bash` (which can't be a Process executableURL anyway) — is
+        // handed to the interpreter as a file path.
+        return (uiShell, "exec \(singleQuoted(interpreter)) \(singleQuoted(filePath))")
     }
 
     /// Check if a string contains meaningful printable content (not just whitespace).
@@ -552,29 +646,7 @@ final class ScriptExecutor: ObservableObject {
         // for user environment variables without full interactive mode
         // (which would load oh-my-zsh etc. and slow down execution).
         //
-        // Also bootstrap Homebrew PATH regardless of which shell was picked.
-        // Without this, scripts invoking `python3`, `jq`, `gh`, etc. resolve
-        // to the system binaries (e.g. /usr/bin/python3 3.9) instead of the
-        // Homebrew versions on the user's interactive $PATH — the exact
-        // mismatch that manifested as "script output gets truncated" when
-        // the inline python3 hit a syntax feature newer than 3.9.
-        let brewPrefix: String
-        let fm = FileManager.default
-        if fm.isExecutableFile(atPath: "/opt/homebrew/bin/brew") {
-            brewPrefix = "eval \"$(/opt/homebrew/bin/brew shellenv 2>/dev/null)\"; "
-        } else if fm.isExecutableFile(atPath: "/usr/local/bin/brew") {
-            brewPrefix = "eval \"$(/usr/local/bin/brew shellenv 2>/dev/null)\"; "
-        } else {
-            brewPrefix = ""
-        }
-        let rcFile: String
-        if shell.hasSuffix("zsh") {
-            rcFile = brewPrefix + "[ -f ~/.zshrc ] && source ~/.zshrc 2>/dev/null; "
-        } else if shell.hasSuffix("bash") {
-            rcFile = brewPrefix + "[ -f ~/.bashrc ] && source ~/.bashrc 2>/dev/null; "
-        } else {
-            rcFile = brewPrefix
-        }
+        let rcFile = ScriptExecutor.environmentPrelude(for: shell)
 
         return await runProcessCore(
             executableURL: URL(fileURLWithPath: shell),
