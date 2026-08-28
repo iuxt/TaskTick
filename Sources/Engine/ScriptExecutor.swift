@@ -120,8 +120,12 @@ final class ScriptExecutor: ObservableObject {
         let notifyOnSuccess = task.notifyOnSuccess
         let notifyOnFailure = task.notifyOnFailure
         let notifyOnlyWhenOutput = task.notifyOnlyWhenOutput
-        let barkPushEnabled = task.barkPushEnabled
-        let barkNotifyOnOutputChange = task.barkNotifyOnOutputChange
+        let pushEnabled = task.pushEnabled
+        let pushOnlyWhenOutputChanged = task.pushOnlyWhenOutputChanged
+        // Resolved up front, alongside every other captured property: the task
+        // can be deleted mid-run, and the completion push should still reach
+        // the channels the user picked for it.
+        let pushChannels = pushEnabled ? PushChannelStore.resolve(for: task) : []
         let strongReminder = task.strongReminder
         // Switch off → empty template → every channel keeps its default wording,
         // while the text the user wrote stays on the task for later.
@@ -256,7 +260,7 @@ final class ScriptExecutor: ObservableObject {
         let durationText = "\(L10n.tr("notification.duration")) \(ExecutionLog.formatDuration(durationMs))"
 
         // A task's custom reminder text (issue #48) is rendered once and shared
-        // by all three channels below — notification, Bark, strong reminder —
+        // by all three channels below — notification, remote push, strong reminder —
         // so the same run reads identically wherever the user sees it. nil
         // means "no template configured": each channel keeps its own wording.
         let customBody = NotificationTemplate.render(
@@ -281,9 +285,10 @@ final class ScriptExecutor: ObservableObject {
             if globalNotificationsEnabled && notifyOnFailure {
                 NotificationManager.shared.sendNotification(title: title, body: body)
             }
-            sendBarkIfNeeded(
-                enabled: barkPushEnabled,
-                onlyOnChange: barkNotifyOnOutputChange,
+            sendPushIfNeeded(
+                enabled: pushEnabled,
+                onlyOnChange: pushOnlyWhenOutputChanged,
+                channels: pushChannels,
                 title: title,
                 body: body,
                 stdout: result.stdout,
@@ -308,9 +313,10 @@ final class ScriptExecutor: ObservableObject {
                 if globalNotificationsEnabled && notifyOnSuccess {
                     NotificationManager.shared.sendNotification(title: title, body: resolvedBody)
                 }
-                sendBarkIfNeeded(
-                    enabled: barkPushEnabled,
-                    onlyOnChange: barkNotifyOnOutputChange,
+                sendPushIfNeeded(
+                    enabled: pushEnabled,
+                    onlyOnChange: pushOnlyWhenOutputChanged,
+                    channels: pushChannels,
                     title: title,
                     body: resolvedBody,
                     stdout: result.stdout,
@@ -338,12 +344,17 @@ final class ScriptExecutor: ObservableObject {
         return log
     }
 
-    /// Bark is independent of the macOS notification switch. When
+    /// Remote push is independent of the macOS notification switch. When
     /// `onlyOnChange` is on, compare this run's output to the last
     /// fingerprinted run and stay silent if nothing changed.
-    private func sendBarkIfNeeded(
+    ///
+    /// `channels` is resolved before the run rather than here: the task may
+    /// have been deleted while the script was running, and the user's channel
+    /// choice shouldn't disappear with it.
+    private func sendPushIfNeeded(
         enabled: Bool,
         onlyOnChange: Bool,
+        channels: [PushChannel],
         title: String,
         body: String,
         stdout: String,
@@ -351,20 +362,20 @@ final class ScriptExecutor: ObservableObject {
         task: ScheduledTask?,
         modelContext: ModelContext
     ) {
-        guard enabled else { return }
+        guard enabled, !channels.isEmpty else { return }
         if onlyOnChange {
-            let fingerprint = BarkPushManager.outputFingerprint(stdout: stdout, stderr: stderr)
-            let shouldSend = BarkPushManager.shouldNotifyOnOutputChange(
-                previousFingerprint: task?.lastBarkOutputFingerprint,
+            let fingerprint = PushDispatcher.outputFingerprint(stdout: stdout, stderr: stderr)
+            let shouldSend = PushDispatcher.shouldNotifyOnOutputChange(
+                previousFingerprint: task?.lastPushOutputFingerprint,
                 currentFingerprint: fingerprint
             )
             if let task {
-                task.lastBarkOutputFingerprint = fingerprint
-                do { try modelContext.save() } catch { NSLog("⚠️ Bark fingerprint save failed: \(error)") }
+                task.lastPushOutputFingerprint = fingerprint
+                do { try modelContext.save() } catch { NSLog("⚠️ Push fingerprint save failed: \(error)") }
             }
             guard shouldSend else { return }
         }
-        BarkPushManager.shared.send(title: title, body: body)
+        PushDispatcher.shared.send(title: title, body: body, to: channels)
     }
 
     /// Cancel a running task. Hits both the immediate child (zsh) and the

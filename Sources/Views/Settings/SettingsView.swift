@@ -14,11 +14,6 @@ struct SettingsView: View {
 
     // Notifications
     @AppStorage("notificationsEnabled") private var notificationsEnabled = true
-    @AppStorage("barkServerURL") private var barkServerURL = ""
-    @State private var isSendingBarkTest = false
-    @State private var showBarkTestResult = false
-    @State private var barkTestSucceeded = false
-    @State private var barkTestErrorMessage: String?
 
     // Logs
     @AppStorage("logRetentionDays") private var logRetentionDays = 30
@@ -49,37 +44,105 @@ struct SettingsView: View {
     @State private var cleanupDeletedCount = 0
     @State private var isCleaningLogs = false
 
+    /// The tab bar, as data. Both the `tabItem` labels and the window width
+    /// below read from here — a width computed from a second, hand-copied list
+    /// of titles would drift the first time a tab is added or renamed.
+    enum Tab: String, CaseIterable {
+        case general = "settings.general"
+        case quickLauncher = "quick_launcher.settings.section"
+        case cli = "settings.cli.section.title"
+        case notifications = "settings.notifications"
+        case backup = "settings.backup"
+        case logs = "settings.logs"
+        case updates = "settings.updates"
+        case about = "settings.about"
+
+        var title: String { L10n.tr(rawValue) }
+
+        var symbol: String {
+            switch self {
+            case .general: return "gear"
+            case .quickLauncher: return "command"
+            case .cli: return "terminal"
+            case .notifications: return "bell"
+            case .backup: return "externaldrive.badge.timemachine"
+            case .logs: return "doc.text"
+            case .updates: return "arrow.triangle.2.circlepath"
+            case .about: return "info.circle"
+            }
+        }
+    }
+
     var body: some View {
         TabView {
             generalTab
-                .tabItem { Label(L10n.tr("settings.general"), systemImage: "gear") }
+                .tabItem { Label(Tab.general.title, systemImage: Tab.general.symbol) }
 
             quickLauncherTab
-                .tabItem { Label(L10n.tr("quick_launcher.settings.section"), systemImage: "command") }
+                .tabItem { Label(Tab.quickLauncher.title, systemImage: Tab.quickLauncher.symbol) }
 
             cliTab
-                .tabItem { Label(L10n.tr("settings.cli.section.title"), systemImage: "terminal") }
+                .tabItem { Label(Tab.cli.title, systemImage: Tab.cli.symbol) }
+
+            notificationsTab
+                .tabItem { Label(Tab.notifications.title, systemImage: Tab.notifications.symbol) }
 
             backupTab
-                .tabItem { Label(L10n.tr("settings.backup"), systemImage: "externaldrive.badge.timemachine") }
+                .tabItem { Label(Tab.backup.title, systemImage: Tab.backup.symbol) }
 
             logsTab
-                .tabItem { Label(L10n.tr("settings.logs"), systemImage: "doc.text") }
+                .tabItem { Label(Tab.logs.title, systemImage: Tab.logs.symbol) }
 
             updatesTab
-                .tabItem { Label(L10n.tr("settings.updates"), systemImage: "arrow.triangle.2.circlepath") }
+                .tabItem { Label(Tab.updates.title, systemImage: Tab.updates.symbol) }
 
             aboutTab
-                .tabItem { Label(L10n.tr("settings.about"), systemImage: "info.circle") }
+                .tabItem { Label(Tab.about.title, systemImage: Tab.about.symbol) }
         }
-        // 680pt: seven tabs — the macOS 15+ toolbar-style tab bar collapses
-        // into the "»" overflow menu below this (issue #39 item 1).
-        .frame(width: 680)
+        .frame(width: Self.windowWidth())
         .fixedSize(horizontal: false, vertical: true)
         .onExitCommand {
             NSApp.keyWindow?.close()
         }
     }
+
+    /// How wide the window has to be for the whole tab bar to stay visible.
+    ///
+    /// This used to be a hardcoded 680, measured in English (issue #39 item 1).
+    /// But the requirement is a pure function of the current language: Chinese
+    /// fits all eight tabs in 680pt with room to spare, while Russian's
+    /// "Резервное копирование" alone is nearly three times the width of
+    /// "Backup" and silently pushes two tabs into the macOS "»" overflow menu.
+    /// Any fixed number is only ever right for the language it was measured in,
+    /// so measure the strings actually about to be drawn.
+    ///
+    /// Calibrated against the live tab bar via the accessibility API: items are
+    /// laid out flush against each other at the 11pt small system font plus a
+    /// constant ~12pt of horizontal padding, and macOS collapses the bar once
+    /// they need more than the window minus ~8pt at each end. The 16pt used
+    /// here is that measured inset with margin to spare.
+    static func windowWidth(screenWidth: CGFloat? = nil) -> CGFloat {
+        windowWidth(titles: Tab.allCases.map(\.title), screenWidth: screenWidth)
+    }
+
+    /// Split out so tests can feed it every language's titles straight from the
+    /// `.strings` files instead of re-deriving the formula.
+    static func windowWidth(titles: [String], screenWidth: CGFloat? = nil) -> CGFloat {
+        let font = NSFont.systemFont(ofSize: NSFont.smallSystemFontSize)
+        let bar = titles.reduce(CGFloat.zero) { total, title in
+            total + ceil((title as NSString).size(withAttributes: [.font: font]).width) + itemPadding
+        }
+        // Never shrink below the familiar 680 — languages that fit should keep
+        // the proportions users already know. Never exceed the display either:
+        // a pathological translation must not open a window wider than the
+        // screen, "»" is the lesser evil at that point.
+        let available = (screenWidth ?? NSScreen.main?.visibleFrame.width ?? 1440) - 80
+        return min(max(680, ceil(bar) + 2 * barInset), max(680, available))
+    }
+
+    /// Measured against the live tab bar (see `windowWidth`), not guessed.
+    static let itemPadding: CGFloat = 12
+    static let barInset: CGFloat = 16
 
     // MARK: - General
 
@@ -109,37 +172,6 @@ struct SettingsView: View {
                 Toggle(L10n.tr("settings.general.show_menubar_icon"), isOn: $showMenuBarIcon)
             }
 
-            Section {
-                Toggle(L10n.tr("settings.notifications.enable"), isOn: $notificationsEnabled)
-            } header: {
-                Text(L10n.tr("settings.notifications"))
-            } footer: {
-                Text(L10n.tr("settings.notifications.hint"))
-            }
-
-            Section {
-                TextField(L10n.tr("settings.bark.url.placeholder"), text: $barkServerURL)
-                    .textFieldStyle(.roundedBorder)
-
-                HStack(spacing: 8) {
-                    Button(L10n.tr("settings.bark.test")) {
-                        sendBarkTest()
-                    }
-                    .disabled(barkServerURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                              || isSendingBarkTest)
-                    .pointerCursor()
-
-                    if isSendingBarkTest {
-                        ProgressView()
-                            .controlSize(.small)
-                    }
-                }
-            } header: {
-                Text(L10n.tr("settings.bark"))
-            } footer: {
-                Text(L10n.tr("settings.bark.hint"))
-            }
-
             Section(L10n.tr("settings.general.defaults")) {
                 Picker(L10n.tr("settings.general.default_shell"), selection: $defaultShell) {
                     ForEach(AvailableShells.load(including: defaultShell), id: \.self) { shell in
@@ -160,16 +192,32 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .alert(barkTestSucceeded
-               ? L10n.tr("settings.bark.test.success")
-               : L10n.tr("settings.bark.test.failed"),
-               isPresented: $showBarkTestResult) {
-            Button("OK") {}
-        } message: {
-            Text(barkTestSucceeded
-                 ? L10n.tr("settings.bark.test.success.message")
-                 : (barkTestErrorMessage ?? L10n.tr("settings.bark.test.failed.invalid")))
+    }
+
+    // MARK: - Notifications
+
+    /// System notifications and remote push channels are the two halves of one
+    /// question — "how does a finished task reach me?" — so they share a tab.
+    /// They used to sit in General, which had accumulated everything from
+    /// appearance to default shell; the channel list (issue #51) is the first
+    /// item here that manages a collection rather than flipping a switch, and
+    /// it needs the room.
+    private var notificationsTab: some View {
+        Form {
+            Section {
+                Toggle(L10n.tr("settings.notifications.enable"), isOn: $notificationsEnabled)
+            } header: {
+                Text(L10n.tr("settings.notifications"))
+            } footer: {
+                Text(L10n.tr("settings.notifications.hint"))
+            }
+
+            PushChannelsSection()
         }
+        .formStyle(.grouped)
+        // The launch-time Bark→channel migration writes straight to
+        // UserDefaults, possibly before PushChannelSettings was ever created.
+        .onAppear { PushChannelSettings.shared.reload() }
     }
 
     // MARK: - Quick Launcher
@@ -691,23 +739,6 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-    }
-
-    private func sendBarkTest() {
-        isSendingBarkTest = true
-        Task {
-            let result = await BarkPushManager.shared.sendTest()
-            isSendingBarkTest = false
-            switch result {
-            case .success:
-                barkTestSucceeded = true
-                barkTestErrorMessage = nil
-            case .failure(let error):
-                barkTestSucceeded = false
-                barkTestErrorMessage = error.localizedDescription
-            }
-            showBarkTestResult = true
-        }
     }
 
     private func applyAppearance(_ mode: String) {

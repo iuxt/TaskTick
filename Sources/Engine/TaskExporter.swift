@@ -49,9 +49,16 @@ struct TaskExporter {
         /// Per-task schedule time zone (issue #41). Optional for older exports;
         /// nil = follow the system time zone.
         let timeZoneIdentifier: String?
-        /// Per-task Bark push opt-in. Optional so older exports still decode.
+        /// Per-task remote-push opt-in. Optional so older exports still decode.
+        /// Legacy field names — the storage predates issue #51's multi-provider
+        /// channels and renaming them would break every existing backup.
         let barkPushEnabled: Bool?
         let barkNotifyOnOutputChange: Bool?
+        /// Which channels the task pushes to (issue #51), as channel UUID
+        /// strings. Only the *reference* travels — a channel carries an app
+        /// token, and a backup file is not the place for one. nil = the task
+        /// pushes to every enabled channel.
+        let pushChannelIDs: [String]?
         /// Custom reminder body shared by all channels (issue #48). Optional so
         /// older exports still decode; nil restores as "default wording".
         let notificationTemplateEnabled: Bool?
@@ -192,9 +199,27 @@ struct TaskExporter {
             timeZoneIdentifier: task.timeZoneIdentifier,
             barkPushEnabled: task.barkPushEnabled,
             barkNotifyOnOutputChange: task.barkNotifyOnOutputChange,
+            pushChannelIDs: task.pushChannelIDs?.map(\.uuidString),
             notificationTemplateEnabled: task.notificationTemplateEnabled ? true : nil,
             notificationTemplate: task.notificationTemplate.isEmpty ? nil : task.notificationTemplate
         )
+    }
+
+    /// Maps an export's channel references onto the channels this machine
+    /// actually has.
+    ///
+    /// A backup restored onto a different Mac names channel ids that don't
+    /// exist here. Keeping the dangling ids would leave the task's push switch
+    /// on while nothing could ever receive it — a silent failure with no UI
+    /// trace. When *nothing* matches we fall back to nil ("every enabled
+    /// channel"), which is what the task meant before #51 split channels apart.
+    /// A partial match is kept as-is: the user's intent to narrow down survives.
+    nonisolated private static func restoredChannelIDs(from raw: [String]?) -> [UUID]? {
+        guard let raw else { return nil }
+        let requested = raw.compactMap(UUID.init(uuidString:))
+        let known = Set(PushChannelStore.load().map(\.id))
+        let matched = requested.filter { known.contains($0) }
+        return matched.isEmpty ? nil : matched
     }
 
     /// Materialize an `ExportedTask` back into a `ScheduledTask`. The task is NOT inserted
@@ -243,6 +268,7 @@ struct TaskExporter {
         if let v = item.notifyOnlyWhenOutput { task.notifyOnlyWhenOutput = v }
         if let v = item.barkPushEnabled { task.barkPushEnabled = v }
         if let v = item.barkNotifyOnOutputChange { task.barkNotifyOnOutputChange = v }
+        task.pushChannelIDs = restoredChannelIDs(from: item.pushChannelIDs)
         if let v = item.notificationTemplateEnabled { task.notificationTemplateEnabled = v }
         if let v = item.notificationTemplate { task.notificationTemplate = v }
         if let v = item.isManualOnly { task.isManualOnly = v }

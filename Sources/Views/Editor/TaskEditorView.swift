@@ -92,9 +92,11 @@ struct TaskEditorView: View {
     @State private var notifyOnlyWhenOutput = false
     @State private var notificationTemplateEnabled = false
     @State private var notificationTemplate = ""
-    @State private var barkPushEnabled = false
-    @State private var barkNotifyOnOutputChange = false
-    @AppStorage("barkServerURL") private var barkServerURL = ""
+    @State private var pushEnabled = false
+    @State private var pushOnlyWhenOutputChanged = false
+    /// nil = "every enabled channel" (see `selectedChannelIDs`).
+    @State private var pushChannelIDs: [UUID]?
+    @ObservedObject private var pushSettings = PushChannelSettings.shared
     @State private var strongReminder = false
     @State private var ignoreExitCode = false
 
@@ -927,31 +929,64 @@ struct TaskEditorView: View {
             }
 
             Section {
-                Toggle(isOn: $barkPushEnabled) {
+                Toggle(isOn: $pushEnabled) {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(L10n.tr("editor.notify_bark"))
-                        Text(isBarkURLConfigured
-                             ? L10n.tr("editor.notify_bark.hint")
-                             : L10n.tr("editor.notify_bark.missing_url"))
+                        Text(L10n.tr("editor.notify_push"))
+                        Text(pushSettings.channels.isEmpty
+                             ? L10n.tr("editor.notify_push.no_channel")
+                             : L10n.tr("editor.notify_push.hint"))
                             .font(.caption)
-                            .foregroundStyle(isBarkURLConfigured ? Color.secondary : Color.orange)
+                            .foregroundStyle(pushSettings.channels.isEmpty ? Color.orange : Color.secondary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                 }
-                Toggle(isOn: $barkNotifyOnOutputChange) {
+
+                if pushEnabled && !pushSettings.channels.isEmpty {
+                    ForEach(pushSettings.channels) { channel in
+                        Toggle(isOn: channelBinding(channel.id)) {
+                            HStack(spacing: 6) {
+                                Image(systemName: channel.kind.symbolName)
+                                    .foregroundStyle(.secondary)
+                                Text(channel.displayName)
+                                // A channel that's off or misconfigured in
+                                // Settings can still be checked here — say so,
+                                // rather than letting the user believe a run
+                                // will reach it.
+                                if !channel.isReadyToSend {
+                                    Text(channel.isEnabled
+                                         ? L10n.tr("editor.notify_push.channel_invalid")
+                                         : L10n.tr("editor.notify_push.channel_off"))
+                                        .font(.caption)
+                                        .foregroundStyle(.orange)
+                                }
+                            }
+                        }
+                        .toggleStyle(.checkbox)
+                        .padding(.leading, 18)
+                    }
+
+                    if selectedChannelIDs.isEmpty {
+                        Text(L10n.tr("editor.notify_push.none_selected"))
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+
+                Toggle(isOn: $pushOnlyWhenOutputChanged) {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(L10n.tr("editor.notify_bark.on_output_change"))
-                        if barkPushEnabled && barkNotifyOnOutputChange {
-                            Text(L10n.tr("editor.notify_bark.on_output_change.hint"))
+                        Text(L10n.tr("editor.notify_push.on_output_change"))
+                        if pushEnabled && pushOnlyWhenOutputChanged {
+                            Text(L10n.tr("editor.notify_push.on_output_change.hint"))
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                                 .fixedSize(horizontal: false, vertical: true)
                         }
                     }
                 }
-                .disabled(!barkPushEnabled)
+                .disabled(!pushEnabled)
             } header: {
-                Text(L10n.tr("settings.bark"))
+                Text(L10n.tr("settings.push"))
             }
 
             Section {
@@ -978,8 +1013,33 @@ struct TaskEditorView: View {
         }
     }
 
-    private var isBarkURLConfigured: Bool {
-        BarkPushManager.normalizedURL(from: barkServerURL) != nil
+    /// `nil` on the task means "every channel". The editor materializes that
+    /// into concrete checkmarks so what the user sees is what gets saved —
+    /// leaving the sentinel in place would silently widen the task's reach the
+    /// next time a channel is added in Settings.
+    ///
+    /// Every channel, not just the enabled ones: a channel's own switch is a
+    /// separate, global gate applied at send time. Materializing to "enabled
+    /// only" would quietly unpin a task from a channel the user had merely
+    /// paused.
+    private var selectedChannelIDs: [UUID] {
+        pushChannelIDs ?? pushSettings.channels.map(\.id)
+    }
+
+    private func channelBinding(_ id: UUID) -> Binding<Bool> {
+        Binding(
+            get: { selectedChannelIDs.contains(id) },
+            set: { isOn in
+                var ids = selectedChannelIDs
+                if isOn {
+                    guard !ids.contains(id) else { return }
+                    ids.append(id)
+                } else {
+                    ids.removeAll { $0 == id }
+                }
+                pushChannelIDs = ids
+            }
+        )
     }
 
     // MARK: - Script Validation
@@ -1185,8 +1245,9 @@ struct TaskEditorView: View {
         notifyOnlyWhenOutput = false
         notificationTemplateEnabled = false
         notificationTemplate = ""
-        barkPushEnabled = false
-        barkNotifyOnOutputChange = false
+        pushEnabled = false
+        pushOnlyWhenOutputChanged = false
+        pushChannelIDs = nil
         strongReminder = false
         ignoreExitCode = false
         selectedTab = 0
@@ -1222,8 +1283,9 @@ struct TaskEditorView: View {
         notifyOnlyWhenOutput = task.notifyOnlyWhenOutput
         notificationTemplateEnabled = task.notificationTemplateEnabled
         notificationTemplate = task.notificationTemplate
-        barkPushEnabled = task.barkPushEnabled
-        barkNotifyOnOutputChange = task.barkNotifyOnOutputChange
+        pushEnabled = task.pushEnabled
+        pushOnlyWhenOutputChanged = task.pushOnlyWhenOutputChanged
+        pushChannelIDs = task.pushChannelIDs
         strongReminder = task.strongReminder
         ignoreExitCode = task.ignoreExitCode
         repeatType = task.repeatType
@@ -1288,8 +1350,16 @@ struct TaskEditorView: View {
         target.notifyOnlyWhenOutput = notifyOnlyWhenOutput
         target.notificationTemplateEnabled = notificationTemplateEnabled
         target.notificationTemplate = notificationTemplate.trimmingCharacters(in: .whitespacesAndNewlines)
-        target.barkPushEnabled = barkPushEnabled
-        target.barkNotifyOnOutputChange = barkNotifyOnOutputChange
+        target.pushEnabled = pushEnabled
+        target.pushOnlyWhenOutputChanged = pushOnlyWhenOutputChanged
+        // Persist the materialized selection (see `selectedChannelIDs`) so the
+        // saved task means exactly what the checkboxes showed. With no channels
+        // configured there are no checkboxes to be faithful to — pinning the
+        // empty set there would mean the task stays silent forever once the
+        // user does add one.
+        target.pushChannelIDs = (pushEnabled && !pushSettings.channels.isEmpty)
+            ? selectedChannelIDs
+            : pushChannelIDs
         target.strongReminder = strongReminder
         target.ignoreExitCode = ignoreExitCode
         target.isEnabled = isEnabled

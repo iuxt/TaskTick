@@ -284,8 +284,9 @@ struct TaskListView: View {
         copy.notifyOnlyWhenOutput = task.notifyOnlyWhenOutput
         copy.notificationTemplateEnabled = task.notificationTemplateEnabled
         copy.notificationTemplate = task.notificationTemplate
-        copy.barkPushEnabled = task.barkPushEnabled
-        copy.barkNotifyOnOutputChange = task.barkNotifyOnOutputChange
+        copy.pushEnabled = task.pushEnabled
+        copy.pushOnlyWhenOutputChanged = task.pushOnlyWhenOutputChanged
+        copy.pushChannelIDsJSON = task.pushChannelIDsJSON
         copy.strongReminder = task.strongReminder
         copy.ignoreExitCode = task.ignoreExitCode
         copy.isManualOnly = task.isManualOnly
