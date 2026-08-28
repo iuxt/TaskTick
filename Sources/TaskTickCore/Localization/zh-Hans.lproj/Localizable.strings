@@ -101,6 +101,7 @@
 "editor.script.validate" = "校验脚本";
 "editor.script.validating" = "校验中...";
 "editor.script.valid" = "语法正确";
+"editor.script.validate.unsupported" = "无法校验 %@ 脚本，跳过";
 "editor.script.invalid" = "语法错误";
 "editor.shell" = "Shell";
 "editor.working_dir" = "工作目录";

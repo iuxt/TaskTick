@@ -101,6 +101,7 @@
 "editor.script.validate" = "Проверить скрипт";
 "editor.script.validating" = "Проверка...";
 "editor.script.valid" = "Синтаксис верный";
+"editor.script.validate.unsupported" = "Проверка синтаксиса для %@ недоступна, пропущено";
 "editor.script.invalid" = "Синтаксическая ошибка";
 "editor.shell" = "Shell";
 "editor.working_dir" = "Рабочая директория";

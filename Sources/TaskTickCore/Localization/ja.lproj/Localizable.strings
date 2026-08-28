@@ -101,6 +101,7 @@
 "editor.script.validate" = "スクリプトを検証";
 "editor.script.validating" = "検証中...";
 "editor.script.valid" = "構文OK";
+"editor.script.validate.unsupported" = "%@ の構文チェックは非対応のためスキップ";
 "editor.script.invalid" = "構文エラー";
 "editor.shell" = "シェル";
 "editor.working_dir" = "作業ディレクトリ";

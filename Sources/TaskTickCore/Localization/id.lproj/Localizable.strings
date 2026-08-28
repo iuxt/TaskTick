@@ -101,6 +101,7 @@
 "editor.script.validate" = "Validasi Skrip";
 "editor.script.validating" = "Memvalidasi...";
 "editor.script.valid" = "Sintaks OK";
+"editor.script.validate.unsupported" = "Tidak ada pemeriksaan sintaks untuk %@, dilewati";
 "editor.script.invalid" = "Kesalahan Sintaks";
 "editor.shell" = "Shell";
 "editor.working_dir" = "Direktori Kerja";

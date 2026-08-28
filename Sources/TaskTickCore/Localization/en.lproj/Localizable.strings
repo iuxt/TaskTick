@@ -101,6 +101,7 @@
 "editor.script.validate" = "Validate Script";
 "editor.script.validating" = "Validating...";
 "editor.script.valid" = "Syntax OK";
+"editor.script.validate.unsupported" = "No syntax check for %@, skipped";
 "editor.script.invalid" = "Syntax Error";
 "editor.shell" = "Shell";
 "editor.working_dir" = "Working Directory";

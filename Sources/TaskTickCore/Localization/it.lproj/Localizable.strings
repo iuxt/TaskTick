@@ -101,6 +101,7 @@
 "editor.script.validate" = "Valida script";
 "editor.script.validating" = "Validazione...";
 "editor.script.valid" = "Sintassi corretta";
+"editor.script.validate.unsupported" = "Nessun controllo di sintassi per %@, ignorato";
 "editor.script.invalid" = "Errore di sintassi";
 "editor.shell" = "Shell";
 "editor.working_dir" = "Directory di lavoro";

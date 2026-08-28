@@ -101,6 +101,7 @@
 "editor.script.validate" = "驗證腳本";
 "editor.script.validating" = "驗證中...";
 "editor.script.valid" = "語法正確";
+"editor.script.validate.unsupported" = "無法驗證 %@ 腳本，已跳過";
 "editor.script.invalid" = "語法錯誤";
 "editor.shell" = "Shell";
 "editor.working_dir" = "工作目錄";

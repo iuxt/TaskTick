@@ -93,6 +93,7 @@
 "editor.script.validate" = "Valider le script";
 "editor.script.validating" = "Validation en cours...";
 "editor.script.valid" = "Syntaxe correcte";
+"editor.script.validate.unsupported" = "Pas de vérification de syntaxe pour %@, ignoré";
 "editor.script.invalid" = "Erreur de syntaxe";
 "editor.shell" = "Shell";
 "editor.working_dir" = "Répertoire de travail";

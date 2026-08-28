@@ -110,11 +110,6 @@ struct TaskEditorView: View {
     @State private var pendingTemplate: ScriptTemplate?
     @ObservedObject private var templateStore = ScriptTemplateStore.shared
 
-    enum ScriptValidationResult {
-        case success
-        case error(String)
-    }
-
     var isEditing: Bool { task != nil }
 
     var canSave: Bool {
@@ -590,24 +585,7 @@ struct TaskEditorView: View {
                         .pointerCursor()
 
                         if let result = validationResult {
-                            switch result {
-                            case .success:
-                                HStack(spacing: 4) {
-                                    Image(systemName: "checkmark.circle.fill")
-                                    Text(L10n.tr("editor.script.valid"))
-                                }
-                                .font(.caption)
-                                .foregroundStyle(.green)
-                            case .error(let message):
-                                HStack(spacing: 4) {
-                                    Image(systemName: "xmark.circle.fill")
-                                    Text(message)
-                                        .lineLimit(2)
-                                        .textSelection(.enabled)
-                                }
-                                .font(.caption)
-                                .foregroundStyle(.red)
-                            }
+                            ScriptValidationResultLabel(result: result)
                         }
 
                         Spacer()
@@ -1006,82 +984,43 @@ struct TaskEditorView: View {
 
     // MARK: - Script Validation
 
-    private var currentScript: String {
-        let body: String
+    /// The script itself, without preRunCommand glued on. They're separate languages
+    /// once the script has a non-shell shebang, so validation keeps them apart.
+    private var currentScriptBody: String {
         if scriptSource == .file {
             if scriptFilePath.isEmpty { return "" }
-            body = (try? String(contentsOfFile: Self.normalizePath(scriptFilePath), encoding: .utf8)) ?? ""
-        } else {
-            body = scriptBody
+            return (try? String(contentsOfFile: Self.normalizePath(scriptFilePath), encoding: .utf8)) ?? ""
         }
+        return scriptBody
+    }
+
+    /// Both halves together — used only to decide whether there's anything to validate.
+    private var currentScript: String {
+        let body = currentScriptBody
         let trimmedPre = preRunCommand.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmedPre.isEmpty ? body : trimmedPre + "\n" + body
     }
 
+    /// Validation lives entirely in `ScriptValidator` — this screen used to carry its
+    /// own near-duplicate copy, which is how the shebang fix landed in one of the two
+    /// and not the other.
     private func validateScript() {
-        let script = currentScript
-        guard !script.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        guard !currentScript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
 
         isValidating = true
         validationResult = nil
+        let body = currentScriptBody
+        let pre = preRunCommand
         let selectedShell = shell
 
         Task.detached {
-            let result: ScriptValidationResult
-
-            if selectedShell.contains("python") {
-                // Python: compile check
-                result = await Self.runValidation(
-                    executable: selectedShell,
-                    arguments: ["-c", "import py_compile,sys; py_compile.compile(sys.argv[1], doraise=True)", "-"],
-                    input: script
-                )
-            } else {
-                // Shell: the shell's own `-n` parse is the only authoritative
-                // check. A homegrown per-line "command exists" pass was removed
-                // here: it couldn't see `\` continuations or multi-line strings
-                // (flagging valid scripts, issue #39), and PATH at validation
-                // time differs from PATH at run time anyway.
-                result = await Self.runValidation(
-                    executable: selectedShell,
-                    arguments: ["-n"],
-                    input: script
-                )
-            }
-
+            let result = await ScriptValidator.validate(
+                scriptBody: body, preRun: pre, uiShell: selectedShell
+            )
             await MainActor.run {
                 validationResult = result
                 isValidating = false
             }
-        }
-    }
-
-    private static func runValidation(executable: String, arguments: [String], input: String) async -> ScriptValidationResult {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: executable)
-        process.arguments = arguments
-
-        let inputPipe = Pipe()
-        let errorPipe = Pipe()
-        process.standardInput = inputPipe
-        process.standardError = errorPipe
-        process.standardOutput = FileHandle.nullDevice
-
-        do {
-            try process.run()
-            inputPipe.fileHandleForWriting.write(Data(input.utf8))
-            inputPipe.fileHandleForWriting.closeFile()
-            process.waitUntilExit()
-
-            if process.terminationStatus == 0 {
-                return .success
-            } else {
-                let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
-                let errorMessage = String(data: errorData, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-                return .error(errorMessage.isEmpty ? "Exit code: \(process.terminationStatus)" : errorMessage)
-            }
-        } catch {
-            return .error(error.localizedDescription)
         }
     }
 

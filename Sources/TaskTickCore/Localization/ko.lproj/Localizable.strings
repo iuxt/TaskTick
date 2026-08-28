@@ -101,6 +101,7 @@
 "editor.script.validate" = "스크립트 검증";
 "editor.script.validating" = "검증 중...";
 "editor.script.valid" = "문법 정상";
+"editor.script.validate.unsupported" = "%@ 문법 검사를 지원하지 않아 건너뜀";
 "editor.script.invalid" = "문법 오류";
 "editor.shell" = "셸";
 "editor.working_dir" = "작업 디렉토리";
