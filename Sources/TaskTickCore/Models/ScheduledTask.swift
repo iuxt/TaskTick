@@ -126,6 +126,23 @@ public enum EndRepeatType: String, Codable, CaseIterable, Sendable {
     }
 }
 
+// MARK: - Background Program
+
+/// Controls whether TaskTick starts a background program again after it exits.
+public enum ServiceRestartPolicy: String, Codable, CaseIterable, Sendable {
+    case never
+    case onFailure
+    case always
+
+    public var displayName: String {
+        switch self {
+        case .never: L10n.tr("service.restart.never")
+        case .onFailure: L10n.tr("service.restart.on_failure")
+        case .always: L10n.tr("service.restart.always")
+        }
+    }
+}
+
 // MARK: - Legacy ScheduleType (for migration)
 
 public enum ScheduleType: String, Codable, CaseIterable, Sendable {
@@ -189,6 +206,19 @@ public final class ScheduledTask {
     /// (right-click "Run", menu bar ▶, etc.). All schedule fields are ignored.
     /// Default `false` preserves legacy behavior on SwiftData migration.
     public var isManualOnly: Bool = false
+    /// A long-running command managed by TaskTick. Background programs are
+    /// also manual-only from the scheduler's perspective, but get service
+    /// lifecycle features such as auto-start, restart policy and rotating logs.
+    public var isBackgroundService: Bool = false
+    public var serviceAutoStart: Bool = true
+    public var serviceRestartPolicyRaw: String = ServiceRestartPolicy.onFailure.rawValue
+    public var serviceRestartDelaySeconds: Int = 3
+    public var serviceLogEnabled: Bool = true
+    /// Optional absolute or tilde-prefixed path. nil uses TaskTick's log directory.
+    public var serviceLogPath: String? = nil
+    public var serviceLogMaxSizeMB: Int = 10
+    /// Number of archived files (`.1`, `.2`, …) retained beside the active log.
+    public var serviceLogRotationCount: Int = 5
     public var createdAt: Date
     public var updatedAt: Date
     public var lastRunAt: Date?
@@ -412,6 +442,11 @@ public final class ScheduledTask {
         }
     }
 
+    public var serviceRestartPolicy: ServiceRestartPolicy {
+        get { ServiceRestartPolicy(rawValue: serviceRestartPolicyRaw) ?? .onFailure }
+        set { serviceRestartPolicyRaw = newValue.rawValue }
+    }
+
     // MARK: - Remote push (issue #51)
 
     /// Provider-neutral aliases over the legacy `bark*` columns. Pure
@@ -465,6 +500,9 @@ public final class ScheduledTask {
 
     /// Human-readable schedule description
     public var scheduleDescription: String {
+        if isBackgroundService {
+            return L10n.tr("schedule.background_service")
+        }
         if isManualOnly {
             return L10n.tr("schedule.manual_only")
         }

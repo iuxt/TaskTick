@@ -687,4 +687,31 @@
 "cli.repair.success.message" = "%@ теперь указывает на встроенный бинарный файл CLI.";
 
 /* Time */
+/* Background programs */
+"task.mode" = "Task Type";
+"task.mode.scheduled" = "Scheduled";
+"task.mode.manual" = "Manual";
+"task.mode.background" = "Background";
+"task.mode.scheduled.help" = "Run this command on a date, interval, or cron schedule.";
+"task.mode.background.help" = "Manage a long-running command with auto-start, restart supervision, and rotating output logs.";
+"schedule.background_service" = "Background Program";
+"tasklist.section.background" = "BACKGROUND PROGRAMS";
+"service.lifecycle" = "Lifecycle";
+"service.auto_start" = "Start with TaskTick";
+"service.restart_policy" = "Restart Policy";
+"service.restart.never" = "Never";
+"service.restart.on_failure" = "On Failure";
+"service.restart.always" = "Always";
+"service.restart_delay" = "Restart Delay";
+"service.timeout.help" = "Background programs have no timeout and run until stopped or exited.";
+"service.log" = "Output Log";
+"service.log.enabled" = "Write stdout and stderr to file";
+"service.log.path" = "Log path (leave empty for default)";
+"service.log.max_size" = "Maximum File Size";
+"service.log.rotation_count" = "Archived Files";
+"service.log.help" = "When the active log reaches the size limit, it becomes .1 and older files move to .2, .3, and so on.";
+"common.yes" = "Yes";
+"common.no" = "No";
+
+
 "time.just_now" = "только что";

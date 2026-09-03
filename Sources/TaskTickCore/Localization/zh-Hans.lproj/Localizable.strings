@@ -687,4 +687,30 @@
 "cli.repair.success.message" = "%@ 已指向新的 CLI 二进制。";
 
 /* Time */
+/* 后台程序 */
+"task.mode" = "任务类型";
+"task.mode.scheduled" = "定时任务";
+"task.mode.manual" = "手动任务";
+"task.mode.background" = "后台程序";
+"task.mode.scheduled.help" = "按照日期、间隔或 Cron 表达式运行命令。";
+"task.mode.background.help" = "管理长时间运行的命令，支持自动启动、退出重启和输出日志轮转。";
+"schedule.background_service" = "后台程序";
+"tasklist.section.background" = "后台程序";
+"service.lifecycle" = "生命周期";
+"service.auto_start" = "随 TaskTick 启动";
+"service.restart_policy" = "重启策略";
+"service.restart.never" = "从不";
+"service.restart.on_failure" = "失败时";
+"service.restart.always" = "总是";
+"service.restart_delay" = "重启延迟";
+"service.timeout.help" = "后台程序不设超时，将持续运行，直到手动停止或程序自行退出。";
+"service.log" = "输出日志";
+"service.log.enabled" = "将 stdout 和 stderr 写入文件";
+"service.log.path" = "日志路径（留空使用默认路径）";
+"service.log.max_size" = "单文件最大大小";
+"service.log.rotation_count" = "保留历史文件数";
+"service.log.help" = "当前日志达到大小上限后轮转为 .1，旧文件依次变为 .2、.3。";
+"common.yes" = "是";
+"common.no" = "否";
+
 "time.just_now" = "刚刚";

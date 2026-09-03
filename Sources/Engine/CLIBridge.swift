@@ -83,7 +83,16 @@ final class CLIBridge {
             let wasRunning = TaskScheduler.shared.runningTaskIDs.contains(task.id)
             if wasRunning { ScriptExecutor.shared.cancel(taskId: task.id) }
             Task {
-                if wasRunning { try? await Task.sleep(for: .milliseconds(200)) }
+                if wasRunning {
+                    // Wait for the old process group to actually leave before
+                    // starting its replacement. cancel() escalates to SIGKILL
+                    // after 3s, so this loop also covers SIGTERM-resistant apps.
+                    for _ in 0..<35 {
+                        if !TaskScheduler.shared.runningTaskIDs.contains(task.id) { break }
+                        try? await Task.sleep(for: .milliseconds(100))
+                    }
+                }
+                guard !TaskScheduler.shared.runningTaskIDs.contains(task.id) else { return }
                 _ = await ScriptExecutor.shared.execute(task: task, modelContext: context)
             }
             ActionToast.notify(.restarted(taskName: task.name), wantsBanner: wantsBanner)
@@ -143,7 +152,14 @@ final class CLIBridge {
                 isManual: info["manual"] as? Bool,
                 isEnabled: info["enabled"] as? Bool,
                 repeatRaw: info["repeat"] as? String,
-                scheduledAt: info["scheduled_at"] as? Double
+                scheduledAt: info["scheduled_at"] as? Double,
+                isBackgroundService: info["background"] as? Bool,
+                serviceAutoStart: info["auto_start"] as? Bool,
+                serviceRestartPolicy: info["restart_policy"] as? String,
+                serviceRestartDelaySeconds: info["restart_delay"] as? Int,
+                serviceLogPath: info["log_path"] as? String,
+                serviceLogMaxSizeMB: info["log_max_size_mb"] as? Int,
+                serviceLogRotationCount: info["log_rotation_count"] as? Int
             )
             Task { @MainActor in self?.handleCreate(spec: spec) }
         }
@@ -162,6 +178,13 @@ final class CLIBridge {
         let isEnabled: Bool?
         let repeatRaw: String?
         let scheduledAt: Double?
+        let isBackgroundService: Bool?
+        let serviceAutoStart: Bool?
+        let serviceRestartPolicy: String?
+        let serviceRestartDelaySeconds: Int?
+        let serviceLogPath: String?
+        let serviceLogMaxSizeMB: Int?
+        let serviceLogRotationCount: Int?
     }
 
     /// Build a ScheduledTask from the CLI-supplied payload, persist it, and
@@ -207,6 +230,17 @@ final class CLIBridge {
         task.id = id
         task.scriptFilePath = scriptPath
         task.isManualOnly = isManual
+        task.isBackgroundService = spec.isBackgroundService ?? false
+        if task.isBackgroundService {
+            task.isManualOnly = true
+            task.timeoutSeconds = -1
+            task.serviceAutoStart = spec.serviceAutoStart ?? true
+            task.serviceRestartPolicyRaw = spec.serviceRestartPolicy ?? ServiceRestartPolicy.onFailure.rawValue
+            task.serviceRestartDelaySeconds = max(1, spec.serviceRestartDelaySeconds ?? 3)
+            task.serviceLogPath = spec.serviceLogPath
+            task.serviceLogMaxSizeMB = max(1, spec.serviceLogMaxSizeMB ?? 10)
+            task.serviceLogRotationCount = max(0, spec.serviceLogRotationCount ?? 5)
+        }
 
         context.insert(task)
         do {
@@ -220,6 +254,15 @@ final class CLIBridge {
             task.nextRunAt = TaskScheduler.shared.computeNextRunDate(for: task)
             try? context.save()
             TaskScheduler.shared.rebuildSchedule()
+        }
+        if isEnabled && task.isBackgroundService && task.serviceAutoStart {
+            Task {
+                _ = await ScriptExecutor.shared.execute(
+                    task: task,
+                    triggeredBy: .manual,
+                    modelContext: context
+                )
+            }
         }
     }
 }

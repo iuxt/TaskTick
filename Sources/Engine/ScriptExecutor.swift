@@ -83,12 +83,18 @@ final class ScriptExecutor: ObservableObject {
 
     static let shared = ScriptExecutor()
     private let executionSemaphore = DispatchSemaphore(value: 8)
+    private var stoppedServiceIDs: Set<UUID> = []
+    private var serviceRestartTasks: [UUID: Task<Void, Never>] = [:]
 
     private init() {}
 
     /// Run a task's script and return the execution log entry.
     @discardableResult
     func execute(task: ScheduledTask, triggeredBy: TriggerType = .manual, modelContext: ModelContext) async -> ExecutionLog {
+        if task.isBackgroundService {
+            stoppedServiceIDs.remove(task.id)
+            serviceRestartTasks.removeValue(forKey: task.id)?.cancel()
+        }
         // Mark as running so every UI surface (list dot animation, menu bar
         // spinner, detail view stop button) reacts consistently regardless of
         // which entry point triggered the run. Set is idempotent, so callers
@@ -117,6 +123,11 @@ final class ScriptExecutor: ObservableObject {
         let taskId = task.id
         let ignoreExitCode = task.ignoreExitCode
         let taskName = task.name
+        let isBackgroundService = task.isBackgroundService
+        let serviceLogEnabled = task.serviceLogEnabled
+        let serviceLogPath = task.serviceLogPath
+        let serviceLogMaxBytes = Int64(max(1, task.serviceLogMaxSizeMB)) * 1_048_576
+        let serviceLogRotationCount = max(0, task.serviceLogRotationCount)
         let notifyOnSuccess = task.notifyOnSuccess
         let notifyOnFailure = task.notifyOnFailure
         let notifyOnlyWhenOutput = task.notifyOnlyWhenOutput
@@ -185,6 +196,17 @@ final class ScriptExecutor: ObservableObject {
         // the file and the database log already covers their needs.
         let logFileWriter: LogFileWriter? = {
             guard task.isManualOnly else { return nil }
+            if isBackgroundService {
+                guard serviceLogEnabled else { return nil }
+                return LogFileWriter(
+                    taskName: taskName,
+                    taskId: taskId,
+                    path: serviceLogPath,
+                    append: true,
+                    maximumBytes: serviceLogMaxBytes,
+                    rotationCount: serviceLogRotationCount
+                )
+            }
             let enabled = UserDefaults.standard.object(forKey: "logs.streamManualToFile") as? Bool ?? true
             guard enabled else { return nil }
             return LogFileWriter(taskName: taskName)
@@ -205,7 +227,8 @@ final class ScriptExecutor: ObservableObject {
                 taskId: taskId,
                 logId: logId,
                 ignoreExitCode: ignoreExitCode,
-                logFileWriter: logFileWriter
+                logFileWriter: logFileWriter,
+                captureLimitBytes: isBackgroundService ? ExecutionLog.maxOutputSize : nil
             )
         } else {
             result = await runProcess(
@@ -217,7 +240,8 @@ final class ScriptExecutor: ObservableObject {
                 taskId: taskId,
                 logId: logId,
                 ignoreExitCode: ignoreExitCode,
-                logFileWriter: logFileWriter
+                logFileWriter: logFileWriter,
+                captureLimitBytes: isBackgroundService ? ExecutionLog.maxOutputSize : nil
             )
         }
 
@@ -341,7 +365,45 @@ final class ScriptExecutor: ObservableObject {
             )
         }
 
+        if isBackgroundService {
+            scheduleServiceRestartIfNeeded(taskId: taskId, lastStatus: result.status)
+        }
+
         return log
+    }
+
+    /// Re-launch a managed background command after its configured delay.
+    /// A user Stop (or app shutdown) records an explicit suppression marker,
+    /// so an in-flight process completion can never resurrect the service.
+    private func scheduleServiceRestartIfNeeded(taskId: UUID, lastStatus: ExecutionStatus) {
+        guard !stoppedServiceIDs.contains(taskId) else { return }
+        let context = TaskTickApp._sharedModelContainer.mainContext
+        let descriptor = FetchDescriptor<ScheduledTask>(predicate: #Predicate { $0.id == taskId })
+        guard let service = try? context.fetch(descriptor).first,
+              service.isEnabled,
+              service.isBackgroundService else { return }
+
+        let shouldRestart: Bool = switch service.serviceRestartPolicy {
+        case .never: false
+        case .onFailure: lastStatus != .success
+        case .always: true
+        }
+        guard shouldRestart else { return }
+
+        let delay = max(1, service.serviceRestartDelaySeconds)
+        serviceRestartTasks.removeValue(forKey: taskId)?.cancel()
+        serviceRestartTasks[taskId] = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(delay))
+            guard !Task.isCancelled, let self,
+                  !self.stoppedServiceIDs.contains(taskId),
+                  !TaskScheduler.shared.runningTaskIDs.contains(taskId) else { return }
+            let descriptor = FetchDescriptor<ScheduledTask>(predicate: #Predicate { $0.id == taskId })
+            guard let service = try? context.fetch(descriptor).first,
+                  service.isEnabled,
+                  service.isBackgroundService else { return }
+            self.serviceRestartTasks.removeValue(forKey: taskId)
+            _ = await self.execute(task: service, triggeredBy: .launch, modelContext: context)
+        }
     }
 
     /// Remote push is independent of the macOS notification switch. When
@@ -387,10 +449,18 @@ final class ScriptExecutor: ObservableObject {
     /// They get SIGTERM with a 3s SIGKILL escalation; we don't waitpid
     /// because launchd has the parent slot.
     func cancel(taskId: UUID) {
+        stoppedServiceIDs.insert(taskId)
+        serviceRestartTasks.removeValue(forKey: taskId)?.cancel()
         if let process = runningProcesses[taskId], process.isRunning {
             let pid = process.processIdentifier
             kill(-pid, SIGTERM)   // process group (no-op if setpgid lost the race)
             process.terminate()   // belt and suspenders for the immediate child
+            DispatchQueue.global().asyncAfter(deadline: .now() + .seconds(3)) {
+                if process.isRunning {
+                    kill(-pid, SIGKILL)
+                    kill(pid, SIGKILL)
+                }
+            }
         }
         runningProcesses.removeValue(forKey: taskId)
 
@@ -441,6 +511,10 @@ final class ScriptExecutor: ObservableObject {
     /// Adopted processes (re-acquired from a previous session, PID-only)
     /// go through the same two-stage flow via process-group signals.
     func cancelAll(graceful: TimeInterval = 0.3) {
+        stoppedServiceIDs.formUnion(runningProcesses.keys)
+        stoppedServiceIDs.formUnion(adoptedProcesses.keys)
+        for restartTask in serviceRestartTasks.values { restartTask.cancel() }
+        serviceRestartTasks.removeAll()
         let processSnapshot = Array(runningProcesses.values)
         let adoptedSnapshot = Array(adoptedProcesses.values)
         runningProcesses.removeAll()
@@ -491,17 +565,29 @@ final class ScriptExecutor: ObservableObject {
         private let lock = NSLock()
         private let _stdout = MutableDataBox()
         private let _stderr = MutableDataBox()
+        private let maximumBytes: Int?
+
+        init(maximumBytes: Int? = nil) {
+            self.maximumBytes = maximumBytes
+        }
 
         func appendStdout(_ data: Data) {
             lock.lock()
-            _stdout.data.append(data)
+            append(data, to: _stdout)
             lock.unlock()
         }
 
         func appendStderr(_ data: Data) {
             lock.lock()
-            _stderr.data.append(data)
+            append(data, to: _stderr)
             lock.unlock()
+        }
+
+        private func append(_ incoming: Data, to box: MutableDataBox) {
+            box.data.append(incoming)
+            if let maximumBytes, box.data.count > maximumBytes {
+                box.data.removeFirst(box.data.count - maximumBytes)
+            }
         }
 
         func read() -> (stdout: Data, stderr: Data) {
@@ -651,7 +737,8 @@ final class ScriptExecutor: ObservableObject {
         taskId: UUID,
         logId: UUID,
         ignoreExitCode: Bool = false,
-        logFileWriter: LogFileWriter? = nil
+        logFileWriter: LogFileWriter? = nil,
+        captureLimitBytes: Int? = nil
     ) async -> ProcessResult {
         // Use login shell (-l) for .zprofile, then source .zshrc/.bashrc
         // for user environment variables without full interactive mode
@@ -668,7 +755,8 @@ final class ScriptExecutor: ObservableObject {
             taskId: taskId,
             logId: logId,
             ignoreExitCode: ignoreExitCode,
-            logFileWriter: logFileWriter
+            logFileWriter: logFileWriter,
+            captureLimitBytes: captureLimitBytes
         )
     }
 
@@ -686,7 +774,8 @@ final class ScriptExecutor: ObservableObject {
         taskId: UUID,
         logId: UUID,
         ignoreExitCode: Bool = false,
-        logFileWriter: LogFileWriter? = nil
+        logFileWriter: LogFileWriter? = nil,
+        captureLimitBytes: Int? = nil
     ) async -> ProcessResult {
         // Treat any non-positive value as "no timeout" — the script runs until it
         // exits on its own (or the user cancels). Lets users keep dev servers /
@@ -727,7 +816,7 @@ final class ScriptExecutor: ObservableObject {
                 let stdoutHandle = stdoutPipe.fileHandleForReading
                 let stderrHandle = stderrPipe.fileHandleForReading
 
-                let outputBuffer = PipeOutputBuffer()
+                let outputBuffer = PipeOutputBuffer(maximumBytes: captureLimitBytes)
                 // Coalesce pipe chunks at 50ms intervals before dispatching to
                 // the main thread. With high-output scripts (npm run dev +
                 // Spring Boot) the pipe can fire 100+ times/sec — without

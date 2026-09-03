@@ -10,10 +10,10 @@ struct ListCommand: AsyncParsableCommand {
     )
 
     enum Filter: String, ExpressibleByArgument {
-        case all, manual, scheduled, running
+        case all, manual, background, scheduled, running
     }
 
-    @Option(name: .long, help: "Filter: all | manual | scheduled | running")
+    @Option(name: .long, help: "Filter: all | manual | background | scheduled | running")
     var filter: Filter = .all
 
     @Flag(name: .long, help: "Output JSON instead of a human-readable table.")
@@ -28,7 +28,8 @@ struct ListCommand: AsyncParsableCommand {
         let filtered = allTasks.filter { task in
             switch filter {
             case .all: return task.isEnabled
-            case .manual: return task.isEnabled && task.isManualOnly
+            case .manual: return task.isEnabled && task.isManualOnly && !task.isBackgroundService
+            case .background: return task.isEnabled && task.isBackgroundService
             case .scheduled: return task.isEnabled && !task.isManualOnly
             case .running: return runningIds.contains(task.id)
             }

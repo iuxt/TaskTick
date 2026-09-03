@@ -39,6 +39,7 @@
 - **脚本执行** — 内联脚本或本地文件（.sh、.py、.rb、.js）
 - **脚本模板** — 内置常用模板（数据库备份、日志清理、健康检查等），支持自定义模板管理
 - **执行日志** — 捕获 stdout/stderr、退出码、执行耗时
+- **后台程序管理** — 启停和重启长驻命令，支持随应用启动、异常自动拉起、stdout/stderr 文件输出与按大小轮转
 - **系统通知** — 任务成功或失败时推送 macOS 原生通知（支持按任务配置）
 - **Crontab 导入** — 一键导入系统 crontab 任务
 - **中英双语** — 支持中英文界面，App 内一键切换
@@ -54,6 +55,18 @@
 </p>
 
 ## 系统要求
+
+### 后台程序
+
+在任务编辑器的“计划”页选择“后台程序”，然后在“设置”页配置自动启动、重启策略、日志路径、单文件大小和历史文件数量。也可以从命令行创建：
+
+```bash
+tasktick create my-api --script ./server.sh --background \
+  --restart on-failure --restart-delay 3 \
+  --log-max-size 20 --log-rotations 5
+```
+
+创建后可继续使用 `tasktick run|stop|restart|status|tail my-api` 管理和查看程序。
 
 - macOS 14 (Sonoma) 或更高版本
 - Apple Silicon 或 Intel Mac

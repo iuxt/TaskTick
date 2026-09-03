@@ -22,6 +22,15 @@ func toggleTaskEnabled(_ task: ScheduledTask, context: ModelContext) {
     do {
         try context.save()
         TaskScheduler.shared.rebuildSchedule()
+        if task.isBackgroundService {
+            if task.isEnabled && task.serviceAutoStart {
+                Task {
+                    _ = await ScriptExecutor.shared.execute(task: task, modelContext: context)
+                }
+            } else if !task.isEnabled {
+                ScriptExecutor.shared.cancel(taskId: task.id)
+            }
+        }
     } catch {
         task.isEnabled = prevEnabled
         task.nextRunAt = prevNextRunAt

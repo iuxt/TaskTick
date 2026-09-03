@@ -39,6 +39,7 @@
 - **Script Execution** — inline scripts or local files (.sh, .py, .rb, .js)
 - **Script Templates** — built-in templates (DB backup, log cleanup, health check, etc.) + create and manage your own
 - **Execution Logs** — stdout/stderr capture, exit codes, duration tracking
+- **Background Programs** — start, stop, and supervise long-running commands with auto-start, restart policies, file output, and size-based log rotation
 - **Notifications** — macOS system notifications on success/failure (per task)
 - **Crontab Import** — import from system crontab with one click
 - **i18n** — English & Simplified Chinese, switchable in-app
@@ -54,6 +55,18 @@ Quickly create tasks from built-in templates or save your own scripts for reuse.
 </p>
 
 ## Requirements
+
+### Background programs
+
+Choose **Background** on the editor's Schedule tab, then configure auto-start, restart policy, log path, maximum file size, and retained files under Settings. You can also create one from the CLI:
+
+```bash
+tasktick create my-api --script ./server.sh --background \
+  --restart on-failure --restart-delay 3 \
+  --log-max-size 20 --log-rotations 5
+```
+
+Use `tasktick run|stop|restart|status|tail my-api` to manage and inspect it afterward.
 
 - macOS 14 (Sonoma) or later
 - Apple Silicon or Intel Mac

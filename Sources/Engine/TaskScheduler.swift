@@ -51,7 +51,10 @@ final class TaskScheduler: ObservableObject {
         // Fire onLaunch tasks once after a brief delay so app finishes booting
         // (model context, windows, etc.) before scripts run. See issue #25.
         DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in
-            Task { @MainActor in self?.fireLaunchTasks() }
+            Task { @MainActor in
+                self?.fireLaunchTasks()
+                self?.startBackgroundServices()
+            }
         }
     }
 
@@ -216,6 +219,31 @@ final class TaskScheduler: ObservableObject {
 
         for task in tasks {
             fireTask(task, triggeredBy: .launch)
+        }
+    }
+
+    /// Start enabled service-style tasks once TaskTick has completed launch.
+    /// They remain outside the time scheduler (`isManualOnly == true`) and are
+    /// subsequently supervised by ScriptExecutor's restart policy.
+    private func startBackgroundServices() {
+        guard isRunning, let modelContext else { return }
+        let descriptor = FetchDescriptor<ScheduledTask>(
+            predicate: #Predicate {
+                $0.isEnabled && $0.isBackgroundService && $0.serviceAutoStart
+            }
+        )
+        guard let services = try? modelContext.fetch(descriptor) else { return }
+        for service in services where !runningTaskIDs.contains(service.id) {
+            let serviceID = service.id
+            runningTaskIDs.insert(serviceID)
+            Task { @MainActor in
+                await ScriptExecutor.shared.execute(
+                    task: service,
+                    triggeredBy: .launch,
+                    modelContext: modelContext
+                )
+                runningTaskIDs.remove(serviceID)
+            }
         }
     }
 

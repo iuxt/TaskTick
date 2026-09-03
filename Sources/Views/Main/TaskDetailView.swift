@@ -38,7 +38,7 @@ struct TaskDetailView: View {
                         } else {
                             scriptCard
                         }
-                        if task.isManualOnly && streamManualToFile {
+                        if task.isManualOnly && (task.isBackgroundService ? task.serviceLogEnabled : streamManualToFile) {
                             liveLogFileCard
                         }
                     }
@@ -90,11 +90,20 @@ struct TaskDetailView: View {
             Button(L10n.tr("delete.cancel"), role: .cancel) {}
             Button(L10n.tr("delete.confirm"), role: .destructive) {
                 let deletedName = task.name
+                let deletedTaskID = task.id
+                let deletedLogPath = task.serviceLogPath
+                let deletedRotationCount = task.serviceLogRotationCount
                 TaskHotkeyManager.shared.discardShortcut(for: task.id)
+                ScriptExecutor.shared.cancel(taskId: task.id)
                 modelContext.delete(task)
                 do {
                     try modelContext.save()
-                    LogFileWriter.deleteFile(for: deletedName)
+                    LogFileWriter.deleteFile(
+                        for: deletedName,
+                        taskId: deletedTaskID,
+                        path: deletedLogPath,
+                        rotationCount: deletedRotationCount
+                    )
                 } catch {
                     presentErrorAlert(titleKey: "error.delete_failed.title",
                                       messageKey: "error.delete_failed.message",
@@ -146,7 +155,7 @@ struct TaskDetailView: View {
                         Text("·")
                             .foregroundStyle(.quaternary)
 
-                        Text(task.isManualOnly ? L10n.tr("schedule.manual_only") : task.repeatDisplayName)
+                        Text(task.scheduleDescription)
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
 
@@ -246,7 +255,20 @@ struct TaskDetailView: View {
                         }
                     }
 
-                    if task.isManualOnly {
+                    if task.isBackgroundService {
+                        detailRow(L10n.tr("schedule.trigger_section"), value: L10n.tr("schedule.background_service"))
+                        detailRow(
+                            L10n.tr("service.auto_start"),
+                            value: task.serviceAutoStart ? L10n.tr("common.yes") : L10n.tr("common.no")
+                        )
+                        detailRow(L10n.tr("service.restart_policy"), value: task.serviceRestartPolicy.displayName)
+                        if task.serviceRestartPolicy != .never {
+                            detailRow(
+                                L10n.tr("service.restart_delay"),
+                                value: L10n.tr("task.interval.seconds", task.serviceRestartDelaySeconds)
+                            )
+                        }
+                    } else if task.isManualOnly {
                         detailRow(L10n.tr("schedule.trigger_section"), value: L10n.tr("schedule.manual_only"))
                     } else {
                     // Show scheduled date if set; time row collapses any extra
@@ -461,7 +483,17 @@ struct TaskDetailView: View {
     // MARK: - Live Log File Card
 
     private var liveLogFileCard: some View {
-        let fileURL = LogFileWriter.fileURL(for: task.name)
+        let fileURL: URL? = {
+            if task.isBackgroundService,
+               let path = task.serviceLogPath,
+               !path.isEmpty {
+                return URL(fileURLWithPath: NSString(string: path).expandingTildeInPath)
+            }
+            return LogFileWriter.fileURL(
+                for: task.name,
+                taskId: task.isBackgroundService ? task.id : nil
+            )
+        }()
         let fileExists = fileURL.map { FileManager.default.fileExists(atPath: $0.path) } ?? false
         let fileSize: String = {
             guard let url = fileURL,

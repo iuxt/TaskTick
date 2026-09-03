@@ -4,6 +4,7 @@ import TaskTickCore
 enum TaskKind: String, Codable {
     case scheduled
     case manual
+    case background
 }
 
 enum TaskStatus: String, Codable {
@@ -64,10 +65,12 @@ extension TaskDTO {
             serialNumber: task.serialNumber,
             shortId: String(task.id.uuidString.prefix(4)).lowercased(),
             name: task.name,
-            kind: task.isManualOnly ? .manual : .scheduled,
+            kind: task.isBackgroundService ? .background : (task.isManualOnly ? .manual : .scheduled),
             enabled: task.isEnabled,
             status: runningIds.contains(task.id) ? .running : .idle,
-            scheduleSummary: task.isManualOnly ? "Manual" : task.repeatDisplayName,
+            scheduleSummary: task.isBackgroundService
+                ? "Background"
+                : (task.isManualOnly ? "Manual" : task.repeatDisplayName),
             lastRunAt: task.lastRunAt,
             lastRunDurationSec: lastLog?.durationMs.map { $0 / 1000 },
             lastExitCode: lastLog?.exitCode,
@@ -75,4 +78,3 @@ extension TaskDTO {
         )
     }
 }
-

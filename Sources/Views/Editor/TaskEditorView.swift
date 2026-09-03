@@ -37,6 +37,14 @@ struct TaskEditorView: View {
 
     // Schedule
     @State private var isManualOnly = false
+    @State private var isBackgroundService = false
+    @State private var serviceAutoStart = true
+    @State private var serviceRestartPolicy: ServiceRestartPolicy = .onFailure
+    @State private var serviceRestartDelaySeconds = 3
+    @State private var serviceLogEnabled = true
+    @State private var serviceLogPath = ""
+    @State private var serviceLogMaxSizeMB = 10
+    @State private var serviceLogRotationCount = 5
     @State private var hasDate = true
     @State private var hasTime = true
     @State private var scheduledDate = Date()
@@ -136,6 +144,24 @@ struct TaskEditorView: View {
     private enum RepeatChoice: Hashable {
         case repeats(RepeatType)
         case cron
+    }
+
+    private enum TaskMode: Hashable {
+        case scheduled, manual, background
+    }
+
+    private var taskMode: Binding<TaskMode> {
+        Binding(
+            get: {
+                if isBackgroundService { return .background }
+                return isManualOnly ? .manual : .scheduled
+            },
+            set: { mode in
+                isBackgroundService = mode == .background
+                isManualOnly = mode != .scheduled
+                if mode == .background { timeoutSeconds = -1 }
+            }
+        )
     }
 
     private var repeatChoice: Binding<RepeatChoice> {
@@ -269,16 +295,21 @@ struct TaskEditorView: View {
     private var scheduleTab: some View {
         Form {
             Section {
-                Toggle(isOn: $isManualOnly) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Label(L10n.tr("schedule.manual_only"), systemImage: "hand.tap")
-                        Text(L10n.tr("schedule.manual_only.help"))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
+                Picker(L10n.tr("task.mode"), selection: taskMode) {
+                    Label(L10n.tr("task.mode.scheduled"), systemImage: "calendar.badge.clock")
+                        .tag(TaskMode.scheduled)
+                    Label(L10n.tr("task.mode.manual"), systemImage: "hand.tap")
+                        .tag(TaskMode.manual)
+                    Label(L10n.tr("task.mode.background"), systemImage: "terminal.fill")
+                        .tag(TaskMode.background)
                 }
+                .pickerStyle(.segmented)
             } header: {
                 Text(L10n.tr("schedule.trigger_section"))
+            } footer: {
+                Text(isBackgroundService
+                     ? L10n.tr("task.mode.background.help")
+                     : (isManualOnly ? L10n.tr("schedule.manual_only.help") : L10n.tr("task.mode.scheduled.help")))
             }
 
             if !isManualOnly {
@@ -651,7 +682,59 @@ struct TaskEditorView: View {
                     }
                 }
             } footer: {
-                Text(L10n.tr("editor.timeout.hint"))
+                Text(isBackgroundService
+                     ? L10n.tr("service.timeout.help")
+                     : L10n.tr("editor.timeout.hint"))
+            }
+
+            if isBackgroundService {
+                Section(L10n.tr("service.lifecycle")) {
+                    Toggle(L10n.tr("service.auto_start"), isOn: $serviceAutoStart)
+                    Picker(L10n.tr("service.restart_policy"), selection: $serviceRestartPolicy) {
+                        ForEach(ServiceRestartPolicy.allCases, id: \.self) { policy in
+                            Text(policy.displayName).tag(policy)
+                        }
+                    }
+                    if serviceRestartPolicy != .never {
+                        LabeledContent(L10n.tr("service.restart_delay")) {
+                            HStack(spacing: 6) {
+                                TextField("", value: $serviceRestartDelaySeconds, format: .number)
+                                    .textFieldStyle(.roundedBorder)
+                                    .frame(width: 70)
+                                    .multilineTextAlignment(.trailing)
+                                Text(L10n.tr("editor.timeout.seconds"))
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                }
+
+                Section {
+                    Toggle(L10n.tr("service.log.enabled"), isOn: $serviceLogEnabled)
+                    if serviceLogEnabled {
+                        TextField(L10n.tr("service.log.path"), text: $serviceLogPath)
+                            .font(.system(.body, design: .monospaced))
+                        LabeledContent(L10n.tr("service.log.max_size")) {
+                            HStack(spacing: 6) {
+                                TextField("", value: $serviceLogMaxSizeMB, format: .number)
+                                    .textFieldStyle(.roundedBorder)
+                                    .frame(width: 70)
+                                    .multilineTextAlignment(.trailing)
+                                Text("MB").foregroundStyle(.secondary)
+                            }
+                        }
+                        LabeledContent(L10n.tr("service.log.rotation_count")) {
+                            TextField("", value: $serviceLogRotationCount, format: .number)
+                                .textFieldStyle(.roundedBorder)
+                                .frame(width: 70)
+                                .multilineTextAlignment(.trailing)
+                        }
+                    }
+                } header: {
+                    Text(L10n.tr("service.log"))
+                } footer: {
+                    Text(L10n.tr("service.log.help"))
+                }
             }
 
             Section {
@@ -1211,6 +1294,14 @@ struct TaskEditorView: View {
         TaskHotkeyManager.shared.discardDraft()
         hotkeyConflictOwner = nil
         isManualOnly = false
+        isBackgroundService = false
+        serviceAutoStart = true
+        serviceRestartPolicy = .onFailure
+        serviceRestartDelaySeconds = 3
+        serviceLogEnabled = true
+        serviceLogPath = ""
+        serviceLogMaxSizeMB = 10
+        serviceLogRotationCount = 5
         scheduledDate = Date()
         additionalTimes = []
         hasDate = true
@@ -1297,6 +1388,14 @@ struct TaskEditorView: View {
         runMissedExecution = task.runMissedExecution
         runOnLaunch = task.runOnLaunch
         isManualOnly = task.isManualOnly
+        isBackgroundService = task.isBackgroundService
+        serviceAutoStart = task.serviceAutoStart
+        serviceRestartPolicy = task.serviceRestartPolicy
+        serviceRestartDelaySeconds = task.serviceRestartDelaySeconds
+        serviceLogEnabled = task.serviceLogEnabled
+        serviceLogPath = task.serviceLogPath ?? ""
+        serviceLogMaxSizeMB = task.serviceLogMaxSizeMB
+        serviceLogRotationCount = task.serviceLogRotationCount
         hasDate = task.hasDate
         hasTime = task.hasTime
         jitterSeconds = task.jitterSeconds
@@ -1337,6 +1436,7 @@ struct TaskEditorView: View {
     }
 
     private func save() {
+        let isNewTask = task == nil
         let target = task ?? ScheduledTask()
 
         target.name = name.trimmingCharacters(in: .whitespaces)
@@ -1366,6 +1466,16 @@ struct TaskEditorView: View {
         target.updatedAt = Date()
 
         target.isManualOnly = isManualOnly
+        target.isBackgroundService = isBackgroundService
+        target.serviceAutoStart = serviceAutoStart
+        target.serviceRestartPolicy = serviceRestartPolicy
+        target.serviceRestartDelaySeconds = max(1, serviceRestartDelaySeconds)
+        target.serviceLogEnabled = serviceLogEnabled
+        let normalizedServiceLogPath = Self.normalizePath(serviceLogPath)
+        target.serviceLogPath = normalizedServiceLogPath.isEmpty ? nil : normalizedServiceLogPath
+        target.serviceLogMaxSizeMB = max(1, serviceLogMaxSizeMB)
+        target.serviceLogRotationCount = max(0, serviceLogRotationCount)
+        if isBackgroundService { target.timeoutSeconds = -1 }
         target.hasDate = useCron ? false : hasDate
         target.hasTime = useCron ? false : hasTime
         // When both toggles are off, drop the anchor so the scheduler falls back
@@ -1469,6 +1579,11 @@ struct TaskEditorView: View {
         TaskHotkeyManager.shared.syncHandlers()
 
         TaskScheduler.shared.rebuildSchedule()
+        if isNewTask && target.isEnabled && target.isBackgroundService && target.serviceAutoStart {
+            Task {
+                _ = await ScriptExecutor.shared.execute(task: target, modelContext: modelContext)
+            }
+        }
         EditorState.shared.lastSavedTask = target
         closeWindow()
     }

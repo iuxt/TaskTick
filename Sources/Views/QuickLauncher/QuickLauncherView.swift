@@ -434,7 +434,9 @@ private struct QuickLauncherRow: View {
                         .controlSize(.mini)
                         .tint(.green)
                 } else {
-                    Image(systemName: task.isManualOnly ? "hand.tap.fill" : "clock.fill")
+                    Image(systemName: task.isBackgroundService
+                          ? "terminal.fill"
+                          : (task.isManualOnly ? "hand.tap.fill" : "clock.fill"))
                         .font(.system(size: 11, weight: .semibold))
                         .foregroundStyle(iconTint)
                 }
@@ -533,11 +535,13 @@ private struct QuickLauncherRow: View {
 
     private var iconTint: Color {
         if isRunning { return .green }
+        if task.isBackgroundService { return .purple }
         return task.isManualOnly ? .orange : .blue
     }
 
     private var subtitle: String {
         if isRunning { return L10n.tr("quick_launcher.subtitle.running") }
+        if task.isBackgroundService { return L10n.tr("schedule.background_service") }
         return task.isManualOnly ? L10n.tr("schedule.manual_only") : task.repeatDisplayName
     }
 }

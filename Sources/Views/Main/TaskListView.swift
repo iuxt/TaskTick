@@ -46,7 +46,10 @@ struct TaskListView: View {
     }
 
     var scheduledTasks: [ScheduledTask] { filteredTasks.filter { !$0.isManualOnly } }
-    var manualTasks: [ScheduledTask] { filteredTasks.filter { $0.isManualOnly } }
+    var backgroundTasks: [ScheduledTask] { filteredTasks.filter(\.isBackgroundService) }
+    var manualTasks: [ScheduledTask] {
+        filteredTasks.filter { $0.isManualOnly && !$0.isBackgroundService }
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -89,6 +92,13 @@ struct TaskListView: View {
                             }
                         }
                     }
+                    if !backgroundTasks.isEmpty {
+                        Section(L10n.tr("tasklist.section.background")) {
+                            ForEach(backgroundTasks) { task in
+                                taskRow(task)
+                            }
+                        }
+                    }
                     if !manualTasks.isEmpty {
                         Section(L10n.tr("tasklist.section.manual")) {
                             ForEach(manualTasks) { task in
@@ -123,12 +133,21 @@ struct TaskListView: View {
                     Button(L10n.tr("delete.confirm"), role: .destructive) {
                         if let task = taskToDelete {
                             let deletedName = task.name
+                            let deletedTaskID = task.id
+                            let deletedLogPath = task.serviceLogPath
+                            let deletedRotationCount = task.serviceLogRotationCount
                             if selectedTask == task { selectedTask = nil }
                             TaskHotkeyManager.shared.discardShortcut(for: task.id)
+                            ScriptExecutor.shared.cancel(taskId: task.id)
                             modelContext.delete(task)
                             do {
                                 try modelContext.save()
-                                LogFileWriter.deleteFile(for: deletedName)
+                                LogFileWriter.deleteFile(
+                                    for: deletedName,
+                                    taskId: deletedTaskID,
+                                    path: deletedLogPath,
+                                    rotationCount: deletedRotationCount
+                                )
                             } catch {
                                 presentErrorAlert(titleKey: "error.delete_failed.title",
                                                   messageKey: "error.delete_failed.message",
@@ -290,6 +309,15 @@ struct TaskListView: View {
         copy.strongReminder = task.strongReminder
         copy.ignoreExitCode = task.ignoreExitCode
         copy.isManualOnly = task.isManualOnly
+        copy.isBackgroundService = task.isBackgroundService
+        copy.serviceAutoStart = task.serviceAutoStart
+        copy.serviceRestartPolicyRaw = task.serviceRestartPolicyRaw
+        copy.serviceRestartDelaySeconds = task.serviceRestartDelaySeconds
+        copy.serviceLogEnabled = task.serviceLogEnabled
+        // A duplicate must not write into the original service's custom log.
+        copy.serviceLogPath = nil
+        copy.serviceLogMaxSizeMB = task.serviceLogMaxSizeMB
+        copy.serviceLogRotationCount = task.serviceLogRotationCount
         modelContext.insert(copy)
         do {
             try modelContext.save()
@@ -392,7 +420,12 @@ struct TaskListRow: View {
                             .font(.caption2)
                             .monospacedDigit()
                     }
-                    if task.isManualOnly {
+                    if task.isBackgroundService {
+                        Image(systemName: "terminal.fill")
+                            .font(.system(size: 9))
+                        Text(L10n.tr("schedule.background_service"))
+                            .font(.caption2)
+                    } else if task.isManualOnly {
                         Image(systemName: "hand.tap")
                             .font(.system(size: 9))
                         Text(L10n.tr("schedule.manual_only"))

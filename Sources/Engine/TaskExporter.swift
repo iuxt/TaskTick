@@ -63,6 +63,14 @@ struct TaskExporter {
         /// older exports still decode; nil restores as "default wording".
         let notificationTemplateEnabled: Bool?
         let notificationTemplate: String?
+        let isBackgroundService: Bool?
+        let serviceAutoStart: Bool?
+        let serviceRestartPolicy: String?
+        let serviceRestartDelaySeconds: Int?
+        let serviceLogEnabled: Bool?
+        let serviceLogPath: String?
+        let serviceLogMaxSizeMB: Int?
+        let serviceLogRotationCount: Int?
     }
 
     /// Export all tasks to a JSON file
@@ -201,7 +209,15 @@ struct TaskExporter {
             barkNotifyOnOutputChange: task.barkNotifyOnOutputChange,
             pushChannelIDs: task.pushChannelIDs?.map(\.uuidString),
             notificationTemplateEnabled: task.notificationTemplateEnabled ? true : nil,
-            notificationTemplate: task.notificationTemplate.isEmpty ? nil : task.notificationTemplate
+            notificationTemplate: task.notificationTemplate.isEmpty ? nil : task.notificationTemplate,
+            isBackgroundService: task.isBackgroundService ? true : nil,
+            serviceAutoStart: task.serviceAutoStart,
+            serviceRestartPolicy: task.serviceRestartPolicyRaw,
+            serviceRestartDelaySeconds: task.serviceRestartDelaySeconds,
+            serviceLogEnabled: task.serviceLogEnabled,
+            serviceLogPath: task.serviceLogPath,
+            serviceLogMaxSizeMB: task.serviceLogMaxSizeMB,
+            serviceLogRotationCount: task.serviceLogRotationCount
         )
     }
 
@@ -272,6 +288,17 @@ struct TaskExporter {
         if let v = item.notificationTemplateEnabled { task.notificationTemplateEnabled = v }
         if let v = item.notificationTemplate { task.notificationTemplate = v }
         if let v = item.isManualOnly { task.isManualOnly = v }
+        if let v = item.isBackgroundService {
+            task.isBackgroundService = v
+            if v { task.isManualOnly = true }
+        }
+        if let v = item.serviceAutoStart { task.serviceAutoStart = v }
+        if let v = item.serviceRestartPolicy { task.serviceRestartPolicyRaw = v }
+        if let v = item.serviceRestartDelaySeconds { task.serviceRestartDelaySeconds = max(1, v) }
+        if let v = item.serviceLogEnabled { task.serviceLogEnabled = v }
+        if let v = item.serviceLogPath { task.serviceLogPath = v }
+        if let v = item.serviceLogMaxSizeMB { task.serviceLogMaxSizeMB = max(1, v) }
+        if let v = item.serviceLogRotationCount { task.serviceLogRotationCount = max(0, v) }
         if let strings = item.additionalTimes, !strings.isEmpty {
             let comps = strings.compactMap { s -> DateComponents? in
                 let parts = s.split(separator: ":")

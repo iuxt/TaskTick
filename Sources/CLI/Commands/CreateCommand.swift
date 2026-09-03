@@ -5,7 +5,7 @@ import TaskTickCore
 struct CreateCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "create",
-        abstract: "Create a new task from a script file."
+        abstract: "Create a scheduled task, manual command, or managed background program."
     )
 
     @Argument(help: "Task name.")
@@ -25,6 +25,27 @@ struct CreateCommand: AsyncParsableCommand {
 
     @Flag(name: .long, help: "Manual-only task (skip scheduler). Mutually exclusive with --repeat/--at.")
     var manual: Bool = false
+
+    @Flag(name: .long, help: "Create a long-running background program with file logging and supervision.")
+    var background: Bool = false
+
+    @Flag(name: .customLong("no-auto-start"), help: "Don't start a background program when TaskTick launches.")
+    var noAutoStart: Bool = false
+
+    @Option(name: .long, help: "Background restart policy: never | on-failure | always. Default: on-failure")
+    var restart: String = "on-failure"
+
+    @Option(name: .long, help: "Seconds before restarting a background program. Default: 3")
+    var restartDelay: Int = 3
+
+    @Option(name: .long, help: "Background output log path. Default: TaskTick's log directory.")
+    var logPath: String?
+
+    @Option(name: .long, help: "Rotate the background log at this size in MB. Default: 10")
+    var logMaxSize: Int = 10
+
+    @Option(name: .long, help: "Number of rotated background logs to retain. Default: 5")
+    var logRotations: Int = 5
 
     @Option(name: .customLong("repeat"),
             help: "Repeat type: never | everyMinute | every5Minutes | every15Minutes | every30Minutes | hourly | daily | weekdays | weekends | weekly | biweekly | monthly | every3Months | every6Months | yearly")
@@ -52,8 +73,26 @@ struct CreateCommand: AsyncParsableCommand {
         }
 
         // 2. Mutually-exclusive scheduling flags
-        if manual && (repeatType != nil || at != nil) {
-            FileHandle.standardError.write(Data("tasktick: --manual is mutually exclusive with --repeat/--at\n".utf8))
+        if (manual || background) && (repeatType != nil || at != nil) {
+            FileHandle.standardError.write(Data("tasktick: --manual/--background are mutually exclusive with --repeat/--at\n".utf8))
+            throw ExitCode(1)
+        }
+        if manual && background {
+            FileHandle.standardError.write(Data("tasktick: --manual and --background are mutually exclusive\n".utf8))
+            throw ExitCode(1)
+        }
+
+        let restartPolicy: ServiceRestartPolicy
+        switch restart.lowercased() {
+        case "never": restartPolicy = .never
+        case "on-failure", "onfailure": restartPolicy = .onFailure
+        case "always": restartPolicy = .always
+        default:
+            FileHandle.standardError.write(Data("tasktick: invalid --restart value: \(restart)\n".utf8))
+            throw ExitCode(1)
+        }
+        guard restartDelay >= 1, logMaxSize >= 1, logRotations >= 0 else {
+            FileHandle.standardError.write(Data("tasktick: restart delay and log size must be positive; rotations cannot be negative\n".utf8))
             throw ExitCode(1)
         }
 
@@ -97,7 +136,7 @@ struct CreateCommand: AsyncParsableCommand {
 
         // 5. Determine isManualOnly. Default to manual when no schedule given —
         // matches the common "I just want to register this script" use case.
-        let isManualOnly = manual || (repeatType == nil && at == nil)
+        let isManualOnly = manual || background || (repeatType == nil && at == nil)
         let isEnabled = !noEnable
 
         // 6. Build the payload. Plist-serializable types only (DistributedNotificationCenter).
@@ -111,7 +150,16 @@ struct CreateCommand: AsyncParsableCommand {
             "manual": isManualOnly,
             "enabled": isEnabled,
             "repeat": repeatRaw,
+            "background": background,
+            "auto_start": !noAutoStart,
+            "restart_policy": restartPolicy.rawValue,
+            "restart_delay": restartDelay,
+            "log_max_size_mb": logMaxSize,
+            "log_rotation_count": logRotations,
         ]
+        if let logPath, !logPath.isEmpty {
+            payload["log_path"] = NSString(string: logPath).expandingTildeInPath
+        }
         if let cwd, !cwd.isEmpty {
             payload["cwd"] = cwd
         }
