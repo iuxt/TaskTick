@@ -14,8 +14,6 @@ struct EventsCommand: AsyncParsableCommand {
         let startedName = Notification.Name("\(bundleId).gui.taskStarted")
         let completedName = Notification.Name("\(bundleId).gui.taskCompleted")
         let center = DistributedNotificationCenter.default()
-        let stdout = FileHandle.standardOutput
-
         // Ctrl+C → exit 130 (Unix convention).
         signal(SIGINT, SIG_IGN)
         let intSrc = DispatchSource.makeSignalSource(signal: SIGINT, queue: .main)
@@ -28,24 +26,22 @@ struct EventsCommand: AsyncParsableCommand {
         termSrc.setEventHandler { Foundation.exit(0) }
         termSrc.resume()
 
-        let isoFormatter = ISO8601DateFormatter()
-
-        let onStarted: (Notification) -> Void = { note in
+        let onStarted: @Sendable (Notification) -> Void = { note in
             guard let info = note.userInfo,
                   let id = info["id"] as? String else { return }
             let executionId = (info["executionId"] as? String) ?? ""
-            let ts = (info["startedAt"] as? String) ?? isoFormatter.string(from: Date())
+            let ts = (info["startedAt"] as? String) ?? ISO8601DateFormatter().string(from: Date())
             let line = Self.formatStartedLine(id: id, executionId: executionId, ts: ts)
-            try? stdout.write(contentsOf: Data(line.utf8))
+            try? FileHandle.standardOutput.write(contentsOf: Data(line.utf8))
         }
-        let onCompleted: (Notification) -> Void = { note in
+        let onCompleted: @Sendable (Notification) -> Void = { note in
             guard let info = note.userInfo,
                   let id = info["id"] as? String else { return }
             let executionId = (info["executionId"] as? String) ?? ""
             let exitCode = (info["exitCode"] as? Int) ?? 0
-            let ts = (info["endedAt"] as? String) ?? isoFormatter.string(from: Date())
+            let ts = (info["endedAt"] as? String) ?? ISO8601DateFormatter().string(from: Date())
             let line = Self.formatCompletedLine(id: id, executionId: executionId, exitCode: exitCode, ts: ts)
-            try? stdout.write(contentsOf: Data(line.utf8))
+            try? FileHandle.standardOutput.write(contentsOf: Data(line.utf8))
         }
 
         center.addObserver(forName: startedName,   object: nil, queue: .main, using: onStarted)

@@ -31,7 +31,9 @@ let package = Package(
                 .product(name: "KeyboardShortcuts", package: "KeyboardShortcuts")
             ],
             path: "Sources",
-            exclude: ["TaskTickCore", "CLI"]
+            // AppIcon.icns is copied into the final app bundle by the build
+            // scripts; it is not a SwiftPM resource.
+            exclude: ["TaskTickCore", "CLI", "Resources/AppIcon.icns"]
         ),
         .executableTarget(
             name: "tasktick",

@@ -57,26 +57,25 @@ struct WaitCommand: AsyncParsableCommand {
         let timeoutSeconds = timeout
 
         let exitCode: Int32 = try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Int32, Error>) in
-            var observer: NSObjectProtocol?
-            var timeoutWork: DispatchWorkItem?
+            let state = NotificationWaitState(center: center, continuation: cont)
 
-            observer = center.addObserver(forName: completedName, object: nil, queue: .main) { note in
+            let observer = center.addObserver(forName: completedName, object: nil, queue: .main) { note in
                 guard let id = note.userInfo?["id"] as? String, id == targetId else { return }
                 let exit = (note.userInfo?["exitCode"] as? Int) ?? 0
-                if let o = observer { center.removeObserver(o) }
-                timeoutWork?.cancel()
-                let durMs = Int(Date().timeIntervalSince(startedAt) * 1000)
-                printResult(name: taskName, exitCode: exit, durationMs: durMs, json: useJSON)
-                cont.resume(returning: Int32(exit))
+                if state.finish(with: .success(Int32(exit))) {
+                    let durMs = Int(Date().timeIntervalSince(startedAt) * 1000)
+                    printResult(name: taskName, exitCode: exit, durationMs: durMs, json: useJSON)
+                }
             }
+            state.installObserver(observer)
 
             if timeoutSeconds > 0 {
                 let work = DispatchWorkItem {
-                    if let o = observer { center.removeObserver(o) }
-                    FileHandle.standardError.write(Data("tasktick: timed out after \(timeoutSeconds)s\n".utf8))
-                    cont.resume(throwing: ExitCode(124))
+                    if state.finish(with: .failure(ExitCode(124))) {
+                        FileHandle.standardError.write(Data("tasktick: timed out after \(timeoutSeconds)s\n".utf8))
+                    }
                 }
-                timeoutWork = work
+                state.installTimeoutWorkItem(work)
                 DispatchQueue.main.asyncAfter(deadline: .now() + .seconds(timeoutSeconds), execute: work)
             }
         }
