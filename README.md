@@ -43,7 +43,6 @@
 - **Notifications** — macOS system notifications on success/failure (per task)
 - **Crontab Import** — import from system crontab with one click
 - **i18n** — English & Simplified Chinese, switchable in-app
-- **Auto Updates** — checks GitHub Releases for new versions
 - **macOS 26 Ready** — liquid glass effects on supported systems
 
 ### Template Manager

@@ -6,7 +6,6 @@ import TaskTickCore
 struct TaskTickApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @StateObject private var scheduler = TaskScheduler.shared
-    @StateObject private var updateChecker = UpdateChecker.shared
     @StateObject private var templateStore = ScriptTemplateStore.shared
     @Environment(\.openWindow) private var openWindow
     @AppStorage("showMenuBarIcon") private var showMenuBarIcon = true
@@ -78,22 +77,12 @@ struct TaskTickApp: App {
         Window(L10n.tr("app.name"), id: "main") {
             MainWindowView(showingCrontabImport: $showingCrontabImport)
                 .localized()
-                .sheet(isPresented: $updateChecker.showUpdateDialog) {
-                    UpdateDialogView(updater: updateChecker)
-                }
                 .onAppear {
                     NSApp.setActivationPolicy(.regular)
                     seedDefaultTask(context: sharedModelContainer.mainContext)
 
                     if Self._needsRecovery {
                         showingRecoveryAlert = true
-                    }
-
-                    Task {
-                        if UserDefaults.standard.object(forKey: "autoCheckUpdates") as? Bool ?? true {
-                            await updateChecker.checkForUpdates()
-                        }
-                        updateChecker.startPeriodicChecks()
                     }
                 }
                 .alert(L10n.tr("recovery.title"), isPresented: $showingRecoveryAlert) {
@@ -249,18 +238,12 @@ struct TaskTickApp: App {
             Button(L10n.tr("command.about")) {
                 NSApp.orderFrontStandardAboutPanel(options: [
                     .applicationName: L10n.tr("app.name"),
-                    .applicationVersion: updateChecker.currentVersion,
+                    .applicationVersion: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0",
                 ])
             }
         }
 
         CommandGroup(after: .appInfo) {
-            Button(L10n.tr("command.check_updates")) {
-                Task { await updateChecker.checkForUpdates(userInitiated: true) }
-            }
-
-            Divider()
-
             Button {
                 if let url = URL(string: "https://www.lifedever.com/sponsor/") {
                     NSWorkspace.shared.open(url)
@@ -371,7 +354,7 @@ struct TaskTickApp: App {
         }
 
         CommandGroup(replacing: .help) {
-            Link(L10n.tr("command.github_home"), destination: URL(string: "https://github.com/lifedever/TaskTick")!)
+            Link(L10n.tr("command.github_home"), destination: URL(string: "https://github.com/iuxt")!)
             Link(L10n.tr("command.report_issue"), destination: URL(string: "https://github.com/lifedever/TaskTick/issues")!)
         }
     }

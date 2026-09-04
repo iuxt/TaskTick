@@ -19,11 +19,6 @@ struct SettingsView: View {
     @AppStorage("logRetentionDays") private var logRetentionDays = 30
     @AppStorage("logs.streamManualToFile") private var streamManualToFile = true
 
-    // Updates
-    @AppStorage("autoCheckUpdates") private var autoCheckUpdates = true
-    @AppStorage("updateCheckInterval") private var updateCheckInterval = 24
-
-    @StateObject private var updateChecker = UpdateChecker.shared
     @ObservedObject private var languageManager = LanguageManager.shared
 
     @StateObject private var backupManager = DatabaseBackup.shared
@@ -54,7 +49,6 @@ struct SettingsView: View {
         case notifications = "settings.notifications"
         case backup = "settings.backup"
         case logs = "settings.logs"
-        case updates = "settings.updates"
         case about = "settings.about"
 
         var title: String { L10n.tr(rawValue) }
@@ -67,7 +61,6 @@ struct SettingsView: View {
             case .notifications: return "bell"
             case .backup: return "externaldrive.badge.timemachine"
             case .logs: return "doc.text"
-            case .updates: return "arrow.triangle.2.circlepath"
             case .about: return "info.circle"
             }
         }
@@ -93,9 +86,6 @@ struct SettingsView: View {
             logsTab
                 .tabItem { Label(Tab.logs.title, systemImage: Tab.logs.symbol) }
 
-            updatesTab
-                .tabItem { Label(Tab.updates.title, systemImage: Tab.updates.symbol) }
-
             aboutTab
                 .tabItem { Label(Tab.about.title, systemImage: Tab.about.symbol) }
         }
@@ -110,9 +100,9 @@ struct SettingsView: View {
     ///
     /// This used to be a hardcoded 680, measured in English (issue #39 item 1).
     /// But the requirement is a pure function of the current language: Chinese
-    /// fits all eight tabs in 680pt with room to spare, while Russian's
+    /// fits all tabs in 680pt with room to spare, while Russian's
     /// "Резервное копирование" alone is nearly three times the width of
-    /// "Backup" and silently pushes two tabs into the macOS "»" overflow menu.
+    /// "Backup" and can silently push tabs into the macOS "»" overflow menu.
     /// Any fixed number is only ever right for the language it was measured in,
     /// so measure the strings actually about to be drawn.
     ///
@@ -669,51 +659,15 @@ struct SettingsView: View {
         }
     }
 
-    // MARK: - Updates
-
-    private var updatesTab: some View {
-        Form {
-            Section(L10n.tr("settings.updates.section")) {
-                Toggle(L10n.tr("settings.updates.auto_check"), isOn: $autoCheckUpdates)
-
-                Picker(L10n.tr("settings.updates.frequency"), selection: $updateCheckInterval) {
-                    Text(L10n.tr("settings.updates.frequency.12h")).tag(12)
-                    Text(L10n.tr("settings.updates.frequency.24h")).tag(24)
-                    Text(L10n.tr("settings.updates.frequency.3d")).tag(72)
-                    Text(L10n.tr("settings.updates.frequency.1w")).tag(168)
-                }
-                .disabled(!autoCheckUpdates)
-
-                HStack(spacing: 12) {
-                    Button(L10n.tr("settings.updates.check_now")) {
-                        Task { await updateChecker.checkForUpdates(userInitiated: true) }
-                    }
-                    .disabled(updateChecker.isChecking)
-                    .pointerCursor()
-
-                    if updateChecker.isChecking {
-                        ProgressView()
-                            .controlSize(.small)
-                    }
-
-                    if updateChecker.updateAvailable, let version = updateChecker.latestVersion {
-                        Text(L10n.tr("settings.updates.new_version", version))
-                            .font(.caption)
-                            .foregroundStyle(.green)
-                            .fontWeight(.medium)
-                    }
-                }
-            }
-        }
-        .formStyle(.grouped)
-    }
-
     // MARK: - About
 
     private var aboutTab: some View {
         Form {
             Section(L10n.tr("settings.about.section")) {
-                LabeledContent(L10n.tr("settings.about.version"), value: updateChecker.currentVersion)
+                LabeledContent(
+                    L10n.tr("settings.about.version"),
+                    value: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
+                )
                 LabeledContent(L10n.tr("settings.about.build"), value: Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1")
 
                 Text("A native macOS app for managing scheduled tasks.\nNo crontab, no launchd — just TaskTick.")
@@ -726,11 +680,7 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
                     .padding(.vertical, 2)
 
-                Link(L10n.tr("settings.about.github"), destination: URL(string: "https://github.com/lifedever/TaskTick")!)
-                    .pointerCursor()
-                Link(L10n.tr("settings.about.issues"), destination: URL(string: "https://github.com/lifedever/TaskTick/issues")!)
-                    .pointerCursor()
-                Link(L10n.tr("settings.about.sponsor"), destination: URL(string: "https://www.lifedever.com/sponsor/")!)
+                Link(L10n.tr("settings.about.github"), destination: URL(string: "https://github.com/iuxt")!)
                     .pointerCursor()
 
                 Text(L10n.tr("settings.about.copyright"))

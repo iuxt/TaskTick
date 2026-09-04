@@ -18,7 +18,7 @@ func presentErrorAlert(titleKey: String, messageKey: String, error: Error) {
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
 
-    /// Armed by internal restart flows (update install / legacy-backup restore)
+    /// Armed by internal restart flows such as legacy-backup restore
     /// that already confirmed the quit with the user — `applicationShouldTerminate`
     /// then quits without showing the confirmation dialog again.
     @MainActor static var shouldReallyQuit = false
@@ -126,9 +126,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             NSLog("⚠️ Final save on shutdown failed: \(error.localizedDescription)")
         }
         // save() writes to the -wal sidecar but does NOT merge it into the main store.
-        // If the update installer replaces the .app right after this, a -wal left
-        // behind can be orphaned and its contents lost. Force a checkpoint now so
-        // the main store is self-contained.
+        // A -wal left behind can be orphaned and its contents lost during an
+        // internal restart. Force a checkpoint now so the main store is self-contained.
         StoreHardener.checkpoint(at: TaskTickApp._storeURL)
     }
 
@@ -339,8 +338,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return tasks.filter { runningIDs.contains($0.id) }.map(\.name)
     }
 
-    /// Pre-flight for internal restart flows (update install / legacy-backup
-    /// restore): when scripts are running, ask BEFORE the flow spawns its
+    /// Pre-flight for internal restart flows such as legacy-backup restore:
+    /// when scripts are running, ask BEFORE the flow spawns its
     /// relaunch helper and arms `shouldReallyQuit` — once the helper is
     /// running, a cancelled quit would leave it racing against a live app.
     /// Returns false when the user cancels.

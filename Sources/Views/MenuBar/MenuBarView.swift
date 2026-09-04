@@ -170,10 +170,6 @@ struct MenuBarView: View {
                     }
                 }
 
-                MenuBarFooterButton(title: L10n.tr("command.check_updates")) {
-                    Task { await UpdateChecker.shared.checkForUpdates(userInitiated: true) }
-                }
-
                 MenuBarFooterButton(title: L10n.tr("menubar.quit")) {
                     // Goes through applicationShouldTerminate, which shows the
                     // unified Quit / Hide / Cancel confirmation.
