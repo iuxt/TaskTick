@@ -3,16 +3,21 @@ import SwiftData
 import KeyboardShortcuts
 import TaskTickCore
 
-enum TaskFilter: String, CaseIterable {
-    case all
-    case enabled
-    case disabled
+enum TaskListTab: String, CaseIterable {
+    case scheduled
+    case background
 
     var label: String {
         switch self {
-        case .all: L10n.tr("task.filter.all")
-        case .enabled: L10n.tr("task.filter.enabled")
-        case .disabled: L10n.tr("task.filter.disabled")
+        case .scheduled: L10n.tr("task.mode.scheduled")
+        case .background: L10n.tr("task.mode.background")
+        }
+    }
+
+    var creationKind: TaskCreationKind {
+        switch self {
+        case .scheduled: .scheduled
+        case .background: .background
         }
     }
 }
@@ -23,7 +28,7 @@ struct TaskListView: View {
     @Query(sort: \ScheduledTask.createdAt, order: .reverse) private var tasks: [ScheduledTask]
     @Binding var selectedTask: ScheduledTask?
     @Binding var sortOptionRaw: String
-    @State private var filter: TaskFilter = .all
+    @Binding var selectedTab: TaskListTab
     @State private var searchText = ""
     @State private var taskToDelete: ScheduledTask?
     @State private var showingDeleteAlert = false
@@ -33,31 +38,30 @@ struct TaskListView: View {
 
     var filteredTasks: [ScheduledTask] {
         let filtered = tasks.filter { task in
-            let matchesFilter: Bool = switch filter {
-            case .all: true
-            case .enabled: task.isEnabled
-            case .disabled: !task.isEnabled
+            let matchesTab: Bool = switch selectedTab {
+            case .scheduled: !task.isBackgroundService
+            case .background: task.isBackgroundService
             }
             let matchesSearch = searchText.isEmpty || task.name.localizedCaseInsensitiveContains(searchText)
-            return matchesFilter && matchesSearch
+            return matchesTab && matchesSearch
         }
         let option = TaskSortOption(rawValue: sortOptionRaw) ?? .lastRunDesc
         return option.sort(filtered)
     }
 
     var scheduledTasks: [ScheduledTask] { filteredTasks.filter { !$0.isManualOnly } }
-    var backgroundTasks: [ScheduledTask] { filteredTasks.filter(\.isBackgroundService) }
     var manualTasks: [ScheduledTask] {
-        filteredTasks.filter { $0.isManualOnly && !$0.isBackgroundService }
+        filteredTasks.filter(\.isManualOnly)
     }
 
     var body: some View {
         VStack(spacing: 0) {
-            // Filter bar
+            // Task-kind tabs. The toolbar + button uses the same selection,
+            // so each tab creates exactly the kind of item it displays.
             HStack(spacing: 8) {
-                Picker("", selection: $filter) {
-                    ForEach(TaskFilter.allCases, id: \.self) { f in
-                        Text(f.label).tag(f)
+                Picker("", selection: $selectedTab) {
+                    ForEach(TaskListTab.allCases, id: \.self) { tab in
+                        Text(tab.label).tag(tab)
                     }
                 }
                 .pickerStyle(.segmented)
@@ -69,13 +73,17 @@ struct TaskListView: View {
             if filteredTasks.isEmpty {
                 Spacer()
                 VStack(spacing: 12) {
-                    Image(systemName: "text.badge.plus")
+                    Image(systemName: selectedTab == .background ? "terminal.fill" : "calendar.badge.plus")
                         .font(.system(size: 36))
                         .foregroundStyle(.quaternary)
-                    Text(L10n.tr("task.empty.title"))
+                    Text(selectedTab == .background
+                         ? L10n.tr("task.mode.background")
+                         : L10n.tr("task.empty.title"))
                         .font(.headline)
                         .foregroundStyle(.secondary)
-                    Text(L10n.tr("task.empty.description"))
+                    Text(selectedTab == .background
+                         ? L10n.tr("task.mode.background.help")
+                         : L10n.tr("task.empty.description"))
                         .font(.caption)
                         .foregroundStyle(.tertiary)
                         .multilineTextAlignment(.center)
@@ -85,21 +93,21 @@ struct TaskListView: View {
             } else {
                 ScrollViewReader { proxy in
                 List(selection: $selectedTask) {
-                    if !scheduledTasks.isEmpty {
+                    if selectedTab == .scheduled && !scheduledTasks.isEmpty {
                         Section(L10n.tr("tasklist.section.scheduled")) {
                             ForEach(scheduledTasks) { task in
                                 taskRow(task)
                             }
                         }
                     }
-                    if !backgroundTasks.isEmpty {
+                    if selectedTab == .background && !filteredTasks.isEmpty {
                         Section(L10n.tr("tasklist.section.background")) {
-                            ForEach(backgroundTasks) { task in
+                            ForEach(filteredTasks) { task in
                                 taskRow(task)
                             }
                         }
                     }
-                    if !manualTasks.isEmpty {
+                    if selectedTab == .scheduled && !manualTasks.isEmpty {
                         Section(L10n.tr("tasklist.section.manual")) {
                             ForEach(manualTasks) { task in
                                 taskRow(task)
@@ -108,7 +116,7 @@ struct TaskListView: View {
                     }
                 }
                 .listStyle(.sidebar)
-                .id(filter)
+                .id(selectedTab)
                 .alert(L10n.tr("clear_logs.title"), isPresented: $showingClearLogsAlert) {
                     Button(L10n.tr("clear_logs.cancel"), role: .cancel) {}
                     Button(L10n.tr("clear_logs.confirm"), role: .destructive) {
@@ -169,6 +177,12 @@ struct TaskListView: View {
             }
         }
         .searchable(text: $searchText, prompt: Text(L10n.tr("task.search.prompt")))
+        .onChange(of: selectedTab) { _, _ in
+            if let selectedTask,
+               selectedTask.isBackgroundService != (selectedTab == .background) {
+                self.selectedTask = nil
+            }
+        }
         .safeAreaInset(edge: .bottom) {
             VStack(spacing: 0) {
                 Divider()

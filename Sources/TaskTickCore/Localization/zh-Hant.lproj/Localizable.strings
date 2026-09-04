@@ -691,11 +691,11 @@
 "task.mode" = "工作類型";
 "task.mode.scheduled" = "排程工作";
 "task.mode.manual" = "手動工作";
-"task.mode.background" = "背景程式";
+"task.mode.background" = "背景程序";
 "task.mode.scheduled.help" = "按照日期、間隔或 Cron 表達式執行命令。";
-"task.mode.background.help" = "管理長時間執行的命令，支援自動啟動、結束重啟及輸出記錄輪替。";
-"schedule.background_service" = "背景程式";
-"tasklist.section.background" = "背景程式";
+"task.mode.background.help" = "管理長時間執行的程序，支援自動啟動、結束重啟及輸出記錄輪替。";
+"schedule.background_service" = "背景程序";
+"tasklist.section.background" = "背景程序";
 "service.lifecycle" = "生命週期";
 "service.auto_start" = "隨 TaskTick 啟動";
 "service.restart_policy" = "重啟策略";
@@ -703,7 +703,7 @@
 "service.restart.on_failure" = "失敗時";
 "service.restart.always" = "總是";
 "service.restart_delay" = "重啟延遲";
-"service.timeout.help" = "背景程式不設逾時，將持續執行直到手動停止或程式自行結束。";
+"service.timeout.help" = "背景程序不設逾時，將持續執行直到手動停止或程序自行結束。";
 "service.log" = "輸出記錄";
 "service.log.enabled" = "將 stdout 和 stderr 寫入檔案";
 "service.log.path" = "記錄路徑（留空使用預設路徑）";

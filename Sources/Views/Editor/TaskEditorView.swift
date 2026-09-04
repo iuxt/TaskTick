@@ -147,19 +147,14 @@ struct TaskEditorView: View {
     }
 
     private enum TaskMode: Hashable {
-        case scheduled, manual, background
+        case scheduled, manual
     }
 
     private var taskMode: Binding<TaskMode> {
         Binding(
-            get: {
-                if isBackgroundService { return .background }
-                return isManualOnly ? .manual : .scheduled
-            },
+            get: { isManualOnly ? .manual : .scheduled },
             set: { mode in
-                isBackgroundService = mode == .background
-                isManualOnly = mode != .scheduled
-                if mode == .background { timeoutSeconds = -1 }
+                isManualOnly = mode == .manual
             }
         )
     }
@@ -189,19 +184,25 @@ struct TaskEditorView: View {
                 .tabItem { Label(L10n.tr("editor.tab.script"), systemImage: "terminal") }
                 .tag(1)
 
-            scheduleTab
-                .tabItem { Label(L10n.tr("editor.tab.schedule"), systemImage: "calendar.badge.clock") }
-                .tag(2)
+            if isBackgroundService {
+                scriptSettingsTab
+                    .tabItem { Label(L10n.tr("service.lifecycle"), systemImage: "gearshape.2") }
+                    .tag(2)
+            } else {
+                scheduleTab
+                    .tabItem { Label(L10n.tr("editor.tab.schedule"), systemImage: "calendar.badge.clock") }
+                    .tag(2)
 
-            scriptSettingsTab
-                .tabItem { Label(L10n.tr("editor.tab.settings"), systemImage: "gearshape") }
-                .tag(3)
+                scriptSettingsTab
+                    .tabItem { Label(L10n.tr("editor.tab.settings"), systemImage: "gearshape") }
+                    .tag(3)
+            }
 
             notificationTab
                 .tabItem { Label(L10n.tr("editor.tab.notification"), systemImage: "bell") }
-                .tag(4)
+                .tag(isBackgroundService ? 3 : 4)
         }
-        // Wide enough that the macOS 15+ toolbar-style tab bar fits all five
+        // Wide enough that the macOS 15+ toolbar-style tab bar fits up to five
         // tabs even in German (longest labels) instead of collapsing into the
         // "»" overflow menu (issue #39 item 1).
         .frame(width: 720)
@@ -244,6 +245,15 @@ struct TaskEditorView: View {
 
     private var basicTab: some View {
         Form {
+            if isBackgroundService {
+                Section {
+                    Label(L10n.tr("task.mode.background"), systemImage: "terminal.fill")
+                        .font(.headline)
+                } footer: {
+                    Text(L10n.tr("task.mode.background.help"))
+                }
+            }
+
             Section(L10n.tr("editor.section.basic")) {
                 TextField(L10n.tr("editor.name"), text: $name, prompt: Text(L10n.tr("editor.name.placeholder")))
                 Toggle(L10n.tr("editor.enabled"), isOn: $isEnabled)
@@ -300,16 +310,12 @@ struct TaskEditorView: View {
                         .tag(TaskMode.scheduled)
                     Label(L10n.tr("task.mode.manual"), systemImage: "hand.tap")
                         .tag(TaskMode.manual)
-                    Label(L10n.tr("task.mode.background"), systemImage: "terminal.fill")
-                        .tag(TaskMode.background)
                 }
                 .pickerStyle(.segmented)
             } header: {
                 Text(L10n.tr("schedule.trigger_section"))
             } footer: {
-                Text(isBackgroundService
-                     ? L10n.tr("task.mode.background.help")
-                     : (isManualOnly ? L10n.tr("schedule.manual_only.help") : L10n.tr("task.mode.scheduled.help")))
+                Text(isManualOnly ? L10n.tr("schedule.manual_only.help") : L10n.tr("task.mode.scheduled.help"))
             }
 
             if !isManualOnly {
@@ -665,26 +671,26 @@ struct TaskEditorView: View {
                 }
             }
 
-            Section {
-                LabeledContent(L10n.tr("editor.timeout")) {
-                    HStack(spacing: 6) {
-                        TextField("", value: $timeoutSeconds, format: .number)
-                            .textFieldStyle(.roundedBorder)
-                            .frame(width: 80)
-                            .multilineTextAlignment(.trailing)
-                        if timeoutSeconds <= 0 {
-                            Text(L10n.tr("editor.timeout.unlimited"))
-                                .foregroundStyle(.secondary)
-                        } else {
-                            Text(L10n.tr("editor.timeout.seconds"))
-                                .foregroundStyle(.secondary)
+            if !isBackgroundService {
+                Section {
+                    LabeledContent(L10n.tr("editor.timeout")) {
+                        HStack(spacing: 6) {
+                            TextField("", value: $timeoutSeconds, format: .number)
+                                .textFieldStyle(.roundedBorder)
+                                .frame(width: 80)
+                                .multilineTextAlignment(.trailing)
+                            if timeoutSeconds <= 0 {
+                                Text(L10n.tr("editor.timeout.unlimited"))
+                                    .foregroundStyle(.secondary)
+                            } else {
+                                Text(L10n.tr("editor.timeout.seconds"))
+                                    .foregroundStyle(.secondary)
+                            }
                         }
                     }
+                } footer: {
+                    Text(L10n.tr("editor.timeout.hint"))
                 }
-            } footer: {
-                Text(isBackgroundService
-                     ? L10n.tr("service.timeout.help")
-                     : L10n.tr("editor.timeout.hint"))
             }
 
             if isBackgroundService {
@@ -1293,8 +1299,8 @@ struct TaskEditorView: View {
         // the `guard let task` block below loads the existing binding.
         TaskHotkeyManager.shared.discardDraft()
         hotkeyConflictOwner = nil
-        isManualOnly = false
-        isBackgroundService = false
+        isBackgroundService = editorState.creationKind == .background
+        isManualOnly = isBackgroundService
         serviceAutoStart = true
         serviceRestartPolicy = .onFailure
         serviceRestartDelaySeconds = 3
@@ -1323,7 +1329,7 @@ struct TaskEditorView: View {
         preRunCommand = ""
         preRunEnabled = false
         workingDirectory = ""
-        timeoutSeconds = 300
+        timeoutSeconds = isBackgroundService ? -1 : 300
         shortcutName = ""
         availableShortcuts = []
         isLoadingShortcuts = false
