@@ -149,7 +149,7 @@ func runAndWait(identifier: String, json: Bool) async throws {
         signal(SIGINT, SIG_IGN)
         let sigSrc = DispatchSource.makeSignalSource(signal: SIGINT, queue: .main)
         sigSrc.setEventHandler {
-            state.finish(with: .failure(ExitCode(130)))
+            state.fail(with: ExitCode(130))
         }
         state.installSignalSource(sigSrc)
         sigSrc.resume()
@@ -182,7 +182,7 @@ func runAndWait(identifier: String, json: Bool) async throws {
         let completedObserver = center.addObserver(forName: completedName, object: nil, queue: .main) { note in
             guard let id = note.userInfo?["id"] as? String, id == targetId else { return }
             let exit = (note.userInfo?["exitCode"] as? Int) ?? 0
-            if state.finish(with: .success(Int32(exit))) {
+            if state.succeed(with: Int32(exit)) {
                 let durMs = Int(Date().timeIntervalSince(startedAt) * 1000)
                 let dur = durMs >= 1000 ? "\(durMs / 1000)s" : "\(durMs)ms"
                 FileHandle.standardError.write(Data("✓ Completed in \(dur) (exit \(exit))\n".utf8))
@@ -196,7 +196,7 @@ func runAndWait(identifier: String, json: Bool) async throws {
         } else {
             let ok = GUILauncher.launchAndWait(action: .run, taskId: task.id)
             if !ok {
-                if state.finish(with: .failure(ExitCode(1))) {
+                if state.fail(with: ExitCode(1)) {
                     FileHandle.standardError.write(Data("tasktick: TaskTick.app failed to launch within 10s\n".utf8))
                 }
                 return

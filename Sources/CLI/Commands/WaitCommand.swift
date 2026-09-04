@@ -62,7 +62,7 @@ struct WaitCommand: AsyncParsableCommand {
             let observer = center.addObserver(forName: completedName, object: nil, queue: .main) { note in
                 guard let id = note.userInfo?["id"] as? String, id == targetId else { return }
                 let exit = (note.userInfo?["exitCode"] as? Int) ?? 0
-                if state.finish(with: .success(Int32(exit))) {
+                if state.succeed(with: Int32(exit)) {
                     let durMs = Int(Date().timeIntervalSince(startedAt) * 1000)
                     printResult(name: taskName, exitCode: exit, durationMs: durMs, json: useJSON)
                 }
@@ -71,7 +71,7 @@ struct WaitCommand: AsyncParsableCommand {
 
             if timeoutSeconds > 0 {
                 let work = DispatchWorkItem {
-                    if state.finish(with: .failure(ExitCode(124))) {
+                    if state.fail(with: ExitCode(124)) {
                         FileHandle.standardError.write(Data("tasktick: timed out after \(timeoutSeconds)s\n".utf8))
                     }
                 }

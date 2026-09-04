@@ -56,7 +56,7 @@ struct TailCommand: AsyncParsableCommand {
             signal(SIGINT, SIG_IGN)
             let sigSrc = DispatchSource.makeSignalSource(signal: SIGINT, queue: .main)
             sigSrc.setEventHandler {
-                state.finish(with: .failure(ExitCode(130)))
+                state.fail(with: ExitCode(130))
             }
             state.installSignalSource(sigSrc)
             sigSrc.resume()
@@ -84,7 +84,7 @@ struct TailCommand: AsyncParsableCommand {
 
             let completedObserver = center.addObserver(forName: completedName, object: nil, queue: .main) { note in
                 guard let id = note.userInfo?["id"] as? String, id == targetId else { return }
-                state.finish(with: .success(()))
+                state.succeed(with: ())
             }
             state.installObserver(completedObserver)
         }

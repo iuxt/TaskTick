@@ -7,9 +7,9 @@ import Foundation
 /// slowly. Rapid event bursts are debounced into a single callback.
 /// All failure modes are silent: if the file can't be opened the watcher is
 /// simply inert — callers degrade to their non-live behavior.
-final class FileWatcher {
+final class FileWatcher: @unchecked Sendable {
     private let path: String
-    private let onChange: () -> Void
+    private let onChange: @MainActor @Sendable () -> Void
     private let debounce: TimeInterval
     /// Delays for re-opening the path after a rename/delete event. Covers
     /// both atomic saves (new file already in place → first try wins) and
@@ -23,13 +23,17 @@ final class FileWatcher {
     private var pendingNotify: DispatchWorkItem?
     private var cancelled = false
 
-    init(path: String, onChange: @escaping () -> Void, debounce: TimeInterval = 0.3) {
+    init(
+        path: String,
+        onChange: @escaping @MainActor @Sendable () -> Void,
+        debounce: TimeInterval = 0.3
+    ) {
         self.path = path
         self.onChange = onChange
         self.debounce = debounce
         // Arm synchronously so no event between init and first edit is lost.
         // The private queue is empty at this point, so sync can't deadlock.
-        queue.sync { start() }
+        _ = queue.sync { start() }
     }
 
     /// Must run on `queue`. Returns whether the source was armed.

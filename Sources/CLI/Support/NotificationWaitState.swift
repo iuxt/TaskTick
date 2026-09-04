@@ -4,7 +4,7 @@ import Foundation
 /// continuation. NotificationCenter and Dispatch callbacks are `@Sendable`, so
 /// their shared mutable state must be synchronized instead of captured as local
 /// variables.
-final class NotificationWaitState<Success>: @unchecked Sendable {
+final class NotificationWaitState<Success: Sendable>: @unchecked Sendable {
     private let lock = NSLock()
     private let center: DistributedNotificationCenter
     private let continuation: CheckedContinuation<Success, Error>
@@ -55,10 +55,25 @@ final class NotificationWaitState<Success>: @unchecked Sendable {
         }
     }
 
-    /// Completes at most once and tears down every installed callback resource.
-    /// The return value lets the winning callback decide whether to print output.
+    /// Resumes successfully at most once. `sending` transfers the value into
+    /// the suspended task instead of retaining a task-isolated value here.
     @discardableResult
-    func finish(with result: Result<Success, Error>) -> Bool {
+    func succeed(with value: sending Success) -> Bool {
+        guard beginFinishing() else { return false }
+        continuation.resume(returning: value)
+        return true
+    }
+
+    /// Resumes with an error at most once.
+    @discardableResult
+    func fail(with error: sending Error) -> Bool {
+        guard beginFinishing() else { return false }
+        continuation.resume(throwing: error)
+        return true
+    }
+
+    /// Claims completion and tears down every installed callback resource.
+    private func beginFinishing() -> Bool {
         lock.lock()
         guard !isFinished else {
             lock.unlock()
@@ -79,7 +94,6 @@ final class NotificationWaitState<Success>: @unchecked Sendable {
         }
         signalSourceToCancel?.cancel()
         timeoutWorkItemToCancel?.cancel()
-        continuation.resume(with: result)
         return true
     }
 }
