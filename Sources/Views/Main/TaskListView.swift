@@ -298,7 +298,6 @@ struct TaskListView: View {
             notifyOnFailure: task.notifyOnFailure
         )
         copy.scriptFilePath = task.scriptFilePath
-        copy.shortcutName = task.shortcutName
         copy.scheduleType = task.scheduleType
         copy.cronExpression = task.cronExpression
         copy.intervalSeconds = task.intervalSeconds

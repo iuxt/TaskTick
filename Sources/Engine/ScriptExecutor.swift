@@ -143,19 +143,10 @@ final class ScriptExecutor: ObservableObject {
         let notificationTemplate = task.notificationTemplateEnabled ? task.notificationTemplate : ""
         let logId = log.id
 
-        // Shortcut tasks bypass the shell pipeline entirely. The editor blocks
-        // users from setting shell / preRun / cwd / env on shortcut tasks, so
-        // we don't need to honor those fields here.
-        let shortcutName = task.shortcutName?.trimmingCharacters(in: .whitespacesAndNewlines)
-        let isShortcutTask = !(shortcutName?.isEmpty ?? true)
-
-        // Resolve script: inline body or file content (only used for shell-script tasks)
+        // Resolve script: inline body or file content.
         let scriptBody: String
         let effectiveShell: String
-        if isShortcutTask {
-            scriptBody = ""
-            effectiveShell = shell
-        } else if let filePath = task.scriptFilePath, !filePath.isEmpty {
+        if let filePath = task.scriptFilePath, !filePath.isEmpty {
             if let content = try? String(contentsOfFile: filePath, encoding: .utf8) {
                 // Respect the shebang — but a shebang names an interpreter, not a shell,
                 // so a .py/.rb/.js file gets exec'd rather than pasted into `<shell> -c`.
@@ -212,38 +203,18 @@ final class ScriptExecutor: ObservableObject {
             return LogFileWriter(taskName: taskName)
         }()
 
-        let result: ProcessResult
-        if isShortcutTask, let name = shortcutName {
-            // Invoke /usr/bin/shortcuts directly — no shell wrapping. Working
-            // directory and env vars are nil: Shortcuts CLI runs in a system
-            // service context that doesn't honor them anyway, and the editor
-            // hides those fields for shortcut tasks.
-            result = await runProcessCore(
-                executableURL: URL(fileURLWithPath: "/usr/bin/shortcuts"),
-                arguments: ["run", name],
-                workingDirectory: nil,
-                environmentVariables: nil,
-                timeoutSeconds: timeoutSeconds,
-                taskId: taskId,
-                logId: logId,
-                ignoreExitCode: ignoreExitCode,
-                logFileWriter: logFileWriter,
-                captureLimitBytes: isBackgroundService ? ExecutionLog.maxOutputSize : nil
-            )
-        } else {
-            result = await runProcess(
-                shell: effectiveShell,
-                script: finalScript,
-                workingDirectory: workingDirectory,
-                environmentVariables: envVars,
-                timeoutSeconds: timeoutSeconds,
-                taskId: taskId,
-                logId: logId,
-                ignoreExitCode: ignoreExitCode,
-                logFileWriter: logFileWriter,
-                captureLimitBytes: isBackgroundService ? ExecutionLog.maxOutputSize : nil
-            )
-        }
+        let result = await runProcess(
+            shell: effectiveShell,
+            script: finalScript,
+            workingDirectory: workingDirectory,
+            environmentVariables: envVars,
+            timeoutSeconds: timeoutSeconds,
+            taskId: taskId,
+            logId: logId,
+            ignoreExitCode: ignoreExitCode,
+            logFileWriter: logFileWriter,
+            captureLimitBytes: isBackgroundService ? ExecutionLog.maxOutputSize : nil
+        )
 
         let endTime = Date()
         let durationMs = Int(endTime.timeIntervalSince(startTime) * 1000)
@@ -760,11 +731,9 @@ final class ScriptExecutor: ObservableObject {
         )
     }
 
-    /// Lower-level Process runner shared by shell-script execution and direct
-    /// CLI invocations (e.g. `shortcuts run`). Handles live output streaming,
-    /// timeout (SIGTERM/SIGKILL), cancellation registration, and the bounded-task
-    /// semaphore. Callers provide the executable + arguments; this method makes
-    /// no assumptions about shell wrapping.
+    /// Lower-level process runner. Handles live output streaming, timeout
+    /// (SIGTERM/SIGKILL), cancellation registration, and the bounded-task
+    /// semaphore.
     private func runProcessCore(
         executableURL: URL,
         arguments: [String],

@@ -56,39 +56,6 @@ struct TaskSchedulerTests {
         }
     }
 
-    // Shortcut tasks share the same scheduling pipeline as shell tasks —
-    // setting shortcutName must not block computeNextRunDate from picking
-    // up a normal repeat schedule.
-    @Test("Shortcut task with repeatType.everyMinute schedules normally")
-    @MainActor
-    func shortcutTaskRespectsRepeat() {
-        let task = ScheduledTask(
-            name: "shortcut",
-            scriptBody: "",
-            repeatType: .everyMinute
-        )
-        task.shortcutName = "MyShortcut"
-        task.intervalSeconds = nil
-        task.cronExpression = nil
-
-        let anchor = Date()
-        let next = TaskScheduler.shared.computeNextRunDate(for: task, after: anchor)
-
-        #expect(next != nil)
-        if let next {
-            let delta = next.timeIntervalSince(anchor)
-            #expect(delta > 0)
-            #expect(delta <= 60)
-        }
-    }
-
-    @Test("New ScheduledTask has nil shortcutName")
-    @MainActor
-    func shortcutNameDefaultsToNil() {
-        let task = ScheduledTask(name: "fresh", scriptBody: "echo hi")
-        #expect(task.shortcutName == nil)
-    }
-
     // Issue #34: a daily task with extra time points should fire at the earliest
     // upcoming time of day, then walk forward through main + extras.
     @Test("Daily task with additional times picks the earliest upcoming slot")

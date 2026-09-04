@@ -59,7 +59,6 @@ struct PushChannelsSection: View {
 
     @ObservedObject private var settings = PushChannelSettings.shared
     @State private var editingChannelID: UUID?
-    @State private var channelToDelete: PushChannel?
 
     var body: some View {
         Section {
@@ -73,9 +72,9 @@ struct PushChannelsSection: View {
                 }
             }
 
-            // The sheet and the delete dialog hang off this row, not off the
-            // Section: a modifier applied to `Section` inside a `Form` wraps it
-            // in ModifiedContent and Form stops rendering it as a section.
+            // The sheet hangs off this row, not off the Section: a modifier
+            // applied to `Section` inside a `Form` wraps it in ModifiedContent
+            // and Form stops rendering it as a section.
             HStack {
                 Menu {
                     ForEach(PushProviderKind.allCases) { kind in
@@ -96,19 +95,6 @@ struct PushChannelsSection: View {
             }
             .sheet(item: editingChannelBinding) { channel in
                 PushChannelEditorSheet(channel: binding(for: channel.id))
-            }
-            .confirmationDialog(
-                L10n.tr("settings.push.delete.confirm", channelToDelete?.displayName ?? ""),
-                isPresented: Binding(get: { channelToDelete != nil }, set: { if !$0 { channelToDelete = nil } }),
-                titleVisibility: .visible
-            ) {
-                Button(L10n.tr("settings.push.delete"), role: .destructive) {
-                    if let id = channelToDelete?.id {
-                        settings.channels.removeAll { $0.id == id }
-                    }
-                    channelToDelete = nil
-                }
-                Button(L10n.tr("settings.push.cancel"), role: .cancel) { channelToDelete = nil }
             }
         } header: {
             Text(L10n.tr("settings.push"))
@@ -154,16 +140,6 @@ struct PushChannelsSection: View {
                 editingChannelID = channel.wrappedValue.id
             }
             .pointerCursor()
-
-            Button {
-                channelToDelete = channel.wrappedValue
-            } label: {
-                Image(systemName: "trash")
-            }
-            .buttonStyle(.borderless)
-            .foregroundStyle(.secondary)
-            .pointerCursor()
-            .help(L10n.tr("settings.push.delete"))
         }
     }
 
@@ -185,9 +161,9 @@ struct PushChannelsSection: View {
         )
     }
 
-    /// Binding straight into the stored array so edits persist as they're typed
-    /// — and so a channel deleted underneath the sheet degrades to a harmless
-    /// scratch value instead of trapping on a stale index.
+    /// Binding straight into the stored array so edits persist as they're typed.
+    /// The fallback keeps a stale sheet identity from trapping on a missing
+    /// array element.
     private func binding(for id: UUID) -> Binding<PushChannel> {
         Binding(
             get: { settings.channels.first { $0.id == id } ?? PushChannel(id: id) },

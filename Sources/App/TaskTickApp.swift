@@ -6,7 +6,6 @@ import TaskTickCore
 struct TaskTickApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @StateObject private var scheduler = TaskScheduler.shared
-    @StateObject private var templateStore = ScriptTemplateStore.shared
     @Environment(\.openWindow) private var openWindow
     @AppStorage("showMenuBarIcon") private var showMenuBarIcon = true
     @State private var showingCrontabImport = false
@@ -147,21 +146,6 @@ struct TaskTickApp: App {
         .defaultSize(width: 720, height: 560)
         .windowResizability(.contentSize)
 
-        // Template editor window
-        Window(TemplateEditorState.shared.templateToEdit != nil ? L10n.tr("template.edit.title") : L10n.tr("template.add"), id: "template-editor") {
-            TemplateEditorSheet()
-                .localized()
-        }
-        .defaultSize(width: 500, height: 560)
-        .windowResizability(.contentSize)
-
-        // Template management window
-        Window(L10n.tr("template.manage.title"), id: "templates") {
-            TemplateManagementView()
-                .localized()
-        }
-        .defaultSize(width: 860, height: 560)
-
         #if DEBUG
         // Dev-only: side-by-side preview of candidate Date & Time layouts.
         // Open via Window menu → "Schedule Layout Demo".
@@ -298,38 +282,6 @@ struct TaskTickApp: App {
 
             Button(L10n.tr("command.delete_task")) {
                 // TODO: implement delete
-            }
-        }
-
-        CommandMenu(L10n.tr("template.menu")) {
-            ForEach(templateStore.groupedTemplates, id: \.category) { group in
-                if group.category.isEmpty {
-                    ForEach(group.templates) { template in
-                        Button(template.name) {
-                            EditorState.shared.openNewFromTemplate(template)
-                            openWindow(id: "editor")
-                        }
-                    }
-                } else {
-                    Menu(group.category) {
-                        ForEach(group.templates) { template in
-                            Button(template.name) {
-                                EditorState.shared.openNewFromTemplate(template)
-                                openWindow(id: "editor")
-                            }
-                        }
-                    }
-                }
-            }
-
-            Divider()
-            Button(L10n.tr("template.manage")) {
-                openWindow(id: "templates")
-            }
-            .keyboardShortcut("t", modifiers: [.command, .shift])
-
-            Button(L10n.tr("template.restore_defaults")) {
-                templateStore.restoreDefaults()
             }
         }
 

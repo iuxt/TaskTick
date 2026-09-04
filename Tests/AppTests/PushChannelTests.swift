@@ -298,7 +298,7 @@ final class PushChannelTests: XCTestCase {
         XCTAssertTrue(PushChannelStore.resolve(ids: ids, in: channels).isEmpty)
     }
 
-    func testResolveIgnoresDeletedChannelIDs() {
+    func testResolveIgnoresUnknownChannelIDs() {
         let channels = makeChannels()
         let ids = [channels[0].id, UUID()]
         XCTAssertEqual(PushChannelStore.resolve(ids: ids, in: channels).map(\.name), ["A"])

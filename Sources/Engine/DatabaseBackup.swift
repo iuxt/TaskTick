@@ -148,8 +148,6 @@ final class DatabaseBackup: ObservableObject {
             return false
         }
 
-        let templates = ScriptTemplateStore.shared.templates
-
         // Empty-data protection: if we're about to write zero tasks but a previous
         // backup might have data, refuse the overwrite. Treats unknown task counts
         // (legacy `.store` dirs, partially-written JSON) as "possibly non-empty" so
@@ -174,7 +172,7 @@ final class DatabaseBackup: ObservableObject {
         // skip the write. ExportedTask deliberately excludes runtime fields
         // (lastRunAt / executionCount / nextRunAt — see TaskExporter.makeExported)
         // so the hash only flips when the user actually edits something.
-        let currentHash = Self.computeContentHash(tasks: exportedTasks, templates: templates)
+        let currentHash = Self.computeContentHash(tasks: exportedTasks)
         if let currentHash,
            let cachedHash = UserDefaults.standard.string(forKey: Self.contentHashKey),
            cachedHash == currentHash,
@@ -192,9 +190,7 @@ final class DatabaseBackup: ObservableObject {
             appVersion: appVersion,
             exportDate: Date(),
             taskCount: exportedTasks.count,
-            templateCount: templates.count,
             tasks: exportedTasks,
-            templates: templates,
             contentHash: currentHash
         )
 
@@ -227,7 +223,7 @@ final class DatabaseBackup: ObservableObject {
             // Atomic write: data lands at a temp path then is renamed into place,
             // so a crash mid-write never leaves a half-written .tasktickbackup behind.
             try data.write(to: fileURL, options: .atomic)
-            Self.logger.info("Backup written to \(fileURL.path) (\(exportedTasks.count) tasks, \(templates.count) templates)")
+            Self.logger.info("Backup written to \(fileURL.path) (\(exportedTasks.count) tasks)")
             pruneOldBackups(in: backupDir)
             lastBackupDate = Date()
             lastSkipReason = nil
@@ -245,7 +241,7 @@ final class DatabaseBackup: ObservableObject {
     // MARK: - Restore
 
     enum RestoreResult {
-        case success(taskCount: Int, templateCount: Int)
+        case success(taskCount: Int)
         case failed(message: String)
     }
 
@@ -284,12 +280,9 @@ final class DatabaseBackup: ObservableObject {
 
         guard case .success = result else { return result }
 
-        // Post-save bookkeeping that must happen on main: templates (UserDefaults),
-        // serial counter (UserDefaults), nextRunAt computation (@MainActor scheduler),
-        // and final scheduler rebuild.
-        if !payload.templates.isEmpty {
-            ScriptTemplateStore.shared.replaceAll(payload.templates)
-        }
+        // Post-save bookkeeping that must happen on main: serial counter
+        // (UserDefaults), nextRunAt computation (@MainActor scheduler), and
+        // final scheduler rebuild.
         let maxSerial = payload.tasks.compactMap { $0.serialNumber }.max() ?? 0
         let currentCounter = UserDefaults.standard.integer(forKey: "taskSerialCounter")
         if maxSerial > currentCounter {
@@ -351,7 +344,7 @@ final class DatabaseBackup: ObservableObject {
             return .failed(message: "Save failed: \(error.localizedDescription)")
         }
 
-        return .success(taskCount: payload.tasks.count, templateCount: payload.templates.count)
+        return .success(taskCount: payload.tasks.count)
     }
 
     /// Legacy restore: same logic as the old DatabaseBackup did — copy the SQLite
@@ -397,7 +390,7 @@ final class DatabaseBackup: ObservableObject {
         }
 
         // Caller (SettingsView) must trigger a restart for legacy restores.
-        return .success(taskCount: 0, templateCount: 0)
+        return .success(taskCount: 0)
     }
 
     // MARK: - List Backups
@@ -415,7 +408,6 @@ final class DatabaseBackup: ObservableObject {
         /// would require opening it under a read lock and isn't worth the complexity
         /// for a deprecated format.
         let taskCount: Int?
-        let templateCount: Int?
     }
 
     func listBackups() -> [BackupEntry] {
@@ -469,8 +461,7 @@ final class DatabaseBackup: ObservableObject {
             sizeBytes: size,
             url: url,
             format: .json,
-            taskCount: payload?.taskCount,
-            templateCount: payload?.templateCount
+            taskCount: payload?.taskCount
         )
     }
 
@@ -502,8 +493,7 @@ final class DatabaseBackup: ObservableObject {
             sizeBytes: totalSize,
             url: url,
             format: .legacy,
-            taskCount: nil,
-            templateCount: nil
+            taskCount: nil
         )
     }
 
@@ -519,18 +509,16 @@ final class DatabaseBackup: ObservableObject {
     /// Hash a snapshot of user-authored content. Returns nil only if encoding fails,
     /// in which case the caller must fall back to writing a backup unconditionally —
     /// dedup must never silently swallow a backup window when we can't prove equality.
-    private static func computeContentHash(tasks: [TaskExporter.ExportedTask],
-                                           templates: [ScriptTemplate]) -> String? {
+    private static func computeContentHash(tasks: [TaskExporter.ExportedTask]) -> String? {
         struct HashInput: Encodable {
             let tasks: [TaskExporter.ExportedTask]
-            let templates: [ScriptTemplate]
         }
         let encoder = JSONEncoder()
         // sortedKeys + iso8601 give a deterministic byte sequence so two semantically
         // identical snapshots produce identical hashes across processes/launches.
         encoder.outputFormatting = [.sortedKeys]
         encoder.dateEncodingStrategy = .iso8601
-        guard let data = try? encoder.encode(HashInput(tasks: tasks, templates: templates)) else {
+        guard let data = try? encoder.encode(HashInput(tasks: tasks)) else {
             return nil
         }
         let digest = SHA256.hash(data: data)
@@ -577,9 +565,7 @@ struct BackupPayload: Codable {
     let appVersion: String
     let exportDate: Date
     let taskCount: Int
-    let templateCount: Int
     let tasks: [TaskExporter.ExportedTask]
-    let templates: [ScriptTemplate]
     /// Optional so backups produced by older versions still decode.
     let contentHash: String?
 
@@ -587,17 +573,13 @@ struct BackupPayload: Codable {
          appVersion: String,
          exportDate: Date,
          taskCount: Int,
-         templateCount: Int,
          tasks: [TaskExporter.ExportedTask],
-         templates: [ScriptTemplate],
          contentHash: String? = nil) {
         self.format = format
         self.appVersion = appVersion
         self.exportDate = exportDate
         self.taskCount = taskCount
-        self.templateCount = templateCount
         self.tasks = tasks
-        self.templates = templates
         self.contentHash = contentHash
     }
 }

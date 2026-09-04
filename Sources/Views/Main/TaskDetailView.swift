@@ -33,11 +33,7 @@ struct TaskDetailView: View {
                 HStack(alignment: .top, spacing: 16) {
                     VStack(spacing: 16) {
                         scheduleCard
-                        if let name = task.shortcutName, !name.isEmpty {
-                            shortcutCard
-                        } else {
-                            scriptCard
-                        }
+                        scriptCard
                         if task.isManualOnly && (task.isBackgroundService ? task.serviceLogEnabled : streamManualToFile) {
                             liveLogFileCard
                         }
@@ -440,41 +436,6 @@ struct TaskDetailView: View {
                     RoundedRectangle(cornerRadius: 8)
                         .stroke(.separator, lineWidth: 0.5)
                 )
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-    }
-
-    // MARK: - Shortcut Card
-
-    private var shortcutCard: some View {
-        GlassCard {
-            VStack(alignment: .leading, spacing: 12) {
-                Label(L10n.tr("task.detail.shortcut"), systemImage: "wand.and.stars")
-                    .font(.headline)
-
-                HStack(spacing: 10) {
-                    Image(systemName: "wand.and.stars")
-                        .font(.title3)
-                        .foregroundStyle(.purple)
-                    Text(task.shortcutName ?? "")
-                        .font(.system(.body, design: .rounded))
-                        .textSelection(.enabled)
-                    Spacer()
-                }
-                .padding(12)
-                .background(
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(.black.opacity(0.04))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(.separator, lineWidth: 0.5)
-                )
-
-                Text(L10n.tr("task.detail.shortcut.hint"))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }

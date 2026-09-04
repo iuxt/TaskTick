@@ -37,21 +37,12 @@
 - **Menu Bar Resident** — runs in background, always accessible from menu bar
 - **Flexible Scheduling** — date, time, repeat cycle with intuitive UI (like Reminders)
 - **Script Execution** — inline scripts or local files (.sh, .py, .rb, .js)
-- **Script Templates** — built-in templates (DB backup, log cleanup, health check, etc.) + create and manage your own
 - **Execution Logs** — stdout/stderr capture, exit codes, duration tracking
 - **Background Programs** — start, stop, and supervise long-running commands with auto-start, restart policies, file output, and size-based log rotation
 - **Notifications** — macOS system notifications on success/failure (per task)
 - **Crontab Import** — import from system crontab with one click
 - **i18n** — English & Simplified Chinese, switchable in-app
 - **macOS 26 Ready** — liquid glass effects on supported systems
-
-### Template Manager
-
-Quickly create tasks from built-in templates or save your own scripts for reuse. Supports categories, notes, script validation, and file import.
-
-<p align="center">
-  <img src="https://cdn.jsdelivr.net/gh/lifedever/images@master/uPic/2026/03/CS2026-03-16-12.12.03@2x.png" width="800" alt="Template Manager">
-</p>
 
 ## Requirements
 

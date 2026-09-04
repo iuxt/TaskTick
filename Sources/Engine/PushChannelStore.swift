@@ -46,8 +46,8 @@ enum PushChannelStore {
     /// when Bark was the only endpoint, and the default for a task the user
     /// hasn't narrowed down. A selection is otherwise honored literally,
     /// *including the empty one*: unchecking every box means "don't push", not
-    /// "push everywhere". Likewise, pinning a channel that was later deleted
-    /// delivers to what's left rather than quietly widening back out.
+    /// "push everywhere". Likewise, an unavailable channel ID is ignored rather
+    /// than quietly widening delivery back out.
     ///
     /// Every call site goes through here — the selection rule is subtle enough
     /// that a second copy would drift.
@@ -76,8 +76,7 @@ enum PushChannelStore {
     static func migrateLegacyBarkIfNeeded(context: ModelContext, defaults: UserDefaults = .standard) {
         guard !defaults.bool(forKey: migrationFlagKey) else { return }
         // Marked done on every exit path: a user who never configured Bark has
-        // nothing to migrate, and re-scanning each launch would resurrect a
-        // channel they deleted.
+        // nothing to migrate, so there is no reason to rescan on every launch.
         defer { defaults.set(true, forKey: migrationFlagKey) }
 
         let legacyURL = (defaults.string(forKey: legacyBarkURLKey) ?? "")

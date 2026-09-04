@@ -7,22 +7,17 @@ import TaskTickCore
 enum ScriptSource: String, CaseIterable {
     case inline
     case file
-    case template
-    case shortcut
 
     var label: String {
         switch self {
         case .inline: L10n.tr("editor.script.source.inline")
         case .file: L10n.tr("editor.script.source.file")
-        case .template: L10n.tr("editor.script.source.template")
-        case .shortcut: L10n.tr("editor.script.source.shortcut")
         }
     }
 }
 
 struct TaskEditorView: View {
     @Environment(\.modelContext) private var modelContext
-    @Environment(\.openWindow) private var openWindow
     @ObservedObject private var editorState = EditorState.shared
 
     var task: ScheduledTask? { editorState.taskToEdit }
@@ -76,12 +71,6 @@ struct TaskEditorView: View {
     @State private var workingDirectory = ""
     @State private var timeoutSeconds = 300
 
-    // Shortcut (source == .shortcut)
-    @State private var shortcutName: String = ""
-    @State private var availableShortcuts: [String] = []
-    @State private var isLoadingShortcuts = false
-    @State private var shortcutsLoadError: String?
-
     // Custom repeat
     @State private var customIntervalValue = 1
     @State private var customIntervalUnit: CustomRepeatUnit = .day
@@ -115,23 +104,16 @@ struct TaskEditorView: View {
     @State private var isValidating = false
     @State private var validationResult: ScriptValidationResult?
 
-    // Templates
-    @State private var showingTemplateOverwriteConfirm = false
-    @State private var pendingTemplate: ScriptTemplate?
-    @ObservedObject private var templateStore = ScriptTemplateStore.shared
-
     var isEditing: Bool { task != nil }
 
     var canSave: Bool {
         let hasName = !name.trimmingCharacters(in: .whitespaces).isEmpty
         let hasScript: Bool
         switch scriptSource {
-        case .inline, .template:
+        case .inline:
             hasScript = !scriptBody.trimmingCharacters(in: .whitespaces).isEmpty
         case .file:
             hasScript = fileExistsAtScriptPath
-        case .shortcut:
-            hasScript = !shortcutName.trimmingCharacters(in: .whitespaces).isEmpty
         }
         let hasValidCron = !useCron || (try? CronExpression(parsing: cronExpression)) != nil
         return hasName && hasScript && hasValidCron
@@ -537,23 +519,21 @@ struct TaskEditorView: View {
 
     private var scriptContentTab: some View {
         Form {
-            if scriptSource != .shortcut {
-                Section {
-                    Toggle(L10n.tr("editor.pre_run.enable"), isOn: $preRunEnabled)
-                        .onChange(of: preRunEnabled) { _, on in
-                            if !on { preRunCommand = "" }
-                        }
-                    if preRunEnabled {
-                        TextEditor(text: $preRunCommand)
-                            .font(.system(size: 12, design: .monospaced))
-                            .frame(minHeight: 60)
-                            .scrollContentBackground(.hidden)
+            Section {
+                Toggle(L10n.tr("editor.pre_run.enable"), isOn: $preRunEnabled)
+                    .onChange(of: preRunEnabled) { _, on in
+                        if !on { preRunCommand = "" }
                     }
-                } header: {
-                    Text(L10n.tr("editor.pre_run.section"))
-                } footer: {
-                    Text(L10n.tr("editor.pre_run.hint"))
+                if preRunEnabled {
+                    TextEditor(text: $preRunCommand)
+                        .font(.system(size: 12, design: .monospaced))
+                        .frame(minHeight: 60)
+                        .scrollContentBackground(.hidden)
                 }
+            } header: {
+                Text(L10n.tr("editor.pre_run.section"))
+            } footer: {
+                Text(L10n.tr("editor.pre_run.hint"))
             }
 
             Section {
@@ -602,73 +582,43 @@ struct TaskEditorView: View {
                         }
                         .frame(maxHeight: 200)
                     }
-                case .template:
-                    templatePicker
-                case .shortcut:
-                    shortcutPickerView
                 }
 
-                if scriptSource == .inline || scriptSource == .file {
-                    HStack(spacing: 10) {
-                        Button {
-                            validateScript()
-                        } label: {
-                            if isValidating {
-                                ProgressView()
-                                    .controlSize(.small)
-                            } else {
-                                Text(L10n.tr("editor.script.validate"))
-                            }
+                HStack(spacing: 10) {
+                    Button {
+                        validateScript()
+                    } label: {
+                        if isValidating {
+                            ProgressView()
+                                .controlSize(.small)
+                        } else {
+                            Text(L10n.tr("editor.script.validate"))
                         }
-                        .disabled(isValidating || currentScript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                        .pointerCursor()
+                    }
+                    .disabled(isValidating || currentScript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .pointerCursor()
 
-                        if let result = validationResult {
-                            ScriptValidationResultLabel(result: result)
-                        }
-
-                        Spacer()
-
-                        Button(L10n.tr("template.save_as")) {
-                            SaveTemplateView.open(scriptBody: scriptBody, shell: shell, workingDirectory: workingDirectory, openWindow: openWindow)
-                        }
-                        .disabled(scriptBody.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                        .pointerCursor()
+                    if let result = validationResult {
+                        ScriptValidationResultLabel(result: result)
                     }
                 }
             }
-
         }
         .formStyle(.grouped)
-        .alert(L10n.tr("template.overwrite.title"), isPresented: $showingTemplateOverwriteConfirm) {
-            Button(L10n.tr("editor.cancel"), role: .cancel) {
-                pendingTemplate = nil
-            }
-            Button(L10n.tr("template.overwrite.confirm"), role: .destructive) {
-                if let template = pendingTemplate {
-                    applyTemplate(template)
-                }
-                pendingTemplate = nil
-            }
-        } message: {
-            Text(L10n.tr("template.overwrite.message"))
-        }
     }
 
     // MARK: - Script Settings Tab
 
     private var scriptSettingsTab: some View {
         Form {
-            if scriptSource != .shortcut {
-                Section(L10n.tr("editor.section.script")) {
-                    Picker(L10n.tr("editor.shell"), selection: $shell) {
-                        ForEach(AvailableShells.load(including: shell), id: \.self) { s in
-                            Text(s).tag(s)
-                        }
+            Section(L10n.tr("editor.section.script")) {
+                Picker(L10n.tr("editor.shell"), selection: $shell) {
+                    ForEach(AvailableShells.load(including: shell), id: \.self) { s in
+                        Text(s).tag(s)
                     }
-
-                    WorkingDirectoryField(path: $workingDirectory)
                 }
+
+                WorkingDirectoryField(path: $workingDirectory)
             }
 
             if !isBackgroundService {
@@ -750,203 +700,6 @@ struct TaskEditorView: View {
             }
         }
         .formStyle(.grouped)
-    }
-
-    // MARK: - Template Picker
-
-    private var templatePicker: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Menu {
-                ForEach(templateStore.groupedTemplates, id: \.category) { group in
-                    if group.category.isEmpty {
-                        ForEach(group.templates) { template in
-                            Button(template.name) {
-                                selectTemplate(template)
-                            }
-                        }
-                    } else {
-                        Menu(group.category) {
-                            ForEach(group.templates) { template in
-                                Button(template.name) {
-                                    selectTemplate(template)
-                                }
-                            }
-                        }
-                    }
-                }
-            } label: {
-                Label(L10n.tr("template.menu"), systemImage: "doc.on.doc")
-            }
-            .pointerCursor()
-
-            if !scriptBody.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-                scriptBody != "#!/bin/zsh\n" && scriptBody != "#!/bin/bash\n" && scriptBody != "#!/bin/sh\n" {
-                Text(scriptBody.prefix(300) + (scriptBody.count > 300 ? "\n..." : ""))
-                    .font(.system(size: 12, design: .monospaced))
-                    .foregroundStyle(.secondary)
-                    .frame(maxHeight: 120)
-            }
-        }
-    }
-
-    // MARK: - Shortcut Picker
-
-    @ViewBuilder
-    private var shortcutPickerView: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            if isLoadingShortcuts {
-                HStack(spacing: 8) {
-                    ProgressView().controlSize(.small)
-                    Text(L10n.tr("editor.shortcut.loading"))
-                        .foregroundStyle(.secondary)
-                }
-            } else if let error = shortcutsLoadError {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(error)
-                        .foregroundStyle(.red)
-                    Button(L10n.tr("editor.shortcut.retry")) {
-                        loadShortcuts()
-                    }
-                    .pointerCursor()
-                }
-            } else if availableShortcuts.isEmpty {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(L10n.tr("editor.shortcut.empty"))
-                        .foregroundStyle(.secondary)
-                    HStack(spacing: 8) {
-                        Button(L10n.tr("editor.shortcut.open_app")) {
-                            openShortcutsApp()
-                        }
-                        .pointerCursor()
-                        Button {
-                            loadShortcuts()
-                        } label: {
-                            Image(systemName: "arrow.clockwise")
-                        }
-                        .help(L10n.tr("editor.shortcut.refresh"))
-                        .pointerCursor()
-                    }
-                }
-            } else {
-                HStack(spacing: 8) {
-                    Image(systemName: "wand.and.stars")
-                        .foregroundStyle(.secondary)
-                    Picker("", selection: $shortcutName) {
-                        Text(L10n.tr("editor.shortcut.placeholder")).tag("")
-                        ForEach(availableShortcuts, id: \.self) { name in
-                            Text(name).tag(name)
-                        }
-                    }
-                    .labelsHidden()
-                    Button {
-                        loadShortcuts()
-                    } label: {
-                        Image(systemName: "arrow.clockwise")
-                    }
-                    .help(L10n.tr("editor.shortcut.refresh"))
-                    .pointerCursor()
-                }
-                Text(L10n.tr("editor.shortcut.hint"))
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-            }
-        }
-        .onAppear {
-            if availableShortcuts.isEmpty && shortcutsLoadError == nil && !isLoadingShortcuts {
-                loadShortcuts()
-            }
-        }
-    }
-
-    private enum ShortcutListResult {
-        case success([String])
-        case failure(String)
-    }
-
-    private func loadShortcuts() {
-        isLoadingShortcuts = true
-        shortcutsLoadError = nil
-        Task {
-            let result = await Self.fetchShortcuts()
-            await MainActor.run {
-                isLoadingShortcuts = false
-                switch result {
-                case .success(let list):
-                    availableShortcuts = list
-                    // If the currently selected name disappeared (renamed/deleted),
-                    // leave the field in place so the user sees what was selected;
-                    // the save guard already blocks empty names, and runtime will
-                    // fail loudly via stderr if it no longer resolves.
-                case .failure(let message):
-                    shortcutsLoadError = message
-                }
-            }
-        }
-    }
-
-    private static func fetchShortcuts() async -> ShortcutListResult {
-        await withCheckedContinuation { (continuation: CheckedContinuation<ShortcutListResult, Never>) in
-            DispatchQueue.global(qos: .userInitiated).async {
-                let process = Process()
-                process.executableURL = URL(fileURLWithPath: "/usr/bin/shortcuts")
-                process.arguments = ["list"]
-                let outPipe = Pipe()
-                let errPipe = Pipe()
-                process.standardOutput = outPipe
-                process.standardError = errPipe
-                do {
-                    try process.run()
-                    process.waitUntilExit()
-                } catch {
-                    continuation.resume(returning: .failure(error.localizedDescription))
-                    return
-                }
-                guard process.terminationStatus == 0 else {
-                    continuation.resume(returning: .failure(L10n.tr("editor.shortcut.load_failed")))
-                    return
-                }
-                let data = outPipe.fileHandleForReading.readDataToEndOfFile()
-                let output = String(data: data, encoding: .utf8) ?? ""
-                // Preserve user's Shortcut order from `shortcuts list` (which is
-                // already grouped/sorted by the system). Just trim, drop blanks,
-                // and de-duplicate while keeping first occurrence.
-                var seen = Set<String>()
-                let names = output
-                    .components(separatedBy: .newlines)
-                    .map { $0.trimmingCharacters(in: .whitespaces) }
-                    .filter { !$0.isEmpty && seen.insert($0).inserted }
-                continuation.resume(returning: .success(names))
-            }
-        }
-    }
-
-    private func openShortcutsApp() {
-        // shortcuts:// is the documented URL scheme for Shortcuts.app on macOS 12+.
-        // TaskTick min target is macOS 14, so it's always present.
-        if let url = URL(string: "shortcuts://") {
-            NSWorkspace.shared.open(url)
-        }
-    }
-
-    private func selectTemplate(_ template: ScriptTemplate) {
-        let hasContent = !scriptBody.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-            scriptBody != "#!/bin/zsh\n" && scriptBody != "#!/bin/bash\n" && scriptBody != "#!/bin/sh\n"
-        if hasContent {
-            pendingTemplate = template
-            showingTemplateOverwriteConfirm = true
-        } else {
-            applyTemplate(template)
-        }
-    }
-
-    private func applyTemplate(_ template: ScriptTemplate) {
-        scriptBody = template.scriptBody
-        shell = template.shell
-        if !template.workingDirectory.isEmpty {
-            workingDirectory = template.workingDirectory
-        }
-        scriptSource = .inline
-        validationResult = nil
     }
 
     // MARK: - Notification Tab
@@ -1330,10 +1083,6 @@ struct TaskEditorView: View {
         preRunEnabled = false
         workingDirectory = ""
         timeoutSeconds = isBackgroundService ? -1 : 300
-        shortcutName = ""
-        availableShortcuts = []
-        isLoadingShortcuts = false
-        shortcutsLoadError = nil
         runMissedExecution = false
         runOnLaunch = false
         notifyOnSuccess = true
@@ -1348,18 +1097,6 @@ struct TaskEditorView: View {
         strongReminder = false
         ignoreExitCode = false
         selectedTab = 0
-
-        // Apply template if present (for new task from template)
-        if let template = editorState.pendingTemplate, task == nil {
-            name = template.name
-            scriptBody = template.scriptBody
-            shell = template.shell
-            if !template.workingDirectory.isEmpty {
-                workingDirectory = template.workingDirectory
-            }
-            scriptSource = .inline
-            editorState.pendingTemplate = nil
-        }
 
         guard let task else { return }
         name = task.name
@@ -1430,10 +1167,7 @@ struct TaskEditorView: View {
             return cal.date(from: c)
         }
 
-        if let name = task.shortcutName, !name.isEmpty {
-            scriptSource = .shortcut
-            shortcutName = name
-        } else if let filePath = task.scriptFilePath, !filePath.isEmpty {
+        if let filePath = task.scriptFilePath, !filePath.isEmpty {
             scriptSource = .file
             scriptFilePath = filePath
         } else {
@@ -1540,19 +1274,11 @@ struct TaskEditorView: View {
         target.intervalSeconds = nil
 
         switch scriptSource {
-        case .shortcut:
-            target.shortcutName = shortcutName.trimmingCharacters(in: .whitespaces).isEmpty
-                ? nil
-                : shortcutName.trimmingCharacters(in: .whitespaces)
-            target.scriptFilePath = nil
-            target.scriptBody = ""
         case .file:
-            target.shortcutName = nil
             // Persist the resolved path — a stored `~/…` would fail to run.
             target.scriptFilePath = Self.normalizePath(scriptFilePath)
             target.scriptBody = ""
-        case .inline, .template:
-            target.shortcutName = nil
+        case .inline:
             target.scriptFilePath = nil
             target.scriptBody = scriptBody
         }

@@ -93,23 +93,6 @@ struct PushChannelMigrationTests {
         #expect(PushChannelStore.load(defaults).isEmpty)
     }
 
-    /// The reason the flag is set on *every* exit path: a user who deletes the
-    /// migrated channel must not have it reappear on the next launch.
-    @Test("用户删掉迁移出来的渠道后，再次启动不会复活它")
-    func deletedChannelStaysDeleted() throws {
-        let (container, ctx) = try makeContext()
-        _ = container
-        let defaults = makeDefaults()
-        defaults.set("legacyKey", forKey: PushChannelStore.legacyBarkURLKey)
-
-        PushChannelStore.migrateLegacyBarkIfNeeded(context: ctx, defaults: defaults)
-        #expect(PushChannelStore.load(defaults).count == 1)
-
-        PushChannelStore.save([], to: defaults)
-        PushChannelStore.migrateLegacyBarkIfNeeded(context: ctx, defaults: defaults)
-        #expect(PushChannelStore.load(defaults).isEmpty)
-    }
-
     @Test("重复运行不会产生第二条同地址渠道")
     func rerunDoesNotDuplicate() throws {
         let (container, ctx) = try makeContext()
