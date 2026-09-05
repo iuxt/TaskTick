@@ -58,6 +58,16 @@ jobs:
         run: |
           set -euo pipefail
 
+          # Honor an explicit release tag on this commit.
+          while IFS= read -r tag; do
+            if [[ "$tag" =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+              version="${BASH_REMATCH[1]}.${BASH_REMATCH[2]}.${BASH_REMATCH[3]}"
+              echo "version=$version" >> "$GITHUB_OUTPUT"
+              echo "Publishing v$version"
+              exit 0
+            fi
+          done < <(git tag --points-at HEAD --list 'v*' --sort=-version:refname)
+
           latest_version=""
           while IFS= read -r tag; do
             if [[ "$tag" =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
@@ -66,11 +76,13 @@ jobs:
             fi
           done < <(git tag --list 'v*' --sort=-version:refname)
 
+          # Start the stable release line at 1.0.0, then increment patches.
+          version="1.0.0"
           if [[ -n "$latest_version" ]]; then
             IFS=. read -r major minor patch <<< "$latest_version"
-            version="${major}.${minor}.$((patch + 1))"
-          else
-            version="0.1.${GITHUB_RUN_NUMBER}"
+            if (( major >= 1 )); then
+              version="${major}.${minor}.$((patch + 1))"
+            fi
           fi
 
           echo "version=$version" >> "$GITHUB_OUTPUT"
