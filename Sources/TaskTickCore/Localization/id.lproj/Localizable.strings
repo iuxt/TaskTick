@@ -469,7 +469,6 @@
 "settings.about.build" = "Build";
 "settings.about.github" = "Repositori GitHub";
 "settings.about.issues" = "Laporkan Masalah";
-"settings.about.sponsor" = "Sponsor";
 "settings.about.copyright" = "© 2026 lifedever. Lisensi GPL-3.0.";
 "settings.about.description" = "Aplikasi macOS native untuk mengelola tugas terjadwal. Tanpa crontab, tanpa launchd — cukup TaskTick.";
 
@@ -488,7 +487,6 @@
 "command.refresh" = "Segarkan";
 "command.github_home" = "Repositori GitHub";
 "command.report_issue" = "Laporkan Masalah";
-"command.sponsor" = "Dukung Pengembang";
 
 /* Clear Logs Confirmation */
 "clear_logs.title" = "Hapus Log";

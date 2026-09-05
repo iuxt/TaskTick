@@ -434,7 +434,6 @@
 "settings.about.build" = "Build";
 "settings.about.github" = "Dépôt GitHub";
 "settings.about.issues" = "Signaler un problème";
-"settings.about.sponsor" = "Sponsoriser";
 "settings.about.copyright" = "© 2026 lifedever. Licence GPL-3.0.";
 "settings.about.description" = "Une application macOS native pour gérer les tâches planifiées. Sans crontab, sans launchd — juste TaskTick.";
 "command.about" = "À propos de TaskTick";
@@ -451,7 +450,6 @@
 "command.refresh" = "Actualiser";
 "command.github_home" = "Dépôt GitHub";
 "command.report_issue" = "Signaler un problème";
-"command.sponsor" = "Soutenir le développeur";
 "clear_logs.title" = "Effacer les journaux";
 "clear_logs.message" = "Êtes-vous sûr de vouloir effacer tous les journaux d'exécution de \"%@\" ? Le compteur d'exécutions sera réinitialisé. Cette action est irréversible.";
 "clear_logs.cancel" = "Annuler";

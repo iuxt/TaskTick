@@ -469,7 +469,6 @@
 "settings.about.build" = "Сборка";
 "settings.about.github" = "Репозиторий GitHub";
 "settings.about.issues" = "Сообщить о проблеме";
-"settings.about.sponsor" = "Поддержать";
 "settings.about.copyright" = "© 2026 lifedever. Лицензия GPL-3.0.";
 "settings.about.description" = "Нативное приложение macOS для управления задачами по расписанию. Без crontab, без launchd — только TaskTick.";
 
@@ -488,7 +487,6 @@
 "command.refresh" = "Обновить";
 "command.github_home" = "Репозиторий GitHub";
 "command.report_issue" = "Сообщить о проблеме";
-"command.sponsor" = "Поддержать разработчика";
 
 /* Clear Logs Confirmation */
 "clear_logs.title" = "Очистить журнал";

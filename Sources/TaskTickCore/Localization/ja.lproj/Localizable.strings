@@ -469,7 +469,6 @@
 "settings.about.build" = "ビルド";
 "settings.about.github" = "GitHubリポジトリ";
 "settings.about.issues" = "問題を報告";
-"settings.about.sponsor" = "スポンサー";
 "settings.about.copyright" = "© 2026 lifedever. GPL-3.0 License.";
 "settings.about.description" = "スケジュールタスクを管理するネイティブmacOSアプリ。crontabもlaunchdも不要 — TaskTickだけ。";
 
@@ -488,7 +487,6 @@
 "command.refresh" = "更新";
 "command.github_home" = "GitHubリポジトリ";
 "command.report_issue" = "問題を報告";
-"command.sponsor" = "開発者を支援";
 
 /* Clear Logs Confirmation */
 "clear_logs.title" = "ログを消去";

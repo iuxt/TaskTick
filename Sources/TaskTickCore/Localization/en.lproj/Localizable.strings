@@ -469,7 +469,6 @@
 "settings.about.build" = "Build";
 "settings.about.github" = "GitHub Repository";
 "settings.about.issues" = "Report an Issue";
-"settings.about.sponsor" = "Sponsor";
 "settings.about.copyright" = "© 2026 lifedever. GPL-3.0 License.";
 "settings.about.description" = "A native macOS app for managing scheduled tasks. No crontab, no launchd — just TaskTick.";
 
@@ -488,7 +487,6 @@
 "command.refresh" = "Refresh";
 "command.github_home" = "GitHub Repository";
 "command.report_issue" = "Report an Issue";
-"command.sponsor" = "Support Developer";
 
 /* Clear Logs Confirmation */
 "clear_logs.title" = "Clear Logs";

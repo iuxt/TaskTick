@@ -227,16 +227,6 @@ struct TaskTickApp: App {
             }
         }
 
-        CommandGroup(after: .appInfo) {
-            Button {
-                if let url = URL(string: "https://www.lifedever.com/sponsor/") {
-                    NSWorkspace.shared.open(url)
-                }
-            } label: {
-                Label(L10n.tr("command.sponsor"), systemImage: "heart")
-            }
-        }
-
         CommandGroup(replacing: .newItem) {
             Button(L10n.tr("command.new_task")) {
                 EditorState.shared.openNew()

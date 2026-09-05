@@ -469,7 +469,6 @@
 "settings.about.build" = "建構號";
 "settings.about.github" = "GitHub 首頁";
 "settings.about.issues" = "回報問題";
-"settings.about.sponsor" = "贊助支持";
 "settings.about.copyright" = "© 2026 lifedever. GPL-3.0 授權條款.";
 "settings.about.description" = "一款原生 macOS 排程任務管理應用程式。無需 crontab，無需 launchd，交給 TaskTick。";
 
@@ -488,7 +487,6 @@
 "command.refresh" = "重新整理";
 "command.github_home" = "GitHub 首頁";
 "command.report_issue" = "回報問題";
-"command.sponsor" = "支持開發者";
 
 /* Clear Logs Confirmation */
 "clear_logs.title" = "清空日誌";

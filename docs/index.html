@@ -48,8 +48,6 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;backdrop-filter:blur(24px) s
 .lang-menu button:hover{background:var(--surface);color:var(--text)}
 .lang-menu button.active{background:var(--accent);color:#fff}
 .lang-menu button.active:hover{opacity:.9}
-.nav-sponsor{color:#f472b6!important;font-weight:600!important}
-.nav-sponsor:hover{opacity:.8!important}
 .nav-cta{background:var(--text)!important;color:var(--bg)!important;font-weight:600!important;border-radius:8px!important;padding:6px 16px!important}
 .nav-cta:hover{opacity:.85!important}
 
@@ -130,8 +128,6 @@ nav{position:fixed;top:0;left:0;right:0;z-index:100;backdrop-filter:blur(24px) s
 .cta h2{font-size:clamp(1.8rem,4vw,2.6rem);font-weight:800;letter-spacing:-.04em;margin-bottom:12px}
 .cta .sub{color:var(--text2);margin-bottom:32px;font-size:.95rem}
 .cta-actions{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
-.btn-sponsor{color:var(--pink)!important;border-color:rgba(236,72,153,.15)!important}
-.btn-sponsor:hover{border-color:rgba(236,72,153,.3)!important;background:rgba(236,72,153,.04)!important}
 
 /* ── Footer ── */
 footer{border-top:1px solid var(--border);padding:24px 0}
@@ -200,7 +196,6 @@ footer .right a:hover{color:var(--text)}
       <a href="#install" data-i18n="nav_install">Install</a>
       <a href="guide/" data-i18n="nav_docs">Docs</a>
       <a href="https://github.com/lifedever/TaskTick">GitHub</a>
-      <a href="https://www.lifedever.com/sponsor/" class="nav-sponsor">💖 <span data-i18n="nav_sponsor">Sponsor</span></a>
       <div class="lang-wrap">
         <button class="lang-btn" onclick="toggleLangMenu()" aria-label="Language">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
@@ -384,10 +379,6 @@ footer .right a:hover{color:var(--text)}
           <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
           Star on GitHub
         </a>
-        <a href="https://www.lifedever.com/sponsor/" class="btn btn-ghost btn-sponsor">
-          <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
-          <span data-i18n="nav_sponsor">Sponsor</span>
-        </a>
       </div>
     </div>
   </div>
@@ -409,7 +400,6 @@ const T = {
     nav_features: '功能',
     nav_install: '安装',
     nav_docs: '文档',
-    nav_sponsor: '捐赠',
     nav_download: '下载',
     hero_badge: 'macOS 原生应用',
     hero_title: '脚本与服务，<br><span class="gradient">一键掌控</span>。',
@@ -454,7 +444,6 @@ const T = {
   'zh-Hant': {
     nav_features: '功能',
     nav_install: '安裝',
-    nav_sponsor: '贊助',
     nav_download: '下載',
     hero_badge: 'macOS 原生應用',
     hero_title: '腳本與服務，<br><span class="gradient">一鍵掌控</span>。',
@@ -499,7 +488,6 @@ const T = {
     nav_features: 'Features',
     nav_install: 'Install',
     nav_docs: 'Docs',
-    nav_sponsor: 'Sponsor',
     nav_download: 'Download',
     hero_badge: 'Native macOS App',
     hero_title: 'Scripts and services,<br><span class="gradient">one tap away</span>.',
@@ -544,7 +532,6 @@ const T = {
   ja: {
     nav_features: '機能',
     nav_install: 'インストール',
-    nav_sponsor: 'スポンサー',
     nav_download: 'ダウンロード',
     hero_badge: 'macOS ネイティブアプリ',
     hero_title: 'スクリプトもサービスも、<br><span class="gradient">ワンタップで</span>。',
@@ -588,7 +575,6 @@ const T = {
   ko: {
     nav_features: '기능',
     nav_install: '설치',
-    nav_sponsor: '후원',
     nav_download: '다운로드',
     hero_badge: 'macOS 네이티브 앱',
     hero_title: '스크립트와 서비스를,<br><span class="gradient">한 번에 제어</span>.',
@@ -632,7 +618,6 @@ const T = {
   fr: {
     nav_features: 'Fonctions',
     nav_install: 'Installer',
-    nav_sponsor: 'Sponsoriser',
     nav_download: 'Télécharger',
     hero_badge: 'App macOS native',
     hero_title: 'Scripts et services,<br>à <span class="gradient">portée de clic</span>.',
@@ -676,7 +661,6 @@ const T = {
   de: {
     nav_features: 'Funktionen',
     nav_install: 'Installieren',
-    nav_sponsor: 'Sponsern',
     nav_download: 'Download',
     hero_badge: 'Native macOS-App',
     hero_title: 'Skripte und Dienste,<br><span class="gradient">auf Knopfdruck</span>.',
@@ -720,7 +704,6 @@ const T = {
   it: {
     nav_features: 'Funzioni',
     nav_install: 'Installa',
-    nav_sponsor: 'Sponsorizza',
     nav_download: 'Scarica',
     hero_badge: 'App macOS nativa',
     hero_title: 'Script e servizi,<br><span class="gradient">a portata di clic</span>.',
@@ -764,7 +747,6 @@ const T = {
   es: {
     nav_features: 'Funciones',
     nav_install: 'Instalar',
-    nav_sponsor: 'Patrocinar',
     nav_download: 'Descargar',
     hero_badge: 'App nativa de macOS',
     hero_title: 'Scripts y servicios,<br><span class="gradient">a un toque</span>.',
@@ -808,7 +790,6 @@ const T = {
   ru: {
     nav_features: 'Функции',
     nav_install: 'Установка',
-    nav_sponsor: 'Спонсор',
     nav_download: 'Скачать',
     hero_badge: 'Нативное приложение macOS',
     hero_title: 'Скрипты и сервисы,<br><span class="gradient">в одно касание</span>.',
@@ -852,7 +833,6 @@ const T = {
   id: {
     nav_features: 'Fitur',
     nav_install: 'Instal',
-    nav_sponsor: 'Sponsor',
     nav_download: 'Unduh',
     hero_badge: 'Aplikasi macOS Native',
     hero_title: 'Skrip dan layanan,<br><span class="gradient">cukup satu klik</span>.',

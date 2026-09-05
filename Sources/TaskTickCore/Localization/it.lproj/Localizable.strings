@@ -469,7 +469,6 @@
 "settings.about.build" = "Build";
 "settings.about.github" = "Repository GitHub";
 "settings.about.issues" = "Segnala un problema";
-"settings.about.sponsor" = "Sponsorizza";
 "settings.about.copyright" = "© 2026 lifedever. Licenza GPL-3.0.";
 "settings.about.description" = "Un'app nativa per macOS per gestire le attività pianificate. Niente crontab, niente launchd, solo TaskTick.";
 
@@ -488,7 +487,6 @@
 "command.refresh" = "Aggiorna";
 "command.github_home" = "Repository GitHub";
 "command.report_issue" = "Segnala un problema";
-"command.sponsor" = "Supporta lo sviluppatore";
 
 /* Clear Logs Confirmation */
 "clear_logs.title" = "Cancella registri";

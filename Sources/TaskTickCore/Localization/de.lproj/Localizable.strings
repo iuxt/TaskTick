@@ -469,7 +469,6 @@
 "settings.about.build" = "Build";
 "settings.about.github" = "GitHub-Repository";
 "settings.about.issues" = "Problem melden";
-"settings.about.sponsor" = "Unterstützen";
 "settings.about.copyright" = "© 2026 lifedever. GPL-3.0-Lizenz.";
 "settings.about.description" = "Eine native macOS-App zur Verwaltung geplanter Aufgaben. Kein crontab, kein launchd — einfach TaskTick.";
 
@@ -488,7 +487,6 @@
 "command.refresh" = "Aktualisieren";
 "command.github_home" = "GitHub-Repository";
 "command.report_issue" = "Problem melden";
-"command.sponsor" = "Entwickler unterstützen";
 
 /* Clear Logs Confirmation */
 "clear_logs.title" = "Protokolle löschen";

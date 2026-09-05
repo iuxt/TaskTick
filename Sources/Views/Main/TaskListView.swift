@@ -183,26 +183,6 @@ struct TaskListView: View {
                 self.selectedTask = nil
             }
         }
-        .safeAreaInset(edge: .bottom) {
-            VStack(spacing: 0) {
-                Divider()
-                Link(destination: URL(string: "https://www.lifedever.com/sponsor/")!) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "heart.fill")
-                            .font(.caption2)
-                            .foregroundStyle(.red)
-                        Text(L10n.tr("command.sponsor"))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 8)
-                }
-                .buttonStyle(.plain)
-                .pointerCursor()
-            }
-            .background(.bar)
-        }
     }
 
     private var sortMenu: some View {
