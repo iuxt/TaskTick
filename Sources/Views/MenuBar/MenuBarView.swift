@@ -236,6 +236,20 @@ struct MenuBarTaskRow: View {
                     .buttonStyle(.plain)
                     .pointerCursor()
                     .help(L10n.tr("task.detail.stop"))
+                } else if task.isBackgroundService {
+                    if let startedAt = RunningDuration.startedAt(for: task) {
+                        TimelineView(.periodic(from: .now, by: 1)) { context in
+                            Text(RunningDuration.format(since: startedAt, now: context.date))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .monospacedDigit()
+                        }
+                        .help(L10n.tr("status.running"))
+                    } else {
+                        Text(L10n.tr("status.running"))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 } else {
                     ProgressView()
                         .controlSize(.mini)
