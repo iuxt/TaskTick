@@ -405,11 +405,6 @@ struct TaskListRow: View {
                     .lineLimit(1)
 
                 HStack(spacing: 4) {
-                    if task.serialNumber > 0 {
-                        Text("#\(task.serialNumber)")
-                            .font(.caption2)
-                            .monospacedDigit()
-                    }
                     if task.isBackgroundService {
                         Image(systemName: "terminal.fill")
                             .font(.system(size: 9))

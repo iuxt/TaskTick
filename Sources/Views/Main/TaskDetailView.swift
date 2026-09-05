@@ -132,13 +132,6 @@ struct TaskDetailView: View {
                         .fontWeight(.bold)
 
                     HStack(spacing: 12) {
-                        if task.serialNumber > 0 {
-                            Text("#\(task.serialNumber)")
-                                .font(.subheadline)
-                                .foregroundStyle(.tertiary)
-                                .monospacedDigit()
-                        }
-
                         HStack(spacing: 4) {
                             Circle()
                                 .fill(task.isEnabled ? .green : .gray.opacity(0.4))

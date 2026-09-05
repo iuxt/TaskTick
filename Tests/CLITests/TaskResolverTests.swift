@@ -5,20 +5,18 @@ final class TaskResolverTests: XCTestCase {
     private struct Sample {
         let id: UUID
         let name: String
-        let serialNumber: Int
     }
 
     private let samples: [Sample] = [
-        .init(id: UUID(uuidString: "A3F9C200-0000-0000-0000-000000000001")!, name: "Deploy Web", serialNumber: 1),
-        .init(id: UUID(uuidString: "B1C40000-0000-0000-0000-000000000002")!, name: "Backup Photos", serialNumber: 15),
-        .init(id: UUID(uuidString: "C7E20000-0000-0000-0000-000000000003")!, name: "Sync Vault", serialNumber: 20)
+        .init(id: UUID(uuidString: "A3F9C200-0000-0000-0000-000000000001")!, name: "Deploy Web"),
+        .init(id: UUID(uuidString: "B1C40000-0000-0000-0000-000000000002")!, name: "Backup Photos"),
+        .init(id: UUID(uuidString: "C7E20000-0000-0000-0000-000000000003")!, name: "Sync Vault")
     ]
 
     private func resolver() -> TaskResolver<Sample> {
         TaskResolver(items: samples,
                      idOf: { $0.id },
-                     nameOf: { $0.name },
-                     serialOf: { $0.serialNumber })
+                     nameOf: { $0.name })
     }
 
     func testResolvesByFullUUID() throws {
@@ -58,11 +56,10 @@ final class TaskResolverTests: XCTestCase {
     func testThrowsOnMultipleMatches() {
         // Both "Deploy Web" and "Deploy Job" — same length so FuzzyMatch
         // ties them on the query "deploy" and the resolver flags ambiguity.
-        let extra = Sample(id: UUID(), name: "Deploy Job", serialNumber: 99)
+        let extra = Sample(id: UUID(), name: "Deploy Job")
         let r = TaskResolver(items: samples + [extra],
                              idOf: { $0.id },
-                             nameOf: { $0.name },
-                             serialOf: { $0.serialNumber })
+                             nameOf: { $0.name })
         XCTAssertThrowsError(try r.resolve("deploy")) { error in
             guard case TaskResolverError.ambiguous(let candidates) = error else {
                 XCTFail("expected ambiguous, got \(error)"); return
@@ -71,19 +68,18 @@ final class TaskResolverTests: XCTestCase {
         }
     }
 
-    func testResolvesBySerialNumberWithHash() throws {
-        let r = try resolver().resolve("#15")
-        XCTAssertEqual(r.name, "Backup Photos")
+    func testOldSerialNumbersDoNotResolveTasks() {
+        XCTAssertThrowsError(try resolver().resolve("#15"))
+        XCTAssertThrowsError(try resolver().resolve("20"))
     }
 
-    func testResolvesBySerialNumberPlain() throws {
-        let r = try resolver().resolve("20")
-        XCTAssertEqual(r.name, "Sync Vault")
-    }
-
-    func testSerialNumberFallsThroughToFuzzyOnNoMatch() throws {
-        // Number "999" doesn't match any serial — tier 2 falls through and
-        // tier 5 (fuzzy) also fails to match a name. Should throw .noMatch.
-        XCTAssertThrowsError(try resolver().resolve("999"))
+    func testNumericAndHashNamesStillResolve() throws {
+        let numeric = Sample(id: UUID(), name: "20")
+        let hash = Sample(id: UUID(), name: "#15")
+        let r = TaskResolver(items: samples + [numeric, hash],
+                             idOf: { $0.id },
+                             nameOf: { $0.name })
+        XCTAssertEqual(try r.resolve("20").id, numeric.id)
+        XCTAssertEqual(try r.resolve("#15").id, hash.id)
     }
 }

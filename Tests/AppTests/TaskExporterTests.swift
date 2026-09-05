@@ -25,6 +25,7 @@ struct TaskExporterTests {
         let data = Data(#"""
         {
             "name": "Legacy task",
+            "serialNumber": 99,
             "scriptBody": "echo hello",
             "shell": "/bin/zsh",
             "repeatType": "daily",
@@ -57,6 +58,7 @@ struct TaskExporterTests {
 
         let reencoded = try JSONEncoder().encode(TaskExporter.makeExported(task))
         let json = try #require(JSONSerialization.jsonObject(with: reencoded) as? [String: Any])
+        #expect(json["serialNumber"] == nil)
         #expect(json["barkPushEnabled"] == nil)
         #expect(json["barkNotifyOnOutputChange"] == nil)
         #expect(json["pushChannelIDs"] == nil)

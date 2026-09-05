@@ -23,8 +23,7 @@ struct LogsCommand: AsyncParsableCommand {
         let resolver = TaskResolver(
             items: allTasks,
             idOf: { $0.id },
-            nameOf: { $0.name },
-            serialOf: { $0.serialNumber }
+            nameOf: { $0.name }
         )
 
         let task: ScheduledTask

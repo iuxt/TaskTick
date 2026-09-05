@@ -162,6 +162,8 @@ public enum ScheduleType: String, Codable, CaseIterable, Sendable {
 @Model
 public final class ScheduledTask {
     public var id: UUID
+    // Retained only for compatibility with existing SwiftData stores.
+    // Task identity uses UUID; new tasks no longer allocate serial numbers.
     public var serialNumber: Int = 0
     public var name: String
     public var scriptBody: String
@@ -285,9 +287,6 @@ public final class ScheduledTask {
         notifyOnFailure: Bool = true
     ) {
         self.id = UUID()
-        let nextSerial = UserDefaults.standard.integer(forKey: "taskSerialCounter") + 1
-        UserDefaults.standard.set(nextSerial, forKey: "taskSerialCounter")
-        self.serialNumber = nextSerial
         self.name = name
         self.scriptBody = scriptBody
         self.shell = shell

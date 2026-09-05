@@ -292,14 +292,6 @@ final class DatabaseBackup: ObservableObject {
 
         guard case .success = result else { return result }
 
-        // Post-save bookkeeping that must happen on main: serial counter
-        // (UserDefaults), nextRunAt computation (@MainActor scheduler), and
-        // final scheduler rebuild.
-        let maxSerial = payload.tasks.compactMap { $0.serialNumber }.max() ?? 0
-        let currentCounter = UserDefaults.standard.integer(forKey: "taskSerialCounter")
-        if maxSerial > currentCounter {
-            UserDefaults.standard.set(maxSerial, forKey: "taskSerialCounter")
-        }
         // Restored tasks have no `nextRunAt` (we only persist user-authored config in
         // backups). Without this, the scheduler skips them — they'd display in the
         // list but never fire until the user toggled them off and back on.

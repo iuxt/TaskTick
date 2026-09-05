@@ -32,7 +32,6 @@ struct TaskExporter {
         let notifyOnFailure: Bool
         let isEnabled: Bool
         // Fields added later — Optional so older exports still decode.
-        let serialNumber: Int?
         let customIntervalValue: Int?
         let customIntervalUnit: String?
         let runMissedExecution: Bool?
@@ -183,7 +182,6 @@ struct TaskExporter {
             notifyOnSuccess: task.notifyOnSuccess,
             notifyOnFailure: task.notifyOnFailure,
             isEnabled: task.isEnabled,
-            serialNumber: task.serialNumber > 0 ? task.serialNumber : nil,
             customIntervalValue: task.customIntervalValue,
             customIntervalUnit: task.customIntervalUnitRaw,
             runMissedExecution: task.runMissedExecution,
@@ -252,11 +250,6 @@ struct TaskExporter {
         }
         task.jitterSeconds = item.jitterSeconds ?? 0
         task.timeZoneIdentifier = item.timeZoneIdentifier
-        // ScheduledTask.init bumps the global serial counter; overwrite with the
-        // backup's value so restored tasks keep their original numbering.
-        if let n = item.serialNumber, n > 0 {
-            task.serialNumber = n
-        }
         if let v = item.customIntervalValue { task.customIntervalValue = v }
         if let u = item.customIntervalUnit { task.customIntervalUnitRaw = u }
         if let v = item.runMissedExecution { task.runMissedExecution = v }

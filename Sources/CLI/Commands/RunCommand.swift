@@ -35,8 +35,7 @@ func dispatch(action: NotificationBridge.CLIAction, identifier: String, json: Bo
     let resolver = TaskResolver(
         items: allTasks,
         idOf: { $0.id },
-        nameOf: { $0.name },
-        serialOf: { $0.serialNumber }
+        nameOf: { $0.name }
     )
 
     let task: ScheduledTask
@@ -119,8 +118,7 @@ func runAndWait(identifier: String, json: Bool) async throws {
     let resolver = TaskResolver(
         items: allTasks,
         idOf: { $0.id },
-        nameOf: { $0.name },
-        serialOf: { $0.serialNumber }
+        nameOf: { $0.name }
     )
     let task: ScheduledTask
     do {
