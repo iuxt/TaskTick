@@ -75,9 +75,7 @@ build_arch() {
     --arch "${ARCH}" \
     --build-path "${ARCH_BUILD_DIR}/build"
 
-  # Locate binary (SPM target was renamed to TaskTickApp in Task 0.2 to dodge
-  # case-insensitive APFS collision with the lowercase 'tasktick' CLI target;
-  # we copy + rename to TaskTick during the cp into the .app below)
+  # Locate the app executable.
   local SPM_TARGET="TaskTickApp"
   local BIN_PATH
   BIN_PATH=$(find "${ARCH_BUILD_DIR}/build" -name "${SPM_TARGET}" -type f -perm +111 | grep -v '\.build\|\.dSYM\|\.bundle' | head -1)
@@ -93,19 +91,6 @@ build_arch() {
 
   # Copy binary (rename TaskTickApp → TaskTick during cp; user-facing name)
   cp "${BIN_PATH}" "${APP_BUNDLE}/Contents/MacOS/${APP_NAME}"
-
-  # Copy CLI binary to Contents/cli/ — NOT Contents/MacOS/.
-  # macOS APFS is case-insensitive by default, so the GUI binary
-  # 'TaskTick' and CLI binary 'tasktick' would collide in MacOS/,
-  # with the second cp silently overwriting the first → app fails
-  # to launch. Cask's `binary` field points here for $PATH symlink.
-  local CLI_BIN_PATH
-  CLI_BIN_PATH=$(find "${ARCH_BUILD_DIR}/build" -name "tasktick" -type f -perm +111 | grep -v '\.build\|\.dSYM\|\.bundle' | head -1)
-  if [ -n "${CLI_BIN_PATH}" ]; then
-    mkdir -p "${APP_BUNDLE}/Contents/cli"
-    cp "${CLI_BIN_PATH}" "${APP_BUNDLE}/Contents/cli/tasktick"
-    echo "  CLI: tasktick (Contents/cli/)"
-  fi
 
   # Glob-copy ALL *.bundle (TaskTick_TaskTickCore.bundle and any future
   # SPM target bundle). Per CLAUDE.md global rule.
@@ -166,17 +151,6 @@ build_arch() {
     <array>
         <string>en</string>
         <string>zh-Hans</string>
-    </array>
-    <key>CFBundleURLTypes</key>
-    <array>
-        <dict>
-            <key>CFBundleURLName</key>
-            <string>com.lifedever.TaskTick.urlscheme</string>
-            <key>CFBundleURLSchemes</key>
-            <array>
-                <string>tasktick</string>
-            </array>
-        </dict>
     </array>
 </dict>
 </plist>

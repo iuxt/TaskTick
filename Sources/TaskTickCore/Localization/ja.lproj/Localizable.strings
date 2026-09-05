@@ -237,7 +237,6 @@
 "notification.denied.open_settings" = "システム設定を開く";
 "notification.denied.later" = "後で";
 
-
 /* Toast messages */
 "toast.task.started" = "「%@」を開始しました";
 "toast.task.stopped" = "「%@」を停止しました";
@@ -346,7 +345,7 @@
 "settings.backup.no_backups" = "バックアップはまだありません";
 "settings.backup.restore" = "復元";
 "settings.backup.restore_confirm.title" = "バックアップから復元しますか？";
-"settings.backup.restore_confirm.message" = "現在のデータベースはこのバックアップで置き換えられます。復元後、アプリは再起動します。";
+"settings.backup.restore_confirm.message" = "実行中のスクリプトを停止し、現在のデータベースをこのバックアップで置き換えます。バックアップによってはアプリの再起動が必要です。";
 "settings.backup.restore_confirm.cancel" = "キャンセル";
 "settings.backup.restore_confirm.confirm" = "復元";
 "settings.backup.restore_success" = "復元成功";
@@ -474,8 +473,6 @@
 "error.delete_failed.title" = "削除できませんでした";
 "error.delete_failed.message" = "項目は表示から削除されましたが、変更を保存できませんでした。再起動後に再表示される可能性があります。\n\n%@";
 
-
-
 /* Cron Human Readable */
 "cron.human.every_minute" = "毎分";
 "cron.human.every_hour" = "毎時";
@@ -487,39 +484,9 @@
 "recovery.open_settings" = "設定を開く";
 "recovery.open_folder" = "データベースファイルを表示";
 
-/* Settings → Command Line */
-"settings.cli.section.title" = "コマンドライン";
-"settings.cli.description" = "ターミナルで `tasktick` コマンドを有効にして、スクリプトや Raycast から TaskTick を操作できます。";
-"settings.raycast.section.title" = "Raycast拡張機能";
-"settings.raycast.description" = "Raycastからタスクを直接検索・実行・停止・再起動できます。上記の `tasktick` CLIを有効にする必要があります。";
-"settings.raycast.link" = "Raycast用TaskTick拡張機能を入手";
-"settings.cli.enable_button" = "CLI を有効化…";
-"settings.cli.installed" = "%@ にリンク済み";
-"settings.cli.not_installed" = "未インストール";
-"settings.cli.install.alert.title" = "tasktick CLI を有効化";
-"settings.cli.install.alert.message" = "ターミナルで次のコマンドを実行して `tasktick` CLI を有効にしてください:\n\n%@";
-"settings.cli.install.alert.copy" = "コマンドをコピー";
-"settings.cli.install.alert.open_terminal" = "ターミナルを開く";
-"settings.cli.install.alert.cancel" = "キャンセル";
-"settings.cli.uninstall_button" = "CLI をアンインストール…";
-"settings.cli.uninstall.alert.title" = "tasktick CLI をアンインストール";
-"settings.cli.uninstall.alert.message" = "ターミナルで次のコマンドを実行して `tasktick` CLI のシンボリックリンクを削除してください:\n\n%@";
-
-/* Action Toast (Run/Stop/Restart banners) */
+/* Action Toast (Run/Stop banners) */
 "toast.action.started" = "開始しました";
 "toast.action.stopped" = "停止しました";
-"toast.action.restarted" = "再起動しました";
-"toast.action.failed" = "操作に失敗しました";
-"toast.action.failed.notReady" = "TaskTick は起動中です";
-"toast.action.failed.taskNotFound" = "タスクが見つかりません";
-"toast.action.failed.alreadyRunning" = "すでに実行中です";
-
-"cli.repair.title" = "tasktick CLI のリンクを更新";
-"cli.repair.message" = "%@ は古い CLI パスを指しています。今すぐ更新しますか？（管理者権限が必要）";
-"cli.repair.update_button" = "今すぐ更新";
-"cli.repair.later_button" = "後で";
-"cli.repair.success.title" = "tasktick CLI を更新しました";
-"cli.repair.success.message" = "%@ は新しい CLI バイナリを指しています。";
 
 /* Time */
 /* Background programs */
@@ -547,6 +514,5 @@
 "service.log.help" = "When the active log reaches the size limit, it becomes .1 and older files move to .2, .3, and so on.";
 "common.yes" = "Yes";
 "common.no" = "No";
-
 
 "time.just_now" = "たった今";

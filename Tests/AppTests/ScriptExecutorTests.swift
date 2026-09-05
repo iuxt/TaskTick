@@ -6,6 +6,59 @@ import TaskTickCore
 
 @Suite("ScriptExecutor Tests")
 struct ScriptExecutorTests {
+    @Test("Restore drains running processes, rejects new runs, then allows execution again")
+    @MainActor
+    func restoreDrainsAndSuspendsExecution() async throws {
+        let schema = Schema([ScheduledTask.self, ExecutionLog.self])
+        let container = try ModelContainer(
+            for: schema,
+            configurations: [ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)]
+        )
+        let context = container.mainContext
+        let executor = ScriptExecutor()
+        defer {
+            executor.cancelAll()
+            executor.resumeAfterRestore()
+        }
+        let task = ScheduledTask(
+            name: "restore-running", scriptBody: "sleep 30", shell: "/bin/sh",
+            timeoutSeconds: 60, notifyOnSuccess: false, notifyOnFailure: false
+        )
+        context.insert(task)
+        let run = Task { @MainActor in
+            await executor.execute(task: task, modelContext: context)
+        }
+        let startedProcess = try await waitForProcess(taskId: task.id, in: executor)
+        let process = try #require(startedProcess)
+        let pid = process.processIdentifier
+
+        await executor.suspendAndDrainForRestore()
+        let log = await run.value
+        #expect(log.status == .cancelled)
+        #expect(log.finishedAt != nil)
+        #expect(!process.isRunning)
+        #expect(!ProcessReconciler.isAlive(pid: pid))
+        #expect(executor.runningProcesses.isEmpty)
+        #expect(!TaskScheduler.shared.runningTaskIDs.contains(task.id))
+
+        let count = try context.fetchCount(FetchDescriptor<ExecutionLog>())
+        task.scriptBody = "echo resumed"
+        let blocked = await executor.execute(task: task, modelContext: context)
+        #expect(blocked.status == .cancelled)
+        #expect(try context.fetchCount(FetchDescriptor<ExecutionLog>()) == count)
+
+        executor.resumeAfterRestore()
+        let resumed = await executor.execute(task: task, modelContext: context)
+        #expect(resumed.status == .success)
+        #expect(resumed.stdout == "resumed")
+
+        // A queued request retaining an old task cannot resurrect it after restore.
+        context.delete(task)
+        try context.save()
+        let stale = await executor.execute(task: task, modelContext: context)
+        #expect(stale.status == .cancelled)
+        #expect(try context.fetchCount(FetchDescriptor<ExecutionLog>()) == 0)
+    }
 
     @Test("Executor singleton exists")
     @MainActor
@@ -118,47 +171,6 @@ struct ScriptExecutorTests {
         )
     }
 
-    @Test("Restart waits for cleanup and tracks the replacement process")
-    @MainActor
-    func restartTracksReplacementProcess() async throws {
-        let schema = Schema([ScheduledTask.self, ExecutionLog.self])
-        let container = try ModelContainer(
-            for: schema,
-            configurations: [ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)]
-        )
-        let context = container.mainContext
-        let executor = ScriptExecutor()
-        let task = ScheduledTask(
-            name: "restart",
-            scriptBody: "trap '' TERM\nsleep 20 & wait",
-            shell: "/bin/sh",
-            timeoutSeconds: -1,
-            notifyOnSuccess: false,
-            notifyOnFailure: false
-        )
-        context.insert(task)
-
-        let originalRun = Task { @MainActor in
-            _ = await executor.execute(task: task, modelContext: context)
-        }
-        let originalPID = try await waitForProcess(taskId: task.id, in: executor)?.processIdentifier
-        #expect(originalPID != nil)
-
-        task.scriptBody = "sleep 2"
-        let restartedRun = Task { @MainActor in
-            await executor.restart(taskId: task.id, modelContext: context)
-        }
-
-        let replacement = try await waitForProcess(taskId: task.id, in: executor) { process in
-            process.processIdentifier != originalPID
-        }
-        #expect(replacement != nil)
-        #expect(TaskScheduler.shared.runningTaskIDs.contains(task.id))
-
-        await originalRun.value
-        await restartedRun.value
-    }
-
     @Test("Ordinary task output is bounded")
     @MainActor
     func ordinaryOutputIsBounded() async throws {
@@ -188,12 +200,11 @@ struct ScriptExecutorTests {
     @MainActor
     private func waitForProcess(
         taskId: UUID,
-        in executor: ScriptExecutor,
-        matching predicate: (Process) -> Bool = { _ in true }
+        in executor: ScriptExecutor
     ) async throws -> Process? {
         let deadline = Date().addingTimeInterval(6)
         while Date() < deadline {
-            if let process = executor.runningProcesses[taskId], predicate(process) {
+            if let process = executor.runningProcesses[taskId] {
                 return process
             }
             try await Task.sleep(for: .milliseconds(20))

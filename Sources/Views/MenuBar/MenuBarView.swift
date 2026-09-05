@@ -120,7 +120,7 @@ struct MenuBarView: View {
 
             Divider()
 
-            // Footer actions — Raycast-style: no dividers, hover background
+            // Footer actions: no dividers, hover background
             // does the visual separation work, matching MenuBarTaskRow above.
             VStack(spacing: 2) {
                 MenuBarFooterButton(title: L10n.tr("menubar.settings")) {

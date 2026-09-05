@@ -237,7 +237,6 @@
 "notification.denied.open_settings" = "Apri Impostazioni di Sistema";
 "notification.denied.later" = "Più tardi";
 
-
 /* Toast messages */
 "toast.task.started" = "Avviata \"%@\"";
 "toast.task.stopped" = "Interrotta \"%@\"";
@@ -346,7 +345,7 @@
 "settings.backup.no_backups" = "Nessun backup presente";
 "settings.backup.restore" = "Ripristina";
 "settings.backup.restore_confirm.title" = "Ripristinare dal backup?";
-"settings.backup.restore_confirm.message" = "Il database attuale verrà sostituito con questo backup. L'app si riavvierà dopo il ripristino.";
+"settings.backup.restore_confirm.message" = "Gli script in esecuzione verranno arrestati e il database attuale verrà sostituito con questo backup. Alcuni backup richiedono il riavvio dell’app.";
 "settings.backup.restore_confirm.cancel" = "Annulla";
 "settings.backup.restore_confirm.confirm" = "Ripristina";
 "settings.backup.restore_success" = "Ripristino riuscito";
@@ -474,8 +473,6 @@
 "error.delete_failed.title" = "Impossibile eliminare";
 "error.delete_failed.message" = "L'elemento è stato rimosso ma le modifiche non sono state salvate. Potrebbe ricomparire al riavvio.\n\n%@";
 
-
-
 /* Cron Human Readable */
 "cron.human.every_minute" = "Ogni minuto";
 "cron.human.every_hour" = "Ogni ora";
@@ -487,39 +484,9 @@
 "recovery.open_settings" = "Apri Impostazioni";
 "recovery.open_folder" = "Mostra file database";
 
-/* Settings → Command Line */
-"settings.cli.section.title" = "Riga di comando";
-"settings.cli.description" = "Abilita il comando `tasktick` nel terminale per controllare TaskTick da script e Raycast.";
-"settings.raycast.section.title" = "Estensione Raycast";
-"settings.raycast.description" = "Cerca, avvia, ferma e riavvia i tuoi task direttamente da Raycast. Richiede la CLI `tasktick` qui sopra.";
-"settings.raycast.link" = "Ottieni l'estensione TaskTick per Raycast";
-"settings.cli.enable_button" = "Abilita CLI…";
-"settings.cli.installed" = "Collegato a %@";
-"settings.cli.not_installed" = "Non installato";
-"settings.cli.install.alert.title" = "Abilita tasktick CLI";
-"settings.cli.install.alert.message" = "Esegui questo comando nel Terminale per abilitare la CLI `tasktick`:\n\n%@";
-"settings.cli.install.alert.copy" = "Copia comando";
-"settings.cli.install.alert.open_terminal" = "Apri Terminale";
-"settings.cli.install.alert.cancel" = "Annulla";
-"settings.cli.uninstall_button" = "Disinstalla CLI…";
-"settings.cli.uninstall.alert.title" = "Disinstalla tasktick CLI";
-"settings.cli.uninstall.alert.message" = "Esegui questo comando nel Terminale per rimuovere il symlink della CLI `tasktick`:\n\n%@";
-
-/* Action Toast (Run/Stop/Restart banners) */
+/* Action Toast (Run/Stop banners) */
 "toast.action.started" = "Avviato";
 "toast.action.stopped" = "Fermato";
-"toast.action.restarted" = "Riavviato";
-"toast.action.failed" = "Azione fallita";
-"toast.action.failed.notReady" = "TaskTick è in avvio";
-"toast.action.failed.taskNotFound" = "Attività non trovata";
-"toast.action.failed.alreadyRunning" = "Già in esecuzione";
-
-"cli.repair.title" = "Aggiorna il collegamento tasktick CLI";
-"cli.repair.message" = "%@ punta a un vecchio percorso della CLI. Aggiornare ora? (Richiede privilegi di amministratore)";
-"cli.repair.update_button" = "Aggiorna ora";
-"cli.repair.later_button" = "Più tardi";
-"cli.repair.success.title" = "tasktick CLI aggiornato";
-"cli.repair.success.message" = "%@ ora punta al binario della CLI incluso.";
 
 /* Time */
 /* Background programs */
@@ -547,6 +514,5 @@
 "service.log.help" = "When the active log reaches the size limit, it becomes .1 and older files move to .2, .3, and so on.";
 "common.yes" = "Yes";
 "common.no" = "No";
-
 
 "time.just_now" = "proprio ora";

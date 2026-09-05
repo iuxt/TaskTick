@@ -237,7 +237,6 @@
 "notification.denied.open_settings" = "시스템 설정 열기";
 "notification.denied.later" = "나중에";
 
-
 /* Toast messages */
 "toast.task.started" = "\"%@\" 시작됨";
 "toast.task.stopped" = "\"%@\" 중지됨";
@@ -346,7 +345,7 @@
 "settings.backup.no_backups" = "아직 백업이 없습니다";
 "settings.backup.restore" = "복원";
 "settings.backup.restore_confirm.title" = "백업에서 복원하시겠습니까?";
-"settings.backup.restore_confirm.message" = "현재 데이터베이스가 이 백업으로 대체됩니다. 복원 후 앱이 재시작됩니다.";
+"settings.backup.restore_confirm.message" = "실행 중인 스크립트를 중지하고 현재 데이터베이스를 이 백업으로 교체합니다. 일부 백업은 앱을 다시 시작해야 합니다.";
 "settings.backup.restore_confirm.cancel" = "취소";
 "settings.backup.restore_confirm.confirm" = "복원";
 "settings.backup.restore_success" = "복원 성공";
@@ -474,8 +473,6 @@
 "error.delete_failed.title" = "삭제할 수 없습니다";
 "error.delete_failed.message" = "항목이 제거되었지만 변경 사항을 저장하지 못했습니다. 재시작 후 다시 나타날 수 있습니다.\n\n%@";
 
-
-
 /* Cron Human Readable */
 "cron.human.every_minute" = "매분";
 "cron.human.every_hour" = "매시간";
@@ -487,39 +484,9 @@
 "recovery.open_settings" = "설정 열기";
 "recovery.open_folder" = "데이터베이스 파일 보기";
 
-/* Settings → Command Line */
-"settings.cli.section.title" = "명령줄";
-"settings.cli.description" = "터미널에서 `tasktick` 명령을 사용하여 스크립트와 Raycast에서 TaskTick을 제어할 수 있도록 활성화합니다.";
-"settings.raycast.section.title" = "Raycast 확장";
-"settings.raycast.description" = "Raycast에서 바로 작업을 검색, 실행, 중지, 재시작할 수 있습니다. 위의 `tasktick` CLI를 먼저 활성화해야 합니다.";
-"settings.raycast.link" = "Raycast용 TaskTick 확장 받기";
-"settings.cli.enable_button" = "CLI 활성화…";
-"settings.cli.installed" = "%@에 연결됨";
-"settings.cli.not_installed" = "설치되지 않음";
-"settings.cli.install.alert.title" = "tasktick CLI 활성화";
-"settings.cli.install.alert.message" = "터미널에서 다음 명령을 실행하여 `tasktick` CLI를 활성화하세요:\n\n%@";
-"settings.cli.install.alert.copy" = "명령 복사";
-"settings.cli.install.alert.open_terminal" = "터미널 열기";
-"settings.cli.install.alert.cancel" = "취소";
-"settings.cli.uninstall_button" = "CLI 제거…";
-"settings.cli.uninstall.alert.title" = "tasktick CLI 제거";
-"settings.cli.uninstall.alert.message" = "터미널에서 다음 명령을 실행하여 `tasktick` CLI 심볼릭 링크를 제거하세요:\n\n%@";
-
-/* Action Toast (Run/Stop/Restart banners) */
+/* Action Toast (Run/Stop banners) */
 "toast.action.started" = "시작됨";
 "toast.action.stopped" = "중지됨";
-"toast.action.restarted" = "재시작됨";
-"toast.action.failed" = "작업 실패";
-"toast.action.failed.notReady" = "TaskTick 시작 중";
-"toast.action.failed.taskNotFound" = "작업을 찾을 수 없음";
-"toast.action.failed.alreadyRunning" = "이미 실행 중";
-
-"cli.repair.title" = "tasktick CLI 링크 업데이트";
-"cli.repair.message" = "%@ 가 오래된 CLI 경로를 가리키고 있습니다. 지금 업데이트할까요? (관리자 권한 필요)";
-"cli.repair.update_button" = "지금 업데이트";
-"cli.repair.later_button" = "나중에";
-"cli.repair.success.title" = "tasktick CLI 가 업데이트되었습니다";
-"cli.repair.success.message" = "%@ 가 이제 새 CLI 바이너리를 가리킵니다.";
 
 /* Time */
 /* Background programs */
@@ -547,6 +514,5 @@
 "service.log.help" = "When the active log reaches the size limit, it becomes .1 and older files move to .2, .3, and so on.";
 "common.yes" = "Yes";
 "common.no" = "No";
-
 
 "time.just_now" = "방금";

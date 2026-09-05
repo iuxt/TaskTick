@@ -8,20 +8,6 @@ directive** (`@tasktick:notify {…}`, see
 `2026-06-27-script-notify-directive-design.md`): a feature users cannot discover
 on their own today, because nothing in the app or on the site explains it.
 
-Current gaps (from a read-only audit):
-
-- The site (`docs/index.html`, an 11-language single-page marketing site) has
-  **no docs / help / guide section**. CLI gets one feature-card sentence; there
-  is no usage information anywhere.
-- In-app, beyond Settings → CLI (install state) and a one-line Raycast link,
-  there is **no help entry** of any kind.
-- The `tasktick` CLI has 12 subcommands but **no README / man page** —
-  discoverable only via `tasktick --help`.
-
-So CLI and Raycast already shipped without docs, and notify directive would ship
-invisible. This spec fixes the *承载* (where docs live) and the *触达* (how users
-reach them).
-
 ## Decisions
 
 - **Layered, not merged**: `index.html` stays marketing. A separate **docs area**
@@ -49,14 +35,6 @@ different dependencies. Each ships on its own; do not treat them as one task.
 | **C. Release What's New panel** | Swift app + release flow | — | ✅ |
 | **D. notify directive feature** | Swift app | — | spec done, pending impl |
 
-**Recommended order**: A (write CLI / Raycast sections first, notify section as a
-placeholder) → D → B + backfill the notify docs → announce via C.
-
-Rationale: doc readiness is uneven. CLI and Raycast already shipped, so their
-sections can be written in full today — an existing gap closed immediately. The
-notify section only makes sense once D ships (otherwise it documents something
-users can't use yet).
-
 This spec **fully designs A**, and gives **direction + dependencies for B and C**
 (each gets its own later spec). D already has its own spec.
 
@@ -68,7 +46,7 @@ This spec **fully designs A**, and gives **direction + dependencies for B and C*
 
 - New file `docs/guide/index.html`, served at `/guide/`. Keeps `index.html` from
   growing further; the docs page can grow freely without touching marketing.
-- Edits to `index.html` are limited to **adding links** (nav + two Feature-card
+- Edits to `index.html` are limited to **adding links** (nav + notification-card
   deep-links). No structural changes to the marketing page.
 
 ### Structure
@@ -79,16 +57,9 @@ This spec **fully designs A**, and gives **direction + dependencies for B and C*
 
 ### First sections
 
-1. **CLI** (`#cli`) — install (Homebrew symlink + the Settings → CLI flow) + a
-   12-subcommand quick-reference table (list / status / logs / create / run /
-   stop / restart / reveal / tail / wait / events / completion) + common
-   examples. Already shipped → write in full now.
-2. **Raycast** (`#raycast`) — install + command list + usage. Already shipped →
-   write in full now.
-3. **Script Notifications** (`#notifications`) — notify directive grammar +
-   examples + a short fault-tolerance note. **Placeholder until D ships**, then
-   backfilled together with B.
-4. *(reserved)* future-feature slots: Run on Launch, Realtime Log, …
+1. **Script Notifications** (`#notifications`) — notification directive grammar,
+   examples, and fault-tolerance notes.
+2. Future features can add their own sections when they ship.
 
 ### i18n
 
@@ -97,7 +68,7 @@ This spec **fully designs A**, and gives **direction + dependencies for B and C*
   「Docs」from the site.
 - The language selector on the guide page shows **EN + 简中 only** (only these two
   have translations).
-- **Code blocks are never translated**: CLI commands, notify JSON, shell examples
+- **Code blocks are never translated**: Notification JSON and shell examples
   live in `<code>` / `<pre>` **without** `data-i18n`. This avoids mangling code
   and avoids double-maintaining code blocks — the key reason EN + 简中 stays
   sustainable as the docs grow.
@@ -105,8 +76,7 @@ This spec **fully designs A**, and gives **direction + dependencies for B and C*
 ### Site entry (part of A)
 
 - `index.html` nav bar: add **「Docs」** → `/guide/`.
-- Features grid: the CLI and notification cards deep-link to `/guide/#cli` and
-  `/guide/#notifications`.
+- Features grid: the notification card deep-links to `/guide/#notifications`.
 
 ### Visual / technical constraints
 
@@ -141,7 +111,7 @@ badge vs. settings) is decided in C's own spec. Independent of the other items.
 
 - Section ↔ feature is one-to-one; a new feature = a new section (fill a reserved
   slot).
-- The CLI subcommand list and the notify grammar are kept in sync with the code
+- The notification grammar is kept in sync with the code
   **by hand** (a static page can't auto-sync) → add an "update `/guide/`" item to
   the release checklist.
 - New or changed docs: edit EN + 简中 **together**, following the project's
@@ -154,5 +124,4 @@ badge vs. settings) is decided in C's own spec. Independent of the other items.
 - A docs-site framework (VitePress / Docusaurus), multipage split, or search
   index.
 - 11-language docs (EN + 简中 only).
-- Auto-generating CLI docs from code.
 - The detailed UI of B and C (each has its own spec).

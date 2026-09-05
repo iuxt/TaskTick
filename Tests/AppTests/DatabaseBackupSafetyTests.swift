@@ -6,6 +6,48 @@ import TaskTickCore
 
 @Suite("Database backup safety")
 struct DatabaseBackupSafetyTests {
+    @Test("Dedup follows surviving backup contents after the newest file is deleted")
+    @MainActor
+    func deletedLatestBackupDoesNotHideChanges() throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("tasktick-dedup-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let task = ScheduledTask(name: "A", scriptBody: "echo A")
+        let old = TaskExporter.makeExported(task)
+        task.scriptBody = "echo B"
+        let current = TaskExporter.makeExported(task)
+        let hash = try #require(DatabaseBackup.computeContentHash(tasks: [current]))
+        let olderURL = root.appendingPathComponent("older.tasktickbackup")
+        let latestURL = root.appendingPathComponent("latest.tasktickbackup")
+        try writeBackup([old], to: olderURL)
+        try writeBackup([current], to: latestURL)
+
+        #expect(DatabaseBackup.backup(at: latestURL, matchesContentHash: hash))
+        try FileManager.default.removeItem(at: latestURL)
+        #expect(!DatabaseBackup.backup(at: latestURL, matchesContentHash: hash))
+        #expect(!DatabaseBackup.backup(at: olderURL, matchesContentHash: hash))
+
+        // A stale header cannot make a different or corrupt payload a match.
+        try writeBackup([old], to: olderURL, headerHash: hash)
+        #expect(!DatabaseBackup.backup(at: olderURL, matchesContentHash: hash))
+        try Data("invalid JSON".utf8).write(to: olderURL)
+        #expect(!DatabaseBackup.backup(at: olderURL, matchesContentHash: hash))
+    }
+
+    @MainActor
+    private func writeBackup(
+        _ tasks: [TaskExporter.ExportedTask], to url: URL, headerHash: String? = nil
+    ) throws {
+        let payload = BackupPayload(
+            format: BackupPayload.currentFormat, appVersion: "test",
+            exportDate: Date(), taskCount: tasks.count, tasks: tasks, contentHash: headerHash
+        )
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        try encoder.encode(payload).write(to: url)
+    }
+
     @Test("Pruning leaves unrelated directories untouched")
     @MainActor
     func unrelatedDirectoriesSurvivePruning() throws {

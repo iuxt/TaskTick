@@ -23,18 +23,8 @@ final class ActionToastTests: XCTestCase {
         XCTAssertEqual(body, "Backup")
     }
 
-    func testStoppedRestartedFailedBodies() {
+    func testStoppedTitle() {
         XCTAssertEqual(ActionToast.previewContent(for: .stopped(taskName: "X")).title, "Stopped")
-        XCTAssertEqual(ActionToast.previewContent(for: .restarted(taskName: "X")).title, "Restarted")
-        let failed = ActionToast.previewContent(for: .failed(taskName: "X", reason: "not found"))
-        XCTAssertEqual(failed.title, "Action failed")
-        XCTAssertTrue(failed.body.contains("X"))
-        XCTAssertTrue(failed.body.contains("not found"))
-    }
-
-    func testFailedWithoutTaskNameUsesReasonOnly() {
-        let (_, body) = ActionToast.previewContent(for: .failed(taskName: nil, reason: "unknown id"))
-        XCTAssertEqual(body, "unknown id")
     }
 
     func testActionFeedbackOffWhenTaskOptedOut() {

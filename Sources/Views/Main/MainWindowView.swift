@@ -6,7 +6,6 @@ struct MainWindowView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.openWindow) private var openWindow
     @StateObject private var editorState = EditorState.shared
-    @StateObject private var mainSelection = MainWindowSelection.shared
     @State private var selectedTask: ScheduledTask?
     @State private var selectedTab: TaskListTab = .scheduled
     @AppStorage("taskSortOption") private var sortOptionRaw = TaskSortOption.lastRunDesc.rawValue
@@ -65,22 +64,6 @@ struct MainWindowView: View {
             // destroys the NSWindow on close — only SwiftUI's openWindow
             // can resurrect it).
             WindowOpener.shared.openMain = { openWindow(id: "main") }
-
-            // When a reveal request opens the main window, the window
-            // scene may instantiate fresh — pick up the rendezvous selection
-            // here so the first render already shows the requested task.
-            if let task = mainSelection.taskToReveal {
-                selectedTab = task.isBackgroundService ? .background : .scheduled
-                selectedTask = task
-                mainSelection.taskToReveal = nil
-            }
-        }
-        .onChange(of: mainSelection.taskToReveal) { _, newTask in
-            if let task = newTask {
-                selectedTab = task.isBackgroundService ? .background : .scheduled
-                selectedTask = task
-                mainSelection.taskToReveal = nil
-            }
         }
     }
 }

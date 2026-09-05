@@ -89,14 +89,22 @@ final class ScriptExecutor: ObservableObject {
     private var activeLogs: [UUID: ExecutionLog] = [:]
     private var executionContexts: [UUID: ModelContext] = [:]
     private var executionControls: [UUID: ExecutionControl] = [:]
-    private var restartRequests: [UUID: UUID] = [:]
+    private(set) var isSuspendedForRestore = false
 
     init() {}
 
     /// Run a task's script and return the execution log entry.
     @discardableResult
     func execute(task: ScheduledTask, triggeredBy: TriggerType = .manual, modelContext: ModelContext) async -> ExecutionLog {
-        // All entry points share this guard, including simultaneous UI/CLI runs.
+        // A restore replaces task identities. Reject new runs during the swap,
+        // including queued UI requests that still hold a deleted task afterward.
+        guard !isSuspendedForRestore, task.modelContext != nil else {
+            let log = ExecutionLog(triggeredBy: triggeredBy)
+            log.status = .cancelled
+            log.finishedAt = Date()
+            return log
+        }
+        // All entry points share this guard, including simultaneous runs from different windows.
         if let active = activeLogs[task.id] { return active }
         if adoptedProcesses[task.id] != nil,
            let active = task.executionLogs.first(where: { $0.status == .running }) {
@@ -369,25 +377,6 @@ final class ScriptExecutor: ObservableObject {
         }
     }
 
-    /// Wait for the old execution (including pipe draining and log saves) before
-    /// starting its replacement. Repeated restart/stop requests supersede this one.
-    func restart(taskId: UUID, modelContext: ModelContext) async {
-        cancel(taskId: taskId)
-        let request = UUID()
-        restartRequests[taskId] = request
-        defer {
-            if restartRequests[taskId] == request { restartRequests.removeValue(forKey: taskId) }
-        }
-        while activeLogs[taskId] != nil || adoptedProcesses[taskId] != nil {
-            do { try await Task.sleep(for: .milliseconds(20)) } catch { return }
-            guard restartRequests[taskId] == request else { return }
-        }
-        guard restartRequests[taskId] == request, !Task.isCancelled else { return }
-        let descriptor = FetchDescriptor<ScheduledTask>(predicate: #Predicate { $0.id == taskId })
-        guard let task = try? modelContext.fetch(descriptor).first else { return }
-        _ = await execute(task: task, modelContext: modelContext)
-    }
-
     /// Cancel a running task. Hits both the immediate child (zsh) and the
     /// whole process group so descendants like `node`, `python`, etc. don't
     /// orphan when zsh exits without forwarding SIGTERM.
@@ -399,7 +388,6 @@ final class ScriptExecutor: ObservableObject {
     func cancel(taskId: UUID) {
         stoppedServiceIDs.insert(taskId)
         serviceRestartTasks.removeValue(forKey: taskId)?.cancel()
-        restartRequests.removeValue(forKey: taskId)
         // A queued execution has a control too: Stop prevents it from spawning.
         // The worker owns signals and escalation, even after the leader exits.
         executionControls[taskId]?.requestStop(.cancelled)
@@ -440,6 +428,29 @@ final class ScriptExecutor: ObservableObject {
         try? ctx.save()
     }
 
+    /// Quiesce execution before replacing the store's task records. Keep the
+    /// main actor free while workers terminate children, drain pipes and save
+    /// their final logs. New runs remain blocked until resumeAfterRestore().
+    func suspendAndDrainForRestore() async {
+        isSuspendedForRestore = true
+        let ids = Set(activeLogs.keys)
+            .union(adoptedProcesses.keys)
+            .union(serviceRestartTasks.keys)
+        for id in ids { cancel(taskId: id) }
+        while !activeLogs.isEmpty || !adoptedProcesses.isEmpty {
+            // Cancellation of the caller must not permit an early store swap.
+            await withCheckedContinuation { continuation in
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.02) {
+                    continuation.resume()
+                }
+            }
+        }
+    }
+
+    func resumeAfterRestore() {
+        isSuspendedForRestore = false
+    }
+
     /// Synchronously terminate every running script. Designed for app-quit:
     /// SIGTERM the whole tree, give it `graceful` seconds to clean up, then
     /// SIGKILL anything still alive. Blocks the caller — ok during
@@ -448,7 +459,6 @@ final class ScriptExecutor: ObservableObject {
     /// Adopted processes (re-acquired from a previous session, PID-only)
     /// go through the same two-stage flow via process-group signals.
     func cancelAll(graceful: TimeInterval = 0.3) {
-        restartRequests.removeAll()
         for control in executionControls.values { control.requestStop(.cancelled) }
         stoppedServiceIDs.formUnion(executionControls.keys)
         stoppedServiceIDs.formUnion(runningProcesses.keys)

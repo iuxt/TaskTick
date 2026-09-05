@@ -237,7 +237,6 @@
 "notification.denied.open_settings" = "Buka Pengaturan Sistem";
 "notification.denied.later" = "Nanti";
 
-
 /* Toast messages */
 "toast.task.started" = "Memulai \"%@\"";
 "toast.task.stopped" = "Menghentikan \"%@\"";
@@ -346,7 +345,7 @@
 "settings.backup.no_backups" = "Belum ada cadangan";
 "settings.backup.restore" = "Pulihkan";
 "settings.backup.restore_confirm.title" = "Pulihkan dari Cadangan?";
-"settings.backup.restore_confirm.message" = "Database saat ini akan diganti dengan cadangan ini. Aplikasi akan dimulai ulang setelah pemulihan.";
+"settings.backup.restore_confirm.message" = "Skrip yang sedang berjalan akan dihentikan, dan basis data saat ini akan diganti dengan cadangan ini. Beberapa cadangan memerlukan mulai ulang aplikasi.";
 "settings.backup.restore_confirm.cancel" = "Batal";
 "settings.backup.restore_confirm.confirm" = "Pulihkan";
 "settings.backup.restore_success" = "Pemulihan Berhasil";
@@ -474,8 +473,6 @@
 "error.delete_failed.title" = "Tidak Dapat Menghapus";
 "error.delete_failed.message" = "Item telah dihapus tetapi perubahan tidak dapat disimpan. Mungkin muncul kembali saat dimulai ulang.\n\n%@";
 
-
-
 /* Cron Human Readable */
 "cron.human.every_minute" = "Setiap menit";
 "cron.human.every_hour" = "Setiap jam";
@@ -487,39 +484,9 @@
 "recovery.open_settings" = "Buka Pengaturan";
 "recovery.open_folder" = "Tampilkan File Database";
 
-/* Settings → Command Line */
-"settings.cli.section.title" = "Baris Perintah";
-"settings.cli.description" = "Aktifkan perintah `tasktick` di terminal Anda untuk mengontrol TaskTick dari skrip dan Raycast.";
-"settings.raycast.section.title" = "Ekstensi Raycast";
-"settings.raycast.description" = "Cari, jalankan, hentikan, dan mulai ulang tugas Anda langsung dari Raycast. Memerlukan CLI `tasktick` di atas.";
-"settings.raycast.link" = "Dapatkan ekstensi TaskTick untuk Raycast";
-"settings.cli.enable_button" = "Aktifkan CLI…";
-"settings.cli.installed" = "Tertaut di %@";
-"settings.cli.not_installed" = "Belum dipasang";
-"settings.cli.install.alert.title" = "Aktifkan tasktick CLI";
-"settings.cli.install.alert.message" = "Jalankan perintah ini di Terminal untuk mengaktifkan CLI `tasktick`:\n\n%@";
-"settings.cli.install.alert.copy" = "Salin Perintah";
-"settings.cli.install.alert.open_terminal" = "Buka Terminal";
-"settings.cli.install.alert.cancel" = "Batal";
-"settings.cli.uninstall_button" = "Lepas CLI…";
-"settings.cli.uninstall.alert.title" = "Lepas tasktick CLI";
-"settings.cli.uninstall.alert.message" = "Jalankan perintah ini di Terminal untuk menghapus symlink CLI `tasktick`:\n\n%@";
-
-/* Action Toast (Run/Stop/Restart banners) */
+/* Action Toast (Run/Stop banners) */
 "toast.action.started" = "Dimulai";
 "toast.action.stopped" = "Dihentikan";
-"toast.action.restarted" = "Dimulai ulang";
-"toast.action.failed" = "Aksi gagal";
-"toast.action.failed.notReady" = "TaskTick sedang memulai";
-"toast.action.failed.taskNotFound" = "Tugas tidak ditemukan";
-"toast.action.failed.alreadyRunning" = "Sedang berjalan";
-
-"cli.repair.title" = "Perbarui tautan tasktick CLI";
-"cli.repair.message" = "%@ menunjuk ke jalur CLI lama. Perbarui sekarang? (Memerlukan izin admin)";
-"cli.repair.update_button" = "Perbarui Sekarang";
-"cli.repair.later_button" = "Nanti";
-"cli.repair.success.title" = "tasktick CLI diperbarui";
-"cli.repair.success.message" = "%@ kini menunjuk ke biner CLI yang dibundel.";
 
 /* Time */
 /* Background programs */
@@ -547,6 +514,5 @@
 "service.log.help" = "When the active log reaches the size limit, it becomes .1 and older files move to .2, .3, and so on.";
 "common.yes" = "Yes";
 "common.no" = "No";
-
 
 "time.just_now" = "baru saja";

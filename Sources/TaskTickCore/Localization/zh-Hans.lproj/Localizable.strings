@@ -237,7 +237,6 @@
 "notification.denied.open_settings" = "打开系统设置";
 "notification.denied.later" = "稍后再说";
 
-
 /* Toast messages */
 "toast.task.started" = "已启动「%@」";
 "toast.task.stopped" = "已停止「%@」";
@@ -346,7 +345,7 @@
 "settings.backup.no_backups" = "暂无备份";
 "settings.backup.restore" = "恢复";
 "settings.backup.restore_confirm.title" = "从备份恢复？";
-"settings.backup.restore_confirm.message" = "当前数据库将被替换为此备份。恢复后应用将重启。";
+"settings.backup.restore_confirm.message" = "正在运行的脚本将被停止，当前数据库将被此备份替换。部分备份需要重启应用。";
 "settings.backup.restore_confirm.cancel" = "取消";
 "settings.backup.restore_confirm.confirm" = "恢复";
 "settings.backup.restore_success" = "恢复成功";
@@ -474,8 +473,6 @@
 "error.delete_failed.title" = "删除失败";
 "error.delete_failed.message" = "项目已从界面移除，但更改未能保存。重启后可能会重新出现。\n\n%@";
 
-
-
 /* Cron Human Readable */
 "cron.human.every_minute" = "每分钟";
 "cron.human.every_hour" = "每小时";
@@ -487,39 +484,9 @@
 "recovery.open_settings" = "打开设置";
 "recovery.open_folder" = "显示数据库文件";
 
-/* Settings → Command Line */
-"settings.cli.section.title" = "命令行";
-"settings.cli.description" = "启用 `tasktick` 命令行工具，让你在终端、脚本和 Raycast 中控制 TaskTick。";
-"settings.raycast.section.title" = "Raycast 扩展";
-"settings.raycast.description" = "在 Raycast 中直接搜索、运行、停止和重启你的任务。需要先启用上方的 `tasktick` 命令行工具。";
-"settings.raycast.link" = "获取 TaskTick 的 Raycast 扩展";
-"settings.cli.enable_button" = "启用 CLI…";
-"settings.cli.installed" = "已链接到 %@";
-"settings.cli.not_installed" = "未安装";
-"settings.cli.install.alert.title" = "启用 tasktick CLI";
-"settings.cli.install.alert.message" = "在终端中运行以下命令以启用 `tasktick`：\n\n%@";
-"settings.cli.install.alert.copy" = "复制命令";
-"settings.cli.install.alert.open_terminal" = "打开终端";
-"settings.cli.install.alert.cancel" = "取消";
-"settings.cli.uninstall_button" = "卸载 CLI…";
-"settings.cli.uninstall.alert.title" = "卸载 tasktick CLI";
-"settings.cli.uninstall.alert.message" = "在终端中运行以下命令以卸载 `tasktick`：\n\n%@";
-
-/* Action Toast (Run/Stop/Restart banners) */
+/* Action Toast (Run/Stop banners) */
 "toast.action.started" = "已启动";
 "toast.action.stopped" = "已停止";
-"toast.action.restarted" = "已重启";
-"toast.action.failed" = "操作失败";
-"toast.action.failed.notReady" = "TaskTick 正在启动";
-"toast.action.failed.taskNotFound" = "任务未找到";
-"toast.action.failed.alreadyRunning" = "任务正在运行中";
-
-"cli.repair.title" = "更新 tasktick CLI 链接";
-"cli.repair.message" = "%@ 指向旧的 CLI 路径。是否现在更新？（需要管理员权限）";
-"cli.repair.update_button" = "立即更新";
-"cli.repair.later_button" = "稍后";
-"cli.repair.success.title" = "tasktick CLI 已更新";
-"cli.repair.success.message" = "%@ 已指向新的 CLI 二进制。";
 
 /* Time */
 /* 后台进程 */

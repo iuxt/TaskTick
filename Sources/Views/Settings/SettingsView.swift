@@ -43,7 +43,6 @@ struct SettingsView: View {
     /// of titles would drift the first time a tab is added or renamed.
     enum Tab: String, CaseIterable {
         case general = "settings.general"
-        case cli = "settings.cli.section.title"
         case notifications = "settings.notifications"
         case backup = "settings.backup"
         case logs = "settings.logs"
@@ -54,7 +53,6 @@ struct SettingsView: View {
         var symbol: String {
             switch self {
             case .general: return "gear"
-            case .cli: return "terminal"
             case .notifications: return "bell"
             case .backup: return "externaldrive.badge.timemachine"
             case .logs: return "doc.text"
@@ -67,9 +65,6 @@ struct SettingsView: View {
         TabView {
             generalTab
                 .tabItem { Label(Tab.general.title, systemImage: Tab.general.symbol) }
-
-            cliTab
-                .tabItem { Label(Tab.cli.title, systemImage: Tab.cli.symbol) }
 
             notificationsTab
                 .tabItem { Label(Tab.notifications.title, systemImage: Tab.notifications.symbol) }
@@ -189,16 +184,6 @@ struct SettingsView: View {
             } footer: {
                 Text(L10n.tr("settings.notifications.hint"))
             }
-        }
-        .formStyle(.grouped)
-    }
-
-    // MARK: - Command Line
-
-    private var cliTab: some View {
-        Form {
-            CLIInstallSection()
-            RaycastExtensionSection()
         }
         .formStyle(.grouped)
     }

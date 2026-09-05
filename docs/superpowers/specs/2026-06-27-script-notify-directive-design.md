@@ -19,15 +19,13 @@ Today a script can only get notifications two ways, neither of which fits a
 
 This feature adds a first-class convention: the script prints a **sentinel
 line** to stdout; TaskTick detects it on the live output stream and fires a
-native notification through its own `NotificationManager`. No `osascript`, no
-CLI dependency, language-agnostic (any script that can `echo` a line).
+native notification through its own `NotificationManager`. Any script that can
+print a line can use it.
 
 ## Decisions
 
 - **Mechanism**: stdout sentinel line, detected on the existing real-time
-  output stream. No new IPC, no `tasktick` binary dependency (avoids the CLI
-  PATH/bundle pitfalls that bit `L10n` before). Works identically for manual
-  and scheduled runs.
+  output stream. Works identically for manual and scheduled runs.
 - **Grammar** (the spec users will write in scripts):
 
   ```
@@ -246,7 +244,6 @@ package test target:
 
 - Progress/status protocol (percentages, live status text) — this spec is
   notifications only.
-- `tasktick notify` CLI subcommand.
 - Auto-suppressing the built-in completion notification when directives fire.
 - Custom sound / actions / images in the notification (JSON is extensible, but
   only `title`/`body` are honored now).

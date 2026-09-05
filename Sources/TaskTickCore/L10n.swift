@@ -15,38 +15,9 @@ public enum L10n {
             Bundle.main.bundleURL.appendingPathComponent("Contents/Resources/\(bundleName)"),
         ]
 
-        // 3+4: probe relative to BOTH the raw and the symlink-resolved
-        // executable path. When the CLI is invoked via a PATH symlink
-        // (e.g. /opt/homebrew/bin/tasktick → .app/Contents/cli/tasktick,
-        // which is how the Homebrew cask installs it), Bundle.main points
-        // at the symlink's directory, not the real binary inside the .app —
-        // so the raw candidates miss the bundle that ships at the .app root.
-        // resolvingSymlinksInPath() climbs back into the .app. (Same lesson
-        // as BundleContext.bundleIDFromEnclosingApp.)
-        let execURLs = [
-            Bundle.main.executableURL,
-            Bundle.main.executableURL?.resolvingSymlinksInPath(),
-        ].compactMap { $0 }
-        for exec in execURLs {
-            let execDir = exec.deletingLastPathComponent()
-            // Same directory as the executable
-            candidates.append(execDir.appendingPathComponent(bundleName))
-            // Two levels up (Contents/{MacOS,cli}/<bin> → .app root)
-            candidates.append(execDir.deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent(bundleName))
-        }
-
-        // 5. Nearest .app ancestor of the resolved executable — robust to the
-        // CLI living at Contents/cli/ or Contents/MacOS/ at any depth.
-        if let resolvedExec = Bundle.main.executableURL?.resolvingSymlinksInPath() {
-            var current = resolvedExec
-            for _ in 0..<current.pathComponents.count {
-                current.deleteLastPathComponent()
-                if current.pathExtension == "app" {
-                    candidates.append(current.appendingPathComponent(bundleName))
-                    candidates.append(current.appendingPathComponent("Contents/Resources/\(bundleName)"))
-                    break
-                }
-            }
+        // SwiftPM places the resource bundle alongside the development executable.
+        if let executable = Bundle.main.executableURL {
+            candidates.append(executable.deletingLastPathComponent().appendingPathComponent(bundleName))
         }
 
         for url in candidates {

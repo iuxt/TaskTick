@@ -8,7 +8,7 @@ set -euo pipefail
 # ─────────────────────────────────────────────
 
 APP_NAME="TaskTick"
-SPM_TARGET="TaskTickApp"  # SPM target name (renamed in Task 0.2 to dodge case collision with lowercase 'tasktick')
+SPM_TARGET="TaskTickApp"
 DEV_APP_NAME="TaskTick Dev"
 BUNDLE_ID="com.lifedever.TaskTick.dev"
 MIN_MACOS="14.0"
@@ -39,15 +39,6 @@ mkdir -p "${APP_BUNDLE}/Contents/MacOS"
 mkdir -p "${APP_BUNDLE}/Contents/Resources"
 
 cp "${BIN_PATH}" "${APP_BUNDLE}/Contents/MacOS/${DEV_APP_NAME}"
-
-# Copy CLI binary alongside the GUI binary. Same `swift build` produces both.
-CLI_BIN_PATH=$(find "${BUILD_DIR}/build" -name "tasktick" -type f -perm +111 | grep -v '\.build\|\.dSYM\|\.bundle' | head -1)
-if [ -n "${CLI_BIN_PATH}" ]; then
-  cp "${CLI_BIN_PATH}" "${APP_BUNDLE}/Contents/MacOS/tasktick-dev"
-  echo "  CLI: ${CLI_BIN_PATH} → tasktick-dev"
-else
-  echo "  Warning: tasktick CLI binary not found"
-fi
 
 # Glob-copy ALL SPM-generated *.bundle directories. Per CLAUDE.md global
 # rule: hardcoding bundle names breaks when new SPM dependencies / library
@@ -108,17 +99,6 @@ cat > "${APP_BUNDLE}/Contents/Info.plist" <<PLIST
     <array>
         <string>en</string>
         <string>zh-Hans</string>
-    </array>
-    <key>CFBundleURLTypes</key>
-    <array>
-        <dict>
-            <key>CFBundleURLName</key>
-            <string>com.lifedever.TaskTick.dev.urlscheme</string>
-            <key>CFBundleURLSchemes</key>
-            <array>
-                <string>tasktick-dev</string>
-            </array>
-        </dict>
     </array>
 </dict>
 </plist>

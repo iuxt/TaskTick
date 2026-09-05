@@ -24,7 +24,6 @@ final class DatabaseBackup: ObservableObject {
 
     private static let logger = Logger(subsystem: "com.lifedever.TaskTick", category: "DatabaseBackup")
     private static let fileExtension = "tasktickbackup"
-    private static let contentHashKey = "lastBackupContentHash"
     /// Filenames look like `2026-04-21T10-30-45Z.tasktickbackup` so they sort lexically.
     private static let timestampFormatter: ISO8601DateFormatter = {
         let f = ISO8601DateFormatter()
@@ -34,6 +33,7 @@ final class DatabaseBackup: ObservableObject {
 
     private var timer: Timer?
     private var modelContext: ModelContext?
+    private var isRestoring = false
 
     // MARK: - Settings (persisted via UserDefaults)
 
@@ -135,6 +135,7 @@ final class DatabaseBackup: ObservableObject {
     /// an empty snapshot — the safety guard that addresses the original bug.
     @discardableResult
     func performBackup() -> Bool {
+        guard !isRestoring else { return false }
         guard let modelContext else {
             Self.logger.warning("No modelContext configured, skipping backup")
             return false
@@ -174,10 +175,9 @@ final class DatabaseBackup: ObservableObject {
         // so the hash only flips when the user actually edits something.
         let currentHash = Self.computeContentHash(tasks: exportedTasks)
         if let currentHash,
-           let cachedHash = UserDefaults.standard.string(forKey: Self.contentHashKey),
-           cachedHash == currentHash,
            let latest = listBackups().first,
-           latest.format == .json {
+           latest.format == .json,
+           Self.backup(at: latest.url, matchesContentHash: currentHash) {
             Self.logger.info("Backup skipped: content unchanged since last snapshot (\(currentHash.prefix(8)))")
             lastBackupDate = Date()
             lastBackupWasDedup = true
@@ -228,9 +228,6 @@ final class DatabaseBackup: ObservableObject {
             lastBackupDate = Date()
             lastSkipReason = nil
             lastBackupWasDedup = false
-            if let currentHash {
-                UserDefaults.standard.set(currentHash, forKey: Self.contentHashKey)
-            }
             return true
         } catch {
             Self.logger.error("Backup write failed: \(error.localizedDescription)")
@@ -252,7 +249,8 @@ final class DatabaseBackup: ObservableObject {
     /// shared ModelContainer once the background save commits.
     @discardableResult
     func restore(from entry: BackupEntry) async -> RestoreResult {
-        let payload: BackupPayload
+        guard !isRestoring else { return .failed(message: "A restore is already in progress.") }
+        let payload: BackupPayload?
         switch entry.format {
         case .json:
             do {
@@ -266,12 +264,32 @@ final class DatabaseBackup: ObservableObject {
             // stranded after upgrading. Returns a sentinel that triggers an app
             // restart (legacy restore swaps SQLite files under SwiftData, which
             // can't be reloaded in-place).
-            return restoreLegacy(from: entry)
+            payload = nil
+        }
+
+        isRestoring = true
+        let scheduler = TaskScheduler.shared
+        let executor = ScriptExecutor.shared
+        scheduler.pauseForRestore()
+        await executor.suspendAndDrainForRestore()
+        var requiresRestart = false
+        defer {
+            isRestoring = false
+            if !requiresRestart {
+                executor.resumeAfterRestore()
+                scheduler.resumeAfterRestore()
+            }
+        }
+
+        guard let payload else {
+            let result = restoreLegacy(from: entry)
+            if case .success = result { requiresRestart = true }
+            return result
         }
 
         if TaskTickApp._needsRecovery {
             let storeURL = TaskTickApp._storeURL
-            return await Task.detached(priority: .userInitiated) {
+            let result: RestoreResult = await Task.detached(priority: .userInitiated) {
                 do {
                     try StoreRecovery.restore(payload.tasks, to: storeURL)
                     return .success(taskCount: payload.tasks.count, requiresRestart: true)
@@ -279,12 +297,15 @@ final class DatabaseBackup: ObservableObject {
                     return .failed(message: "Persistent recovery failed: \(error.localizedDescription)")
                 }
             }.value
+            if case .success = result { requiresRestart = true }
+            return result
         }
 
         // Heavy SwiftData work off main: capture the container on main, then detach
         // a task that builds its own ModelContext from it. Returning only the
         // primitive RestoreResult keeps the SwiftData objects on their original actor.
-        let container = TaskTickApp._sharedModelContainer
+        guard let modelContext else { return .failed(message: "No model context configured.") }
+        let container = modelContext.container
         let result: RestoreResult = await Task.detached(priority: .userInitiated) {
             let bgContext = ModelContext(container)
             return Self.applyPayloadOnBackground(payload, in: bgContext)
@@ -394,7 +415,7 @@ final class DatabaseBackup: ObservableObject {
         }
 
         // Caller (SettingsView) must trigger a restart for legacy restores.
-        return .success(taskCount: 0)
+        return .success(taskCount: 0, requiresRestart: true)
     }
 
     // MARK: - List Backups
@@ -513,7 +534,7 @@ final class DatabaseBackup: ObservableObject {
     /// Hash a snapshot of user-authored content. Returns nil only if encoding fails,
     /// in which case the caller must fall back to writing a backup unconditionally —
     /// dedup must never silently swallow a backup window when we can't prove equality.
-    private static func computeContentHash(tasks: [TaskExporter.ExportedTask]) -> String? {
+    static func computeContentHash(tasks: [TaskExporter.ExportedTask]) -> String? {
         struct HashInput: Encodable {
             let tasks: [TaskExporter.ExportedTask]
         }
@@ -527,6 +548,14 @@ final class DatabaseBackup: ObservableObject {
         }
         let digest = SHA256.hash(data: data)
         return digest.map { String(format: "%02x", $0) }.joined()
+    }
+
+    /// Verify the actual file, not a cached preference or unverified header.
+    /// Deleting, replacing, corrupting or moving a snapshot must cause a write.
+    static func backup(at url: URL, matchesContentHash hash: String) -> Bool {
+        guard let payload = try? readPayload(at: url),
+              let actualHash = computeContentHash(tasks: payload.tasks) else { return false }
+        return actualHash == hash
     }
 
     private static func readPayload(at url: URL) throws -> BackupPayload {

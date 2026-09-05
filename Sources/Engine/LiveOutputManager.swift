@@ -2,12 +2,6 @@
 import Foundation
 import TaskTickCore
 
-struct LiveChunkEvent {
-    let taskId: UUID
-    let stream: String   // "stdout" or "stderr"
-    let text: String
-}
-
 /// O(1)-per-chunk append-only line buffer. Replaces the previous design that
 /// re-allocated the entire stdout/stderr String on every chunk via
 /// `String(s.suffix(maxOutputSize))` — that was the smoking gun behind
@@ -136,8 +130,6 @@ final class LiveOutputManager: ObservableObject {
     /// the tick matters as a re-render trigger.
     @Published private(set) var tick: [UUID: Int] = [:]
 
-    nonisolated let chunkPublisher = PassthroughSubject<LiveChunkEvent, Never>()
-
     private var buffers: [UUID: TaskBuffer] = [:]
     private var pendingFlush: Set<UUID> = []
     private var throttleWorkItem: DispatchWorkItem?
@@ -166,7 +158,6 @@ final class LiveOutputManager: ObservableObject {
         guard !str.isEmpty else { return }
         let cleaned = stripANSI(str)
         buffers[taskId]?.stdout.append(cleaned)
-        chunkPublisher.send(LiveChunkEvent(taskId: taskId, stream: "stdout", text: str))
         pendingFlush.insert(taskId)
         scheduleFlush()
     }
@@ -177,7 +168,6 @@ final class LiveOutputManager: ObservableObject {
         guard !str.isEmpty else { return }
         let cleaned = stripANSI(str)
         buffers[taskId]?.stderr.append(cleaned)
-        chunkPublisher.send(LiveChunkEvent(taskId: taskId, stream: "stderr", text: str))
         pendingFlush.insert(taskId)
         scheduleFlush()
     }

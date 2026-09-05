@@ -314,7 +314,7 @@
 "settings.backup.no_backups" = "Aucune sauvegarde";
 "settings.backup.restore" = "Restaurer";
 "settings.backup.restore_confirm.title" = "Restaurer depuis la sauvegarde ?";
-"settings.backup.restore_confirm.message" = "La base de données actuelle sera remplacée par cette sauvegarde. L'application redémarrera après la restauration.";
+"settings.backup.restore_confirm.message" = "Les scripts en cours seront arrêtés et la base de données actuelle sera remplacée par cette sauvegarde. Certaines sauvegardes nécessitent un redémarrage de l’application.";
 "settings.backup.restore_confirm.cancel" = "Annuler";
 "settings.backup.restore_confirm.confirm" = "Restaurer";
 "settings.backup.restore_success" = "Restauration réussie";
@@ -437,38 +437,10 @@
 "recovery.message" = "La base de données n'a pas pu être ouverte. Votre fichier de données a été conservé. Vous pouvez restaurer une sauvegarde dans les Réglages ou localiser le fichier manuellement.";
 "recovery.open_settings" = "Ouvrir les Réglages";
 "recovery.open_folder" = "Afficher le fichier";
-"settings.cli.section.title" = "Ligne de commande";
-"settings.cli.description" = "Activez la commande `tasktick` dans votre terminal pour contrôler TaskTick depuis des scripts et Raycast.";
-"settings.raycast.section.title" = "Extension Raycast";
-"settings.raycast.description" = "Recherchez, lancez, arrêtez et redémarrez vos tâches directement depuis Raycast. Nécessite la CLI `tasktick` ci-dessus.";
-"settings.raycast.link" = "Obtenir l'extension TaskTick pour Raycast";
-"settings.cli.enable_button" = "Activer la CLI…";
-"settings.cli.installed" = "Liée à %@";
-"settings.cli.not_installed" = "Non installée";
-"settings.cli.install.alert.title" = "Activer la CLI tasktick";
-"settings.cli.install.alert.message" = "Exécutez cette commande dans le Terminal pour activer la CLI `tasktick` :\n\n%@";
-"settings.cli.install.alert.copy" = "Copier la commande";
-"settings.cli.install.alert.open_terminal" = "Ouvrir le Terminal";
-"settings.cli.install.alert.cancel" = "Annuler";
-"settings.cli.uninstall_button" = "Désinstaller la CLI…";
-"settings.cli.uninstall.alert.title" = "Désinstaller la CLI tasktick";
-"settings.cli.uninstall.alert.message" = "Exécutez cette commande dans le Terminal pour supprimer le lien symbolique `tasktick` :\n\n%@";
 
-/* Action Toast (Run/Stop/Restart banners) */
+/* Action Toast (Run/Stop banners) */
 "toast.action.started" = "Démarré";
 "toast.action.stopped" = "Arrêté";
-"toast.action.restarted" = "Redémarré";
-"toast.action.failed" = "Action échouée";
-"toast.action.failed.notReady" = "TaskTick démarre";
-"toast.action.failed.taskNotFound" = "Tâche introuvable";
-"toast.action.failed.alreadyRunning" = "Déjà en cours d'exécution";
-
-"cli.repair.title" = "Mettre à jour le lien tasktick CLI";
-"cli.repair.message" = "%@ pointe vers un ancien chemin de la CLI. Mettre à jour maintenant ? (Permissions administrateur requises)";
-"cli.repair.update_button" = "Mettre à jour";
-"cli.repair.later_button" = "Plus tard";
-"cli.repair.success.title" = "tasktick CLI mis à jour";
-"cli.repair.success.message" = "%@ pointe maintenant vers le binaire CLI groupé.";
 
 /* Time */
 /* Background programs */
@@ -496,6 +468,5 @@
 "service.log.help" = "When the active log reaches the size limit, it becomes .1 and older files move to .2, .3, and so on.";
 "common.yes" = "Yes";
 "common.no" = "No";
-
 
 "time.just_now" = "à l'instant";

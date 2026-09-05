@@ -237,7 +237,6 @@
 "notification.denied.open_settings" = "Open System Settings";
 "notification.denied.later" = "Later";
 
-
 /* Toast messages */
 "toast.task.started" = "Started \"%@\"";
 "toast.task.stopped" = "Stopped \"%@\"";
@@ -346,7 +345,7 @@
 "settings.backup.no_backups" = "No backups yet";
 "settings.backup.restore" = "Restore";
 "settings.backup.restore_confirm.title" = "Restore from Backup?";
-"settings.backup.restore_confirm.message" = "The current database will be replaced with this backup. The app will restart after restore.";
+"settings.backup.restore_confirm.message" = "Running scripts will be stopped, and the current database will be replaced with this backup. Some backups require an app restart.";
 "settings.backup.restore_confirm.cancel" = "Cancel";
 "settings.backup.restore_confirm.confirm" = "Restore";
 "settings.backup.restore_success" = "Restore Successful";
@@ -474,8 +473,6 @@
 "error.delete_failed.title" = "Couldn't Delete";
 "error.delete_failed.message" = "The item was removed but the change couldn't be saved. It may reappear on restart.\n\n%@";
 
-
-
 /* Cron Human Readable */
 "cron.human.every_minute" = "Every minute";
 "cron.human.every_hour" = "Every hour";
@@ -487,39 +484,9 @@
 "recovery.open_settings" = "Open Settings";
 "recovery.open_folder" = "Show Database File";
 
-/* Settings → Command Line */
-"settings.cli.section.title" = "Command Line";
-"settings.cli.description" = "Enable the `tasktick` command in your terminal to control TaskTick from scripts and Raycast.";
-"settings.raycast.section.title" = "Raycast Extension";
-"settings.raycast.description" = "Search, run, stop, and restart your tasks right from Raycast. Requires the `tasktick` CLI above.";
-"settings.raycast.link" = "Get the TaskTick extension for Raycast";
-"settings.cli.enable_button" = "Enable CLI…";
-"settings.cli.installed" = "Linked at %@";
-"settings.cli.not_installed" = "Not installed";
-"settings.cli.install.alert.title" = "Enable tasktick CLI";
-"settings.cli.install.alert.message" = "Run this command in Terminal to enable the `tasktick` CLI:\n\n%@";
-"settings.cli.install.alert.copy" = "Copy Command";
-"settings.cli.install.alert.open_terminal" = "Open Terminal";
-"settings.cli.install.alert.cancel" = "Cancel";
-"settings.cli.uninstall_button" = "Uninstall CLI…";
-"settings.cli.uninstall.alert.title" = "Uninstall tasktick CLI";
-"settings.cli.uninstall.alert.message" = "Run this command in Terminal to remove the `tasktick` CLI symlink:\n\n%@";
-
-/* Action Toast (Run/Stop/Restart banners) */
+/* Action Toast (Run/Stop banners) */
 "toast.action.started" = "Started";
 "toast.action.stopped" = "Stopped";
-"toast.action.restarted" = "Restarted";
-"toast.action.failed" = "Action failed";
-"toast.action.failed.notReady" = "TaskTick is still starting";
-"toast.action.failed.taskNotFound" = "Task not found";
-"toast.action.failed.alreadyRunning" = "Already running";
-
-"cli.repair.title" = "Update tasktick CLI link";
-"cli.repair.message" = "The tasktick command at %@ points to an outdated location. Update it to the new path now? (Requires admin permission.)";
-"cli.repair.update_button" = "Update Now";
-"cli.repair.later_button" = "Later";
-"cli.repair.success.title" = "tasktick CLI updated";
-"cli.repair.success.message" = "%@ now points at the bundled CLI binary.";
 
 /* Time */
 /* Background programs */

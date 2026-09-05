@@ -18,6 +18,8 @@ final class TaskScheduler: ObservableObject {
     /// `rebuildSchedule()` defers tasks with `runOnLaunch = true` so the launch
     /// sweep gets the first-fire (and `runMissedExecution` does not double-fire).
     private var hasFiredLaunchTasks = false
+    private var isPausedForRestore = false
+    private var resumeAdoptionPollAfterRestore = false
 
     static let shared = TaskScheduler()
 
@@ -52,8 +54,9 @@ final class TaskScheduler: ObservableObject {
         // (model context, windows, etc.) before scripts run. See issue #25.
         DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in
             Task { @MainActor in
-                self?.fireLaunchTasks()
-                self?.startBackgroundServices()
+                guard let self, !self.hasFiredLaunchTasks else { return }
+                self.fireLaunchTasks()
+                self.startBackgroundServices()
             }
         }
     }
@@ -70,7 +73,7 @@ final class TaskScheduler: ObservableObject {
         masterTimer?.invalidate()
         masterTimer = nil
 
-        guard isRunning, let modelContext else { return }
+        guard isRunning, !isPausedForRestore, let modelContext else { return }
 
         let descriptor = FetchDescriptor<ScheduledTask>(
             predicate: #Predicate { $0.isEnabled }
@@ -119,6 +122,35 @@ final class TaskScheduler: ObservableObject {
         }
     }
 
+    func pauseForRestore() {
+        isPausedForRestore = true
+        masterTimer?.invalidate()
+        masterTimer = nil
+        // Cancellation owns adopted-process cleanup during the drain; a liveness
+        // poll must not remove its PID before the SIGKILL escalation runs.
+        resumeAdoptionPollAfterRestore = adoptionPollTimer != nil
+        stopAdoptionPoll()
+    }
+
+    func resumeAfterRestore() {
+        isPausedForRestore = false
+        guard isRunning else {
+            resumeAdoptionPollAfterRestore = false
+            return
+        }
+        if resumeAdoptionPollAfterRestore {
+            startAdoptionPoll()
+            resumeAdoptionPollAfterRestore = false
+        }
+        // A restore during the initial launch delay must not lose that sweep.
+        if !hasFiredLaunchTasks {
+            fireLaunchTasks()
+            startBackgroundServices()
+        } else {
+            rebuildSchedule()
+        }
+    }
+
     // MARK: - Adoption Poll
 
     /// Polls every 30s to see whether any adopted process has exited.
@@ -143,6 +175,7 @@ final class TaskScheduler: ObservableObject {
 
     @MainActor
     private func pollAdoptedProcesses() {
+        guard !isPausedForRestore else { return }
         let snapshot = ScriptExecutor.shared.adoptedProcesses
         guard !snapshot.isEmpty, let ctx = modelContext else { return }
         let now = Date()
@@ -173,7 +206,7 @@ final class TaskScheduler: ObservableObject {
     // MARK: - Private
 
     private func timerFired() {
-        guard let modelContext else { return }
+        guard isRunning, !isPausedForRestore, let modelContext else { return }
 
         let now = Date()
         let descriptor = FetchDescriptor<ScheduledTask>(
@@ -206,11 +239,11 @@ final class TaskScheduler: ObservableObject {
     /// `hasFiredLaunchTasks` flips to true so `rebuildSchedule()` resumes
     /// processing those tasks normally for the rest of the session.
     private func fireLaunchTasks() {
+        guard isRunning, !isPausedForRestore, !hasFiredLaunchTasks, let modelContext else { return }
         defer {
             hasFiredLaunchTasks = true
             rebuildSchedule()
         }
-        guard isRunning, let modelContext else { return }
 
         let descriptor = FetchDescriptor<ScheduledTask>(
             predicate: #Predicate { $0.isEnabled && $0.runOnLaunch && !$0.isManualOnly }
@@ -226,7 +259,7 @@ final class TaskScheduler: ObservableObject {
     /// They remain outside the time scheduler (`isManualOnly == true`) and are
     /// subsequently supervised by ScriptExecutor's restart policy.
     private func startBackgroundServices() {
-        guard isRunning, let modelContext else { return }
+        guard isRunning, !isPausedForRestore, let modelContext else { return }
         let descriptor = FetchDescriptor<ScheduledTask>(
             predicate: #Predicate {
                 $0.isEnabled && $0.isBackgroundService && $0.serviceAutoStart

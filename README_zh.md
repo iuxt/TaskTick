@@ -48,15 +48,7 @@
 
 ### 后台程序
 
-在任务编辑器的“计划”页选择“后台程序”，然后在“设置”页配置自动启动、重启策略、日志路径、单文件大小和历史文件数量。也可以从命令行创建：
-
-```bash
-tasktick create my-api --script ./server.sh --background \
-  --restart on-failure --restart-delay 3 \
-  --log-max-size 20 --log-rotations 5
-```
-
-创建后可继续使用 `tasktick run|stop|restart|status|tail my-api` 管理和查看程序。
+在任务编辑器的“计划”页选择“后台程序”，然后在“设置”页配置自动启动、重启策略、日志路径、单文件大小和历史文件数量。
 
 - macOS 14 (Sonoma) 或更高版本
 - Apple Silicon 或 Intel Mac

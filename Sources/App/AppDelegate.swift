@@ -23,18 +23,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// then quits without showing the confirmation dialog again.
     @MainActor static var shouldReallyQuit = false
 
-    private var revealObserver: NSObjectProtocol?
     private var signalSources: [DispatchSourceSignal] = []
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NotificationManager.shared.requestPermission()
-
-        // One-shot launch-time CLI symlink repair: detects /usr/local/bin/tasktick
-        // (or /opt/homebrew/bin/tasktick) symlinks left over from v1.8.0/1.8.1
-        // pointing at the now-relocated CLI binary, and offers a single-click
-        // admin-prompt repair via osascript. No-op when symlinks are already
-        // correct or absent.
-        CLISymlinkRepair.checkAndRepairIfNeeded()
 
         // Apply saved appearance mode
         let mode = UserDefaults.standard.string(forKey: "appearanceMode") ?? "system"
@@ -61,21 +53,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 UserDefaults.standard.removeObject(forKey: key)
             }
             TaskScheduler.shared.startAdoptionPoll()
-        }
-
-        // CLI reveal requests post this notification to ask for the main
-        // window to be focused. We listen here (not in MenuBarView) because
-        // MenuBarExtra(.window) lazy-instantiates its body — if the user has
-        // never clicked the menu bar icon this session, the SwiftUI observer
-        // is never wired up and the notification gets dropped.
-        revealObserver = NotificationCenter.default.addObserver(
-            forName: .revealTaskInMain,
-            object: nil,
-            queue: .main
-        ) { _ in
-            Task { @MainActor in
-                AppDelegate.bringMainWindowForward()
-            }
         }
 
         installSignalHandlers()
@@ -371,15 +348,5 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         AppDelegate.gracefulShutdown()
-    }
-
-    func application(_ application: NSApplication, open urls: [URL]) {
-        for url in urls {
-            guard let parsed = CLIBridge.shared.parse(url: url) else {
-                NSLog("⚠️ AppDelegate: malformed URL \(url.absoluteString)")
-                continue
-            }
-            CLIBridge.shared.handle(action: parsed.action, taskId: parsed.taskId)
-        }
     }
 }

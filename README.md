@@ -48,15 +48,7 @@
 
 ### Background programs
 
-Choose **Background** on the editor's Schedule tab, then configure auto-start, restart policy, log path, maximum file size, and retained files under Settings. You can also create one from the CLI:
-
-```bash
-tasktick create my-api --script ./server.sh --background \
-  --restart on-failure --restart-delay 3 \
-  --log-max-size 20 --log-rotations 5
-```
-
-Use `tasktick run|stop|restart|status|tail my-api` to manage and inspect it afterward.
+Choose **Background** on the editor's Schedule tab, then configure auto-start, restart policy, log path, maximum file size, and retained files under Settings.
 
 - macOS 14 (Sonoma) or later
 - Apple Silicon or Intel Mac
