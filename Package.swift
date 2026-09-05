@@ -9,8 +9,7 @@ let package = Package(
         .macOS(.v14)
     ],
     dependencies: [
-        .package(url: "https://github.com/apple/swift-argument-parser", from: "1.5.0"),
-        .package(url: "https://github.com/sindresorhus/KeyboardShortcuts", from: "1.9.4")
+        .package(url: "https://github.com/apple/swift-argument-parser", from: "1.5.0")
     ],
     targets: [
         .target(
@@ -23,12 +22,7 @@ let package = Package(
         .executableTarget(
             name: "TaskTickApp",
             dependencies: [
-                "TaskTickCore",
-                // Per-task global shortcuts (issue #49): its Recorder is the
-                // native-looking control, and it warns about chords the system
-                // or our own main menu already claims. The CLI target stays
-                // free of it — shortcuts are a GUI concern.
-                .product(name: "KeyboardShortcuts", package: "KeyboardShortcuts")
+                "TaskTickCore"
             ],
             path: "Sources",
             // AppIcon.icns is copied into the final app bundle by the build

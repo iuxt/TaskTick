@@ -6,7 +6,6 @@
 "menubar.no_tasks" = "Keine Aufgaben";
 "menubar.next_run" = "Nächste Ausführung";
 "menubar.upcoming" = "Anstehende Aufgaben";
-"menubar.manual_scripts" = "Manuelle Skripte";
 "menubar.quit" = "Beenden";
 
 /* Task List */
@@ -77,11 +76,6 @@
 "editor.name" = "Aufgabenname";
 "editor.name.placeholder" = "Aufgabenname eingeben";
 "editor.enabled" = "Aktiviert";
-"editor.hotkey.section" = "Globales Tastenkürzel";
-"editor.hotkey.label" = "Tastenkürzel";
-"editor.hotkey.help" = "Feld anklicken und die gewünschte Tastenkombination drücken – Esc bricht ab, ⌫ löscht. Danach führt sie die Aufgabe aus jeder App aus.";
-"editor.hotkey.conflict" = "Bereits von „%@“ belegt – nur eines von beiden funktioniert.";
-"editor.hotkey.needs_enabled" = "Das Kürzel bleibt inaktiv, solange die Aufgabe deaktiviert ist.";
 "editor.section.schedule" = "Zeitplan";
 "editor.schedule_type" = "Typ";
 "editor.interval" = "Intervall";
@@ -243,28 +237,6 @@
 "notification.denied.open_settings" = "Systemeinstellungen öffnen";
 "notification.denied.later" = "Später";
 
-/* Quick Launcher */
-"quick_launcher.placeholder" = "Aufgaben suchen...";
-"quick_launcher.empty.no_tasks" = "Keine Aufgaben verfügbar";
-"quick_launcher.empty.no_match" = "Keine passenden Aufgaben";
-"quick_launcher.hint.navigate" = "Navigieren";
-"quick_launcher.hint.run" = "Ausführen";
-"quick_launcher.hint.close" = "Schließen";
-"quick_launcher.recording" = "Tastenkombination drücken…";
-"quick_launcher.menu_item" = "Quick Launcher";
-"quick_launcher.action.run" = "Ausführen";
-"quick_launcher.action.stop" = "Stoppen";
-"quick_launcher.hint.stop" = "Stoppen";
-"quick_launcher.hint.restart" = "Neu starten";
-"quick_launcher.hint.reveal" = "Im Hauptfenster öffnen";
-"quick_launcher.hint.settings" = "Einstellungen";
-"quick_launcher.settings.results" = "Suchergebnisse";
-"quick_launcher.settings.show_tasks" = "Aufgaben anzeigen";
-"quick_launcher.filter.all" = "Alle";
-"quick_launcher.filter.scheduled_only" = "Nur geplante";
-"quick_launcher.filter.manual_only" = "Nur manuelle";
-"quick_launcher.subtitle.running" = "Läuft";
-"quick_launcher.meta.running" = "Läuft…";
 
 /* Toast messages */
 "toast.task.started" = "„%@“ gestartet";
@@ -293,11 +265,6 @@
 "task.detail.live_log.copied" = "Pfad kopiert";
 "task.detail.live_log.empty_hint" = "Die Datei wird beim ersten Ausführen dieser Aufgabe erstellt.";
 "task.detail.elapsed" = "Läuft seit";
-"quick_launcher.meta.running_for" = "%@ vergangen";
-"quick_launcher.settings.section" = "Quick Launcher";
-"quick_launcher.settings.enable" = "Quick Launcher aktivieren";
-"quick_launcher.settings.shortcut" = "Tastenkombination";
-"quick_launcher.settings.hint" = "Drücke die Tastenkombination in einer beliebigen App, um ein Suchfenster zu öffnen und ein Skript auszuführen. Klicke ins Tastenkombinationsfeld, um sie neu aufzunehmen.";
 
 "log.title" = "Ausführungsprotokolle";
 "log.count_suffix" = "Einträge";

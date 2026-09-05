@@ -6,7 +6,6 @@
 "menubar.no_tasks" = "Tidak Ada Tugas";
 "menubar.next_run" = "Eksekusi Berikutnya";
 "menubar.upcoming" = "Tugas Mendatang";
-"menubar.manual_scripts" = "Skrip Manual";
 "menubar.quit" = "Keluar";
 
 /* Task List */
@@ -77,11 +76,6 @@
 "editor.name" = "Nama Tugas";
 "editor.name.placeholder" = "Masukkan nama tugas";
 "editor.enabled" = "Aktif";
-"editor.hotkey.section" = "Pintasan Global";
-"editor.hotkey.label" = "Pintasan";
-"editor.hotkey.help" = "Klik kotaknya lalu tekan kombinasi yang diinginkan — Esc batal, ⌫ hapus. Setelah diatur, menekannya di aplikasi mana pun menjalankan tugas ini.";
-"editor.hotkey.conflict" = "Sudah dipakai oleh \"%@\" — hanya salah satu yang akan berfungsi.";
-"editor.hotkey.needs_enabled" = "Pintasan tidak aktif selama tugas dinonaktifkan.";
 "editor.section.schedule" = "Jadwal";
 "editor.schedule_type" = "Tipe";
 "editor.interval" = "Interval";
@@ -243,28 +237,6 @@
 "notification.denied.open_settings" = "Buka Pengaturan Sistem";
 "notification.denied.later" = "Nanti";
 
-/* Quick Launcher */
-"quick_launcher.placeholder" = "Cari tugas...";
-"quick_launcher.empty.no_tasks" = "Tidak ada tugas tersedia";
-"quick_launcher.empty.no_match" = "Tidak ada tugas yang cocok";
-"quick_launcher.hint.navigate" = "Navigasi";
-"quick_launcher.hint.run" = "Jalankan";
-"quick_launcher.hint.close" = "Tutup";
-"quick_launcher.recording" = "Tekan pintasan…";
-"quick_launcher.menu_item" = "Akses Cepat";
-"quick_launcher.action.run" = "Jalankan";
-"quick_launcher.action.stop" = "Hentikan";
-"quick_launcher.hint.stop" = "Hentikan";
-"quick_launcher.hint.restart" = "Mulai Ulang";
-"quick_launcher.hint.reveal" = "Buka di jendela utama";
-"quick_launcher.hint.settings" = "Pengaturan";
-"quick_launcher.settings.results" = "Hasil Pencarian";
-"quick_launcher.settings.show_tasks" = "Tampilkan tugas";
-"quick_launcher.filter.all" = "Semua";
-"quick_launcher.filter.scheduled_only" = "Hanya terjadwal";
-"quick_launcher.filter.manual_only" = "Hanya manual";
-"quick_launcher.subtitle.running" = "Berjalan";
-"quick_launcher.meta.running" = "Berjalan…";
 
 /* Toast messages */
 "toast.task.started" = "Memulai \"%@\"";
@@ -293,11 +265,6 @@
 "task.detail.live_log.copied" = "Jalur disalin";
 "task.detail.live_log.empty_hint" = "File akan dibuat saat tugas ini pertama kali dijalankan.";
 "task.detail.elapsed" = "Berjalan selama";
-"quick_launcher.meta.running_for" = "%@ berlalu";
-"quick_launcher.settings.section" = "Akses Cepat";
-"quick_launcher.settings.enable" = "Aktifkan Akses Cepat";
-"quick_launcher.settings.shortcut" = "Pintasan";
-"quick_launcher.settings.hint" = "Tekan pintasan dari aplikasi apa pun untuk membuka panel pencarian dan menjalankan skrip. Klik bidang pintasan untuk merekam ulang.";
 
 "log.title" = "Log Eksekusi";
 "log.count_suffix" = "catatan";

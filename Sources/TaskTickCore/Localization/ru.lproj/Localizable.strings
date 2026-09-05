@@ -6,7 +6,6 @@
 "menubar.no_tasks" = "Нет задач";
 "menubar.next_run" = "Следующий запуск";
 "menubar.upcoming" = "Предстоящие задачи";
-"menubar.manual_scripts" = "Ручные скрипты";
 "menubar.quit" = "Выход";
 
 /* Task List */
@@ -77,11 +76,6 @@
 "editor.name" = "Название задачи";
 "editor.name.placeholder" = "Введите название задачи";
 "editor.enabled" = "Активна";
-"editor.hotkey.section" = "Глобальное сочетание клавиш";
-"editor.hotkey.label" = "Сочетание клавиш";
-"editor.hotkey.help" = "Нажмите на поле и введите нужное сочетание — Esc отменяет, ⌫ очищает. После настройки оно запускает задачу из любого приложения.";
-"editor.hotkey.conflict" = "Уже занято «%@» — сработает только одно из них.";
-"editor.hotkey.needs_enabled" = "Пока задача отключена, сочетание не действует.";
 "editor.section.schedule" = "Расписание";
 "editor.schedule_type" = "Тип";
 "editor.interval" = "Интервал";
@@ -243,28 +237,6 @@
 "notification.denied.open_settings" = "Открыть Системные настройки";
 "notification.denied.later" = "Позже";
 
-/* Quick Launcher */
-"quick_launcher.placeholder" = "Поиск задач...";
-"quick_launcher.empty.no_tasks" = "Нет доступных задач";
-"quick_launcher.empty.no_match" = "Ничего не найдено";
-"quick_launcher.hint.navigate" = "Навигация";
-"quick_launcher.hint.run" = "Запустить";
-"quick_launcher.hint.close" = "Закрыть";
-"quick_launcher.recording" = "Нажмите сочетание клавиш…";
-"quick_launcher.menu_item" = "Быстрый запуск";
-"quick_launcher.action.run" = "Запустить";
-"quick_launcher.action.stop" = "Остановить";
-"quick_launcher.hint.stop" = "Остановить";
-"quick_launcher.hint.restart" = "Перезапустить";
-"quick_launcher.hint.reveal" = "Открыть в главном окне";
-"quick_launcher.hint.settings" = "Настройки";
-"quick_launcher.settings.results" = "Результаты поиска";
-"quick_launcher.settings.show_tasks" = "Показывать задачи";
-"quick_launcher.filter.all" = "Все";
-"quick_launcher.filter.scheduled_only" = "Только по расписанию";
-"quick_launcher.filter.manual_only" = "Только ручные";
-"quick_launcher.subtitle.running" = "Выполняется";
-"quick_launcher.meta.running" = "Выполняется…";
 
 /* Toast messages */
 "toast.task.started" = "Запущено «%@»";
@@ -293,11 +265,6 @@
 "task.detail.live_log.copied" = "Путь скопирован";
 "task.detail.live_log.empty_hint" = "Файл будет создан при первом запуске задачи.";
 "task.detail.elapsed" = "Выполняется уже";
-"quick_launcher.meta.running_for" = "Прошло %@";
-"quick_launcher.settings.section" = "Быстрый запуск";
-"quick_launcher.settings.enable" = "Включить быстрый запуск";
-"quick_launcher.settings.shortcut" = "Сочетание клавиш";
-"quick_launcher.settings.hint" = "Нажмите сочетание из любого приложения, чтобы открыть панель поиска и запустить скрипт. Кликните по полю сочетания, чтобы записать заново.";
 
 "log.title" = "Журнал выполнения";
 "log.count_suffix" = "записей";

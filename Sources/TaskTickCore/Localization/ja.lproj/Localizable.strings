@@ -6,7 +6,6 @@
 "menubar.no_tasks" = "タスクなし";
 "menubar.next_run" = "次回実行";
 "menubar.upcoming" = "予定タスク";
-"menubar.manual_scripts" = "手動スクリプト";
 "menubar.quit" = "終了";
 
 /* Task List */
@@ -77,11 +76,6 @@
 "editor.name" = "タスク名";
 "editor.name.placeholder" = "タスク名を入力";
 "editor.enabled" = "有効";
-"editor.hotkey.section" = "グローバルショートカット";
-"editor.hotkey.label" = "ショートカット";
-"editor.hotkey.help" = "枠をクリックして使いたいキーの組み合わせを押してください（Esc でキャンセル、⌫ で消去）。設定後はどのアプリからでもこのタスクを実行できます。";
-"editor.hotkey.conflict" = "「%@」が使用中です。どちらか一方しか動作しません。";
-"editor.hotkey.needs_enabled" = "タスクが無効の間はショートカットも動作しません。";
 "editor.section.schedule" = "スケジュール";
 "editor.schedule_type" = "種類";
 "editor.interval" = "間隔";
@@ -243,28 +237,6 @@
 "notification.denied.open_settings" = "システム設定を開く";
 "notification.denied.later" = "後で";
 
-/* Quick Launcher */
-"quick_launcher.placeholder" = "タスクを検索...";
-"quick_launcher.empty.no_tasks" = "実行可能なタスクがありません";
-"quick_launcher.empty.no_match" = "一致するタスクがありません";
-"quick_launcher.hint.navigate" = "選択";
-"quick_launcher.hint.run" = "実行";
-"quick_launcher.hint.close" = "閉じる";
-"quick_launcher.recording" = "ショートカットキーを押してください…";
-"quick_launcher.menu_item" = "クイックランチャー";
-"quick_launcher.action.run" = "実行";
-"quick_launcher.action.stop" = "停止";
-"quick_launcher.hint.stop" = "停止";
-"quick_launcher.hint.restart" = "再起動";
-"quick_launcher.hint.reveal" = "メインウィンドウで開く";
-"quick_launcher.hint.settings" = "設定";
-"quick_launcher.settings.results" = "検索結果";
-"quick_launcher.settings.show_tasks" = "タスクを表示";
-"quick_launcher.filter.all" = "すべて";
-"quick_launcher.filter.scheduled_only" = "スケジュールのみ";
-"quick_launcher.filter.manual_only" = "手動のみ";
-"quick_launcher.subtitle.running" = "実行中";
-"quick_launcher.meta.running" = "実行中…";
 
 /* Toast messages */
 "toast.task.started" = "「%@」を開始しました";
@@ -293,11 +265,6 @@
 "task.detail.live_log.copied" = "パスをコピーしました";
 "task.detail.live_log.empty_hint" = "このタスクが初めて実行されたときにファイルが作成されます。";
 "task.detail.elapsed" = "実行時間";
-"quick_launcher.meta.running_for" = "実行時間 %@";
-"quick_launcher.settings.section" = "クイックランチャー";
-"quick_launcher.settings.enable" = "クイックランチャーを有効にする";
-"quick_launcher.settings.shortcut" = "ショートカット";
-"quick_launcher.settings.hint" = "どのアプリからでもショートカットキーを押すと検索パネルが開き、スクリプトを実行できます。ショートカットフィールドをクリックすると再録音できます。";
 
 "log.title" = "実行ログ";
 "log.count_suffix" = "件";

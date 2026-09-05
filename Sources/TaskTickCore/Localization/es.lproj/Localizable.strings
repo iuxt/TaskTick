@@ -6,7 +6,6 @@
 "menubar.no_tasks" = "Sin tareas";
 "menubar.next_run" = "Siguiente ejecución";
 "menubar.upcoming" = "Tareas próximas";
-"menubar.manual_scripts" = "Scripts manuales";
 "menubar.quit" = "Salir";
 
 /* Task List */
@@ -77,11 +76,6 @@
 "editor.name" = "Nombre de la tarea";
 "editor.name.placeholder" = "Introduce el nombre de la tarea";
 "editor.enabled" = "Activa";
-"editor.hotkey.section" = "Atajo global";
-"editor.hotkey.label" = "Atajo";
-"editor.hotkey.help" = "Haz clic en el campo y pulsa la combinación que quieras: Esc cancela, ⌫ borra. Una vez definida, ejecuta la tarea desde cualquier app.";
-"editor.hotkey.conflict" = "Ya lo usa «%@»: solo funcionará uno de los dos.";
-"editor.hotkey.needs_enabled" = "El atajo permanece inactivo mientras la tarea esté desactivada.";
 "editor.section.schedule" = "Programación";
 "editor.schedule_type" = "Tipo";
 "editor.interval" = "Intervalo";
@@ -243,28 +237,6 @@
 "notification.denied.open_settings" = "Abrir Ajustes del Sistema";
 "notification.denied.later" = "Más tarde";
 
-/* Quick Launcher */
-"quick_launcher.placeholder" = "Buscar tareas...";
-"quick_launcher.empty.no_tasks" = "No hay tareas disponibles";
-"quick_launcher.empty.no_match" = "Sin tareas coincidentes";
-"quick_launcher.hint.navigate" = "Navegar";
-"quick_launcher.hint.run" = "Ejecutar";
-"quick_launcher.hint.close" = "Cerrar";
-"quick_launcher.recording" = "Pulsa el atajo…";
-"quick_launcher.menu_item" = "Lanzador rápido";
-"quick_launcher.action.run" = "Ejecutar";
-"quick_launcher.action.stop" = "Detener";
-"quick_launcher.hint.stop" = "Detener";
-"quick_launcher.hint.restart" = "Reiniciar";
-"quick_launcher.hint.reveal" = "Abrir en la ventana principal";
-"quick_launcher.hint.settings" = "Ajustes";
-"quick_launcher.settings.results" = "Resultados de búsqueda";
-"quick_launcher.settings.show_tasks" = "Mostrar tareas";
-"quick_launcher.filter.all" = "Todas";
-"quick_launcher.filter.scheduled_only" = "Solo programadas";
-"quick_launcher.filter.manual_only" = "Solo manuales";
-"quick_launcher.subtitle.running" = "Ejecutando";
-"quick_launcher.meta.running" = "Ejecutando…";
 
 /* Toast messages */
 "toast.task.started" = "Iniciada «%@»";
@@ -293,11 +265,6 @@
 "task.detail.live_log.copied" = "Ruta copiada";
 "task.detail.live_log.empty_hint" = "El archivo se creará la primera vez que se ejecute esta tarea.";
 "task.detail.elapsed" = "En ejecución desde hace";
-"quick_launcher.meta.running_for" = "%@ transcurridos";
-"quick_launcher.settings.section" = "Lanzador rápido";
-"quick_launcher.settings.enable" = "Activar lanzador rápido";
-"quick_launcher.settings.shortcut" = "Atajo";
-"quick_launcher.settings.hint" = "Pulsa el atajo desde cualquier app para abrir un panel de búsqueda y ejecutar un script. Haz clic en el campo del atajo para volver a grabarlo.";
 
 "log.title" = "Registros de ejecución";
 "log.count_suffix" = "registros";

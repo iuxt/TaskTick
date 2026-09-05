@@ -1,8 +1,8 @@
 import Foundation
 import TaskTickCore
 
-/// One-shot rendezvous so external triggers (Quick Launcher, Menu Bar, future
-/// URL handlers) can ask the main window to focus a specific task. The main
+/// One-shot rendezvous so CLI and URL handlers can ask the main window
+/// to focus a specific task. The main
 /// window reads this on appear and on change, then clears it so a later
 /// re-appear doesn't re-apply a stale selection.
 @MainActor
@@ -14,7 +14,7 @@ final class MainWindowSelection: ObservableObject {
 }
 
 extension Notification.Name {
-    /// Posted by the Quick Launcher when the user hits ⌘O. AppDelegate
+    /// Posted by CLIBridge for a reveal request. AppDelegate
     /// listens (always alive) and uses `WindowOpener.shared` to bring back
     /// the main window — `Window(id:)` scenes destroy their NSWindow on
     /// close, so AppKit-only lookups can't recreate them.

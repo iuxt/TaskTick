@@ -220,10 +220,10 @@ public final class ScheduledTask {
     public var createdAt: Date
     public var updatedAt: Date
     public var lastRunAt: Date?
-    /// Most recent time this task was run *manually* (UI play button, Quick
-    /// Launcher Enter, menu bar ▶). Scheduled triggers do not bump this —
+    /// Most recent time this task was run *manually* (UI play button or
+    /// menu bar ▶). Scheduled triggers do not bump this —
     /// it's the signal we sort by so user-initiated runs surface to the top
-    /// across sidebar / Quick Launcher / menu bar without scheduled cron
+    /// across the sidebar and menu bar without scheduled cron
     /// jobs constantly churning the order.
     public var lastManualRunAt: Date?
     public var nextRunAt: Date?

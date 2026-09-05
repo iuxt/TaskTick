@@ -6,7 +6,6 @@
 "menubar.no_tasks" = "작업 없음";
 "menubar.next_run" = "다음 실행";
 "menubar.upcoming" = "예정된 작업";
-"menubar.manual_scripts" = "수동 스크립트";
 "menubar.quit" = "종료";
 
 /* Task List */
@@ -77,11 +76,6 @@
 "editor.name" = "작업 이름";
 "editor.name.placeholder" = "작업 이름 입력";
 "editor.enabled" = "활성";
-"editor.hotkey.section" = "전역 단축키";
-"editor.hotkey.label" = "단축키";
-"editor.hotkey.help" = "상자를 클릭한 뒤 원하는 키 조합을 누르세요(Esc 취소, ⌫ 지우기). 설정하면 어떤 앱에서든 눌러 이 작업을 실행할 수 있습니다.";
-"editor.hotkey.conflict" = "'%@'에서 이미 사용 중입니다. 둘 중 하나만 작동합니다.";
-"editor.hotkey.needs_enabled" = "작업이 비활성화된 동안에는 단축키가 작동하지 않습니다.";
 "editor.section.schedule" = "일정";
 "editor.schedule_type" = "유형";
 "editor.interval" = "간격";
@@ -243,28 +237,6 @@
 "notification.denied.open_settings" = "시스템 설정 열기";
 "notification.denied.later" = "나중에";
 
-/* Quick Launcher */
-"quick_launcher.placeholder" = "작업 검색...";
-"quick_launcher.empty.no_tasks" = "사용 가능한 작업이 없습니다";
-"quick_launcher.empty.no_match" = "일치하는 작업이 없습니다";
-"quick_launcher.hint.navigate" = "이동";
-"quick_launcher.hint.run" = "실행";
-"quick_launcher.hint.close" = "닫기";
-"quick_launcher.recording" = "단축키를 눌러주세요…";
-"quick_launcher.menu_item" = "빠른 실행";
-"quick_launcher.action.run" = "실행";
-"quick_launcher.action.stop" = "중지";
-"quick_launcher.hint.stop" = "중지";
-"quick_launcher.hint.restart" = "재시작";
-"quick_launcher.hint.reveal" = "메인에서 열기";
-"quick_launcher.hint.settings" = "설정";
-"quick_launcher.settings.results" = "검색 결과";
-"quick_launcher.settings.show_tasks" = "작업 표시";
-"quick_launcher.filter.all" = "전체";
-"quick_launcher.filter.scheduled_only" = "예약만";
-"quick_launcher.filter.manual_only" = "수동만";
-"quick_launcher.subtitle.running" = "실행 중";
-"quick_launcher.meta.running" = "실행 중…";
 
 /* Toast messages */
 "toast.task.started" = "\"%@\" 시작됨";
@@ -293,11 +265,6 @@
 "task.detail.live_log.copied" = "경로가 복사되었습니다";
 "task.detail.live_log.empty_hint" = "이 작업이 처음 실행될 때 파일이 생성됩니다.";
 "task.detail.elapsed" = "실행 시간";
-"quick_launcher.meta.running_for" = "%@ 경과";
-"quick_launcher.settings.section" = "빠른 실행";
-"quick_launcher.settings.enable" = "빠른 실행 사용";
-"quick_launcher.settings.shortcut" = "단축키";
-"quick_launcher.settings.hint" = "어떤 앱에서든 단축키를 눌러 검색 패널을 열고 스크립트를 실행할 수 있습니다. 단축키 필드를 클릭하면 다시 녹음할 수 있습니다.";
 
 "log.title" = "실행 로그";
 "log.count_suffix" = "건";

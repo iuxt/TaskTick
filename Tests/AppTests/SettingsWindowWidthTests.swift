@@ -77,22 +77,21 @@ struct SettingsWindowWidthTests {
     @Test("装得下的语言保持 680pt 原有比例")
     func shortLanguagesKeepTheFamiliarWidth() throws {
         let byLang = Dictionary(uniqueKeysWithValues: try titlesPerLanguage())
-        for lang in ["zh-Hans", "zh-Hant", "ja", "ko", "en", "de", "es"] {
+        for lang in ["zh-Hans", "zh-Hant", "ja", "ko", "en", "de", "es", "ru"] {
             let titles = try #require(byLang[lang])
             #expect(SettingsView.windowWidth(titles: titles, screenWidth: 3000) == 680,
                     "\(lang) 本来就装得下，不该被撑宽")
         }
     }
 
-    @Test("长语言只加必要的宽度，不会变成怪物窗口")
-    func longLanguagesGrowButStayReasonable() throws {
-        let byLang = Dictionary(uniqueKeysWithValues: try titlesPerLanguage())
-        for lang in ["ru"] {
-            let titles = try #require(byLang[lang])
-            let width = SettingsView.windowWidth(titles: titles, screenWidth: 3000)
-            #expect(width > 680, "\(lang) 在 680pt 下会溢出，应该被撑宽")
-            #expect(width <= 900, "\(lang) 撑到 \(width)pt，翻译可能过长，需要缩短 tab 标题")
-        }
+    @Test("长标题只加必要的宽度，不会变成怪物窗口")
+    func longTitlesGrowButStayReasonable() {
+        // The reduced tab set now fits Russian at 680pt too. Keep an explicit
+        // long-label fixture to exercise expansion independently of translations.
+        let titles = Array(repeating: String(repeating: "W", count: 12), count: 6)
+        let width = SettingsView.windowWidth(titles: titles, screenWidth: 3000)
+        #expect(width > 680, "长标题在 680pt 下会溢出，应该被撑宽")
+        #expect(width <= 900, "窗口不应过度加宽")
     }
 
     /// The clamp that keeps a pathological translation from opening a window

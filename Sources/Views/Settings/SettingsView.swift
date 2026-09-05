@@ -6,7 +6,6 @@ import TaskTickCore
 struct SettingsView: View {
     // General
     @AppStorage("launchAtLogin") private var launchAtLogin = false
-    @ObservedObject private var quickLauncherSettings = QuickLauncherSettings.shared
     @AppStorage("defaultShell") private var defaultShell = "/bin/zsh"
     @AppStorage("defaultTimeout") private var defaultTimeout = 300
     @AppStorage("appearanceMode") private var appearanceMode = "system"
@@ -44,7 +43,6 @@ struct SettingsView: View {
     /// of titles would drift the first time a tab is added or renamed.
     enum Tab: String, CaseIterable {
         case general = "settings.general"
-        case quickLauncher = "quick_launcher.settings.section"
         case cli = "settings.cli.section.title"
         case notifications = "settings.notifications"
         case backup = "settings.backup"
@@ -56,7 +54,6 @@ struct SettingsView: View {
         var symbol: String {
             switch self {
             case .general: return "gear"
-            case .quickLauncher: return "command"
             case .cli: return "terminal"
             case .notifications: return "bell"
             case .backup: return "externaldrive.badge.timemachine"
@@ -70,9 +67,6 @@ struct SettingsView: View {
         TabView {
             generalTab
                 .tabItem { Label(Tab.general.title, systemImage: Tab.general.symbol) }
-
-            quickLauncherTab
-                .tabItem { Label(Tab.quickLauncher.title, systemImage: Tab.quickLauncher.symbol) }
 
             cliTab
                 .tabItem { Label(Tab.cli.title, systemImage: Tab.cli.symbol) }
@@ -194,39 +188,6 @@ struct SettingsView: View {
                 Text(L10n.tr("settings.notifications"))
             } footer: {
                 Text(L10n.tr("settings.notifications.hint"))
-            }
-        }
-        .formStyle(.grouped)
-    }
-
-    // MARK: - Quick Launcher
-
-    private var quickLauncherTab: some View {
-        Form {
-            Section {
-                Toggle(L10n.tr("quick_launcher.settings.enable"), isOn: $quickLauncherSettings.isEnabled)
-
-                if quickLauncherSettings.isEnabled {
-                    LabeledContent(L10n.tr("quick_launcher.settings.shortcut")) {
-                        HotkeyRecorderView(settings: quickLauncherSettings)
-                    }
-                }
-            } footer: {
-                Text(L10n.tr("quick_launcher.settings.hint"))
-            }
-
-            Section {
-                Picker(
-                    L10n.tr("quick_launcher.settings.show_tasks"),
-                    selection: $quickLauncherSettings.taskFilter
-                ) {
-                    ForEach(QuickLauncherTaskFilter.allCases) { filter in
-                        Text(filter.displayName).tag(filter)
-                    }
-                }
-                .disabled(!quickLauncherSettings.isEnabled)
-            } header: {
-                Text(L10n.tr("quick_launcher.settings.results"))
             }
         }
         .formStyle(.grouped)

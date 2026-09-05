@@ -41,12 +41,7 @@ final class CLIBridge {
     /// Called by AppDelegate.application(_:open:) on URL Scheme launches and
     /// by DistributedNotification observers below. Idempotent — safe to call
     /// the same action twice.
-    ///
-    /// `forceBanner` overrides the task's `notifyOnAction` opt-in. Set by
-    /// triggers that have no UI of their own (per-task global shortcuts, issue
-    /// #49), where a silent no-op is indistinguishable from a broken binding.
-    /// The app-wide notifications switch still applies.
-    func handle(action: Action, taskId: UUID, forceBanner: Bool = false) {
+    func handle(action: Action, taskId: UUID) {
         guard let container = modelContainer else {
             NSLog("⚠️ CLIBridge: handle(\(action.rawValue)) called before configure()")
             ActionToast.notify(.failed(taskName: nil, reason: L10n.tr("toast.action.failed.notReady")))
@@ -60,30 +55,22 @@ final class CLIBridge {
             return
         }
 
-        let wantsBanner = forceBanner || task.notifyOnAction
-
         switch action {
         case .run:
-            // Already-running guard — match Quick Launcher's idempotent contract.
+            // Repeated run requests leave the active execution running.
             guard !TaskScheduler.shared.runningTaskIDs.contains(task.id) else {
-                // A blind trigger needs to hear *why* nothing happened; every
-                // other entry point already shows the running state on screen.
-                if forceBanner {
-                    ActionToast.notify(.failed(taskName: task.name,
-                                               reason: L10n.tr("toast.action.failed.alreadyRunning")))
-                }
                 return
             }
             Task { _ = await ScriptExecutor.shared.execute(task: task, modelContext: context) }
-            ActionToast.notify(.started(taskName: task.name), wantsBanner: wantsBanner)
+            ActionToast.notify(.started(taskName: task.name), wantsBanner: task.notifyOnAction)
         case .stop:
             ScriptExecutor.shared.cancel(taskId: task.id)
-            ActionToast.notify(.stopped(taskName: task.name), wantsBanner: wantsBanner)
+            ActionToast.notify(.stopped(taskName: task.name), wantsBanner: task.notifyOnAction)
         case .restart:
             Task {
                 await ScriptExecutor.shared.restart(taskId: task.id, modelContext: context)
             }
-            ActionToast.notify(.restarted(taskName: task.name), wantsBanner: wantsBanner)
+            ActionToast.notify(.restarted(taskName: task.name), wantsBanner: task.notifyOnAction)
         case .reveal:
             MainWindowSelection.shared.taskToReveal = task
             NotificationCenter.default.post(name: .revealTaskInMain, object: nil)

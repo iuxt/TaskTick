@@ -9,16 +9,13 @@ struct MenuBarView: View {
     @Environment(\.openSettings) private var openSettings
     @Query(sort: \ScheduledTask.createdAt, order: .reverse) private var tasks: [ScheduledTask]
     @StateObject private var scheduler = TaskScheduler.shared
-    /// Watching the live settings object so the shortcut hint here updates the
-    /// instant the user re-records it in Settings — no stale label.
-    @ObservedObject private var quickLauncherSettings = QuickLauncherSettings.shared
 
     /// Caps tuned for the menu bar surface. Scheduled jobs fire on their
-    /// own schedule so the next 3 are usually enough context; manual scripts
-    /// are the day-to-day actions, so they get more room. Combined cap is
+    /// own schedule so the next 3 are usually enough context; background
+    /// processes get more room. Combined cap is
     /// already implicit (3 + 5 = 8), keeping the popover height bounded.
     private static let maxScheduled = 3
-    private static let maxManual = 5
+    private static let maxBackground = 5
 
     var upcomingTasks: [ScheduledTask] {
         tasks
@@ -28,15 +25,15 @@ struct MenuBarView: View {
             .map { $0 }
     }
 
-    var manualTasks: [ScheduledTask] {
+    var backgroundTasks: [ScheduledTask] {
         tasks
-            .filter { $0.isEnabled && $0.isManualOnly }
+            .filter { $0.isEnabled && $0.isBackgroundService }
             .sorted {
                 // Most-recently-manually-run first; tasks that have never run
                 // manually fall back to their creation time.
                 ($0.lastManualRunAt ?? $0.createdAt) > ($1.lastManualRunAt ?? $1.createdAt)
             }
-            .prefix(Self.maxManual)
+            .prefix(Self.maxBackground)
             .map { $0 }
     }
 
@@ -75,7 +72,7 @@ struct MenuBarView: View {
             Divider()
 
             // Task list
-            if upcomingTasks.isEmpty && manualTasks.isEmpty {
+            if upcomingTasks.isEmpty && backgroundTasks.isEmpty {
                 VStack(spacing: 8) {
                     Image(systemName: "tray")
                         .font(.largeTitle)
@@ -103,9 +100,9 @@ struct MenuBarView: View {
                         }
                     }
 
-                    if !manualTasks.isEmpty {
+                    if !backgroundTasks.isEmpty {
                         HStack {
-                            Text(L10n.tr("menubar.manual_scripts"))
+                            Text(L10n.tr("task.mode.background"))
                                 .font(.caption)
                                 .foregroundStyle(.tertiary)
                             Spacer()
@@ -113,7 +110,7 @@ struct MenuBarView: View {
                         .padding(.horizontal, 10)
                         .padding(.top, upcomingTasks.isEmpty ? 4 : 8)
 
-                        ForEach(manualTasks) { task in
+                        ForEach(backgroundTasks) { task in
                             MenuBarTaskRow(task: task, isRunning: scheduler.runningTaskIDs.contains(task.id))
                         }
                     }
@@ -131,43 +128,11 @@ struct MenuBarView: View {
                         panel.orderOut(nil)
                     }
                     // In-scene context → use the sanctioned macOS 14+ action.
-                    // The legacy `showSettingsWindow:` selector (SettingsWindowOpener)
+                    // The legacy `showSettingsWindow:` selector
                     // returns true here but never creates the window on macOS 14+.
                     NSApp.setActivationPolicy(.regular)
                     openSettings()
                     NSApp.activate(ignoringOtherApps: true)
-                }
-
-                if quickLauncherSettings.isEnabled {
-                    MenuBarFooterButton(
-                        title: L10n.tr("quick_launcher.menu_item"),
-                        action: {
-                            if let panel = NSApp.keyWindow as? NSPanel {
-                                panel.orderOut(nil)
-                            }
-                            QuickLauncherController.shared.toggle()
-                        }
-                    ) {
-                        // 1Password-style: each modifier and the key get
-                        // their own kbd pill so the shortcut is legible
-                        // at a glance.
-                        ForEach(quickLauncherSettings.displayChips, id: \.self) { chip in
-                            Text(chip)
-                                .font(.system(size: 11, weight: .medium, design: .monospaced))
-                                .foregroundStyle(.primary.opacity(0.85))
-                                .frame(minWidth: 16)
-                                .padding(.horizontal, 4)
-                                .padding(.vertical, 1)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 3)
-                                        .fill(Color.primary.opacity(0.10))
-                                )
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 3)
-                                        .strokeBorder(Color.primary.opacity(0.10), lineWidth: 0.5)
-                                )
-                        }
-                    }
                 }
 
                 MenuBarFooterButton(title: L10n.tr("menubar.quit")) {

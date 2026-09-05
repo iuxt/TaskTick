@@ -6,7 +6,6 @@
 "menubar.no_tasks" = "No Tasks";
 "menubar.next_run" = "Next Run";
 "menubar.upcoming" = "Upcoming Tasks";
-"menubar.manual_scripts" = "Manual Scripts";
 "menubar.quit" = "Quit";
 
 /* Task List */
@@ -77,11 +76,6 @@
 "editor.name" = "Task Name";
 "editor.name.placeholder" = "Enter task name";
 "editor.enabled" = "Enabled";
-"editor.hotkey.section" = "Global Shortcut";
-"editor.hotkey.label" = "Shortcut";
-"editor.hotkey.help" = "Click the box, then press the key combination you want — Esc cancels, ⌫ clears. Once set, pressing it in any app runs this task.";
-"editor.hotkey.conflict" = "Already used by \"%@\" — only one of them will work.";
-"editor.hotkey.needs_enabled" = "The shortcut stays inactive while the task is disabled.";
 "editor.section.schedule" = "Schedule";
 "editor.schedule_type" = "Type";
 "editor.interval" = "Interval";
@@ -243,28 +237,6 @@
 "notification.denied.open_settings" = "Open System Settings";
 "notification.denied.later" = "Later";
 
-/* Quick Launcher */
-"quick_launcher.placeholder" = "Search tasks...";
-"quick_launcher.empty.no_tasks" = "No tasks available";
-"quick_launcher.empty.no_match" = "No matching tasks";
-"quick_launcher.hint.navigate" = "Navigate";
-"quick_launcher.hint.run" = "Run";
-"quick_launcher.hint.close" = "Close";
-"quick_launcher.recording" = "Press shortcut…";
-"quick_launcher.menu_item" = "Quick Launcher";
-"quick_launcher.action.run" = "Run";
-"quick_launcher.action.stop" = "Stop";
-"quick_launcher.hint.stop" = "Stop";
-"quick_launcher.hint.restart" = "Restart";
-"quick_launcher.hint.reveal" = "Open in main";
-"quick_launcher.hint.settings" = "Settings";
-"quick_launcher.settings.results" = "Search Results";
-"quick_launcher.settings.show_tasks" = "Show tasks";
-"quick_launcher.filter.all" = "All";
-"quick_launcher.filter.scheduled_only" = "Scheduled only";
-"quick_launcher.filter.manual_only" = "Manual only";
-"quick_launcher.subtitle.running" = "Running";
-"quick_launcher.meta.running" = "Running…";
 
 /* Toast messages */
 "toast.task.started" = "Started \"%@\"";
@@ -293,11 +265,6 @@
 "task.detail.live_log.copied" = "Path copied";
 "task.detail.live_log.empty_hint" = "File will be created the first time this task runs.";
 "task.detail.elapsed" = "Running for";
-"quick_launcher.meta.running_for" = "%@ elapsed";
-"quick_launcher.settings.section" = "Quick Launcher";
-"quick_launcher.settings.enable" = "Enable Quick Launcher";
-"quick_launcher.settings.shortcut" = "Shortcut";
-"quick_launcher.settings.hint" = "Press the shortcut from any app to open a search panel and run a script. Click the shortcut field to re-record.";
 
 "log.title" = "Execution Logs";
 "log.count_suffix" = "records";

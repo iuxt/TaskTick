@@ -1,6 +1,5 @@
 import SwiftUI
 import SwiftData
-import KeyboardShortcuts
 import TaskTickCore
 
 struct TaskDetailView: View {
@@ -89,7 +88,6 @@ struct TaskDetailView: View {
                 let deletedTaskID = task.id
                 let deletedLogPath = task.serviceLogPath
                 let deletedRotationCount = task.serviceLogRotationCount
-                TaskHotkeyManager.shared.discardShortcut(for: task.id)
                 ScriptExecutor.shared.cancel(taskId: task.id)
                 modelContext.delete(task)
                 do {
@@ -225,9 +223,7 @@ struct TaskDetailView: View {
 
                 VStack(spacing: 8) {
                     // Live elapsed-time row — only when a run is in flight.
-                    // Shares its data source (running ExecutionLog's startedAt)
-                    // with the Quick Launcher row so the two surfaces always
-                    // agree to the second.
+                    // Uses the running execution log's start time.
                     if isRunning, let startedAt = RunningDuration.startedAt(for: task) {
                         HStack {
                             Text(L10n.tr("task.detail.elapsed"))
@@ -317,10 +313,6 @@ struct TaskDetailView: View {
                         ? L10n.tr("editor.timeout.unlimited")
                         : L10n.tr("task.detail.timeout_value", task.timeoutSeconds)
                     detailRow(L10n.tr("task.detail.timeout"), value: timeoutLabel)
-
-                    if let shortcut = TaskHotkeys.name(for: task.id).shortcut {
-                        detailRow(L10n.tr("editor.hotkey.label"), value: shortcut.description)
-                    }
 
                     // Notification status
                     let notifyLabel: String = {

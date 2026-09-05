@@ -66,7 +66,7 @@ struct MainWindowView: View {
             // can resurrect it).
             WindowOpener.shared.openMain = { openWindow(id: "main") }
 
-            // When Quick Launcher opens the main window via ⌘O, the window
+            // When a reveal request opens the main window, the window
             // scene may instantiate fresh — pick up the rendezvous selection
             // here so the first render already shows the requested task.
             if let task = mainSelection.taskToReveal {

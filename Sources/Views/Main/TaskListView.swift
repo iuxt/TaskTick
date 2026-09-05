@@ -1,6 +1,5 @@
 import SwiftUI
 import SwiftData
-import KeyboardShortcuts
 import TaskTickCore
 
 enum TaskListTab: String, CaseIterable {
@@ -145,7 +144,6 @@ struct TaskListView: View {
                             let deletedLogPath = task.serviceLogPath
                             let deletedRotationCount = task.serviceLogRotationCount
                             if selectedTask == task { selectedTask = nil }
-                            TaskHotkeyManager.shared.discardShortcut(for: task.id)
                             ScriptExecutor.shared.cancel(taskId: task.id)
                             modelContext.delete(task)
                             do {
@@ -443,12 +441,6 @@ struct TaskListRow: View {
                     }
                     .font(.caption2)
 
-                    if let shortcut = TaskHotkeys.name(for: task.id).shortcut {
-                        Text("·")
-                            .font(.caption2)
-                        Text(shortcut.description)
-                            .font(.caption2)
-                    }
                 }
                 .foregroundStyle(.secondary)
             }
