@@ -96,14 +96,6 @@ cat > "${APP_BUNDLE}/Contents/Info.plist" <<PLIST
     <string>${MIN_MACOS}</string>
     <key>LSApplicationCategoryType</key>
     <string>public.app-category.developer-tools</string>
-    <!-- macOS 14+ 的 ATS 默认拦截纯 IP 地址的 http 连接；自建 Bark 服务器
-         （http://192.168.x.x / http://nas / http://xxx.local）需要此豁免。
-         带完整域名的 http 仍被拦（应使用 https），不放开 NSAllowsArbitraryLoads。 -->
-    <key>NSAppTransportSecurity</key>
-    <dict>
-        <key>NSAllowsLocalNetworking</key>
-        <true/>
-    </dict>
     <key>NSPrincipalClass</key>
     <string>NSApplication</string>
     <key>NSSupportsAutomaticTermination</key>

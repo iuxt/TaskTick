@@ -86,11 +86,22 @@ final class ScriptExecutor: ObservableObject {
     private var stoppedServiceIDs: Set<UUID> = []
     private var serviceRestartTasks: [UUID: Task<Void, Never>] = [:]
 
-    private init() {}
+    private var activeLogs: [UUID: ExecutionLog] = [:]
+    private var executionContexts: [UUID: ModelContext] = [:]
+    private var executionControls: [UUID: ExecutionControl] = [:]
+    private var restartRequests: [UUID: UUID] = [:]
+
+    init() {}
 
     /// Run a task's script and return the execution log entry.
     @discardableResult
     func execute(task: ScheduledTask, triggeredBy: TriggerType = .manual, modelContext: ModelContext) async -> ExecutionLog {
+        // All entry points share this guard, including simultaneous UI/CLI runs.
+        if let active = activeLogs[task.id] { return active }
+        if adoptedProcesses[task.id] != nil,
+           let active = task.executionLogs.first(where: { $0.status == .running }) {
+            return active
+        }
         if task.isBackgroundService {
             stoppedServiceIDs.remove(task.id)
             serviceRestartTasks.removeValue(forKey: task.id)?.cancel()
@@ -100,9 +111,18 @@ final class ScriptExecutor: ObservableObject {
         // which entry point triggered the run. Set is idempotent, so callers
         // that also insert (TaskScheduler.fireTask) stay correct.
         TaskScheduler.shared.runningTaskIDs.insert(task.id)
-        defer { TaskScheduler.shared.runningTaskIDs.remove(task.id) }
-
+        let executionTaskID = task.id
         let log = ExecutionLog(task: task, triggeredBy: triggeredBy)
+        activeLogs[executionTaskID] = log
+        executionContexts[log.id] = modelContext
+        executionControls[executionTaskID] = ExecutionControl()
+        defer {
+            activeLogs.removeValue(forKey: executionTaskID)
+            executionContexts.removeValue(forKey: log.id)
+            executionControls.removeValue(forKey: executionTaskID)
+            runningProcesses.removeValue(forKey: executionTaskID)
+            TaskScheduler.shared.runningTaskIDs.remove(executionTaskID)
+        }
         modelContext.insert(log)
         let startTime = Date()
         // Bump the manual-run recency NOW (not at end) so long-running scripts
@@ -131,12 +151,6 @@ final class ScriptExecutor: ObservableObject {
         let notifyOnSuccess = task.notifyOnSuccess
         let notifyOnFailure = task.notifyOnFailure
         let notifyOnlyWhenOutput = task.notifyOnlyWhenOutput
-        let pushEnabled = task.pushEnabled
-        let pushOnlyWhenOutputChanged = task.pushOnlyWhenOutputChanged
-        // Resolved up front, alongside every other captured property: the task
-        // can be deleted mid-run, and the completion push should still reach
-        // the channels the user picked for it.
-        let pushChannels = pushEnabled ? PushChannelStore.resolve(for: task) : []
         let strongReminder = task.strongReminder
         // Switch off → empty template → every channel keeps its default wording,
         // while the text the user wrote stays on the task for later.
@@ -213,7 +227,7 @@ final class ScriptExecutor: ObservableObject {
             logId: logId,
             ignoreExitCode: ignoreExitCode,
             logFileWriter: logFileWriter,
-            captureLimitBytes: isBackgroundService ? ExecutionLog.maxOutputSize : nil
+            captureLimitBytes: ExecutionLog.maxOutputSize
         )
 
         let endTime = Date()
@@ -255,7 +269,7 @@ final class ScriptExecutor: ObservableObject {
         let durationText = "\(L10n.tr("notification.duration")) \(ExecutionLog.formatDuration(durationMs))"
 
         // A task's custom reminder text (issue #48) is rendered once and shared
-        // by all three channels below — notification, remote push, strong reminder —
+        // by system notifications and the strong reminder below
         // so the same run reads identically wherever the user sees it. nil
         // means "no template configured": each channel keeps its own wording.
         let customBody = NotificationTemplate.render(
@@ -269,29 +283,18 @@ final class ScriptExecutor: ObservableObject {
                 succeeded: result.status == .success
             )
         )
-        let customPushBody = customBody.map(NotificationTemplate.clampForPush)
+        let customNotificationBody = customBody.map(NotificationTemplate.clampForNotification)
 
-        if result.status != .success {
+        if result.status == .failure || result.status == .timeout {
             let exitInfo = "Exit code: \(result.exitCode ?? -1)"
             let stderrLine = result.stderr.components(separatedBy: .newlines).first(where: { !$0.trimmingCharacters(in: .whitespaces).isEmpty }) ?? ""
-            let body = customPushBody
+            let body = customNotificationBody
                 ?? [exitInfo, durationText, stderrLine].filter { !$0.isEmpty }.joined(separator: " · ")
             let title = "[\(L10n.tr("notification.failed"))] \(taskName)"
             if globalNotificationsEnabled && notifyOnFailure {
                 NotificationManager.shared.sendNotification(title: title, body: body)
             }
-            sendPushIfNeeded(
-                enabled: pushEnabled,
-                onlyOnChange: pushOnlyWhenOutputChanged,
-                channels: pushChannels,
-                title: title,
-                body: body,
-                stdout: result.stdout,
-                stderr: result.stderr,
-                task: fetchedTask,
-                modelContext: modelContext
-            )
-        } else {
+        } else if result.status == .success {
             // "Notify only when output present" mode: polling scripts stay silent on
             // empty runs and only chirp when they `echo` something meaningful.
             // Whitespace-only stdout counts as no output (a script ending in a stray
@@ -303,22 +306,11 @@ final class ScriptExecutor: ObservableObject {
                 let outputLine = NotificationTemplate.firstMeaningfulLine(of: outputSource)
                 let body = [durationText, outputLine].filter { !$0.isEmpty }.joined(separator: " · ")
                 let title = "[\(L10n.tr("notification.succeeded"))] \(taskName)"
-                let resolvedBody = customPushBody
+                let resolvedBody = customNotificationBody
                     ?? (body.isEmpty ? L10n.tr("notification.success") : body)
                 if globalNotificationsEnabled && notifyOnSuccess {
                     NotificationManager.shared.sendNotification(title: title, body: resolvedBody)
                 }
-                sendPushIfNeeded(
-                    enabled: pushEnabled,
-                    onlyOnChange: pushOnlyWhenOutputChanged,
-                    channels: pushChannels,
-                    title: title,
-                    body: resolvedBody,
-                    stdout: result.stdout,
-                    stderr: result.stderr,
-                    task: fetchedTask,
-                    modelContext: modelContext
-                )
             }
         }
 
@@ -377,38 +369,23 @@ final class ScriptExecutor: ObservableObject {
         }
     }
 
-    /// Remote push is independent of the macOS notification switch. When
-    /// `onlyOnChange` is on, compare this run's output to the last
-    /// fingerprinted run and stay silent if nothing changed.
-    ///
-    /// `channels` is resolved before the run rather than here: the task may
-    /// have been deleted while the script was running, and the user's channel
-    /// choice shouldn't disappear with it.
-    private func sendPushIfNeeded(
-        enabled: Bool,
-        onlyOnChange: Bool,
-        channels: [PushChannel],
-        title: String,
-        body: String,
-        stdout: String,
-        stderr: String,
-        task: ScheduledTask?,
-        modelContext: ModelContext
-    ) {
-        guard enabled, !channels.isEmpty else { return }
-        if onlyOnChange {
-            let fingerprint = PushDispatcher.outputFingerprint(stdout: stdout, stderr: stderr)
-            let shouldSend = PushDispatcher.shouldNotifyOnOutputChange(
-                previousFingerprint: task?.lastPushOutputFingerprint,
-                currentFingerprint: fingerprint
-            )
-            if let task {
-                task.lastPushOutputFingerprint = fingerprint
-                do { try modelContext.save() } catch { NSLog("⚠️ Push fingerprint save failed: \(error)") }
-            }
-            guard shouldSend else { return }
+    /// Wait for the old execution (including pipe draining and log saves) before
+    /// starting its replacement. Repeated restart/stop requests supersede this one.
+    func restart(taskId: UUID, modelContext: ModelContext) async {
+        cancel(taskId: taskId)
+        let request = UUID()
+        restartRequests[taskId] = request
+        defer {
+            if restartRequests[taskId] == request { restartRequests.removeValue(forKey: taskId) }
         }
-        PushDispatcher.shared.send(title: title, body: body, to: channels)
+        while activeLogs[taskId] != nil || adoptedProcesses[taskId] != nil {
+            do { try await Task.sleep(for: .milliseconds(20)) } catch { return }
+            guard restartRequests[taskId] == request else { return }
+        }
+        guard restartRequests[taskId] == request, !Task.isCancelled else { return }
+        let descriptor = FetchDescriptor<ScheduledTask>(predicate: #Predicate { $0.id == taskId })
+        guard let task = try? modelContext.fetch(descriptor).first else { return }
+        _ = await execute(task: task, modelContext: modelContext)
     }
 
     /// Cancel a running task. Hits both the immediate child (zsh) and the
@@ -422,33 +399,22 @@ final class ScriptExecutor: ObservableObject {
     func cancel(taskId: UUID) {
         stoppedServiceIDs.insert(taskId)
         serviceRestartTasks.removeValue(forKey: taskId)?.cancel()
-        if let process = runningProcesses[taskId], process.isRunning {
-            let pid = process.processIdentifier
-            kill(-pid, SIGTERM)   // process group (no-op if setpgid lost the race)
-            process.terminate()   // belt and suspenders for the immediate child
-            DispatchQueue.global().asyncAfter(deadline: .now() + .seconds(3)) {
-                if process.isRunning {
-                    kill(-pid, SIGKILL)
-                    kill(pid, SIGKILL)
-                }
-            }
-        }
-        runningProcesses.removeValue(forKey: taskId)
+        restartRequests.removeValue(forKey: taskId)
+        // A queued execution has a control too: Stop prevents it from spawning.
+        // The worker owns signals and escalation, even after the leader exits.
+        executionControls[taskId]?.requestStop(.cancelled)
 
         if let adoptedPID = adoptedProcesses[taskId] {
             kill(-adoptedPID, SIGTERM)
-            DispatchQueue.global().asyncAfter(deadline: .now() + .seconds(3)) {
-                if ProcessReconciler.isAlive(pid: adoptedPID) {
-                    kill(-adoptedPID, SIGKILL)
-                }
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(3))
+                guard self.adoptedProcesses[taskId] == adoptedPID else { return }
+                kill(-adoptedPID, SIGKILL)
+                self.finalizeAdoptedLog(taskId: taskId, pid: adoptedPID,
+                    reason: "[TaskTick] Adopted process \(adoptedPID) was stopped by user.")
+                self.adoptedProcesses.removeValue(forKey: taskId)
+                TaskScheduler.shared.runningTaskIDs.remove(taskId)
             }
-            adoptedProcesses.removeValue(forKey: taskId)
-            TaskScheduler.shared.runningTaskIDs.remove(taskId)
-            // Normal-spawn cancels finalize the log when `execute(...)`'s
-            // waitUntilExit returns; adopted entries have no such await
-            // loop (launchd is the parent, not us). Write the terminal
-            // state here so the UI stops showing the task as running.
-            finalizeAdoptedLog(taskId: taskId, pid: adoptedPID, reason: "[TaskTick] Adopted process \(adoptedPID) was stopped by user.")
         }
     }
 
@@ -482,6 +448,9 @@ final class ScriptExecutor: ObservableObject {
     /// Adopted processes (re-acquired from a previous session, PID-only)
     /// go through the same two-stage flow via process-group signals.
     func cancelAll(graceful: TimeInterval = 0.3) {
+        restartRequests.removeAll()
+        for control in executionControls.values { control.requestStop(.cancelled) }
+        stoppedServiceIDs.formUnion(executionControls.keys)
         stoppedServiceIDs.formUnion(runningProcesses.keys)
         stoppedServiceIDs.formUnion(adoptedProcesses.keys)
         for restartTask in serviceRestartTasks.values { restartTask.cancel() }
@@ -504,10 +473,10 @@ final class ScriptExecutor: ObservableObject {
 
         Thread.sleep(forTimeInterval: graceful)
 
-        for process in processSnapshot where process.isRunning {
+        for process in processSnapshot {
             let pid = process.processIdentifier
             kill(-pid, SIGKILL)
-            kill(pid, SIGKILL)
+            if process.isRunning { kill(pid, SIGKILL) }
         }
         for pid in adoptedSnapshot where ProcessReconciler.isAlive(pid: pid) {
             kill(-pid, SIGKILL)
@@ -515,12 +484,10 @@ final class ScriptExecutor: ObservableObject {
     }
 
     /// Persist the running process's PID + start-time fingerprint to its
-    /// ExecutionLog row. Called from a background queue right after
-    /// `setpgid`. Uses the shared model container directly (mirrors
-    /// AppDelegate's same-singleton access pattern) so we don't have to
-    /// thread a non-Sendable `ModelContext` through cross-actor closures.
+    /// ExecutionLog row. The worker captures the fingerprint off the main
+    /// actor, then this method writes through the context that owns the run.
     private func persistRunningPID(logId: UUID, pid: Int32, startTime: String?) {
-        let ctx = TaskTickApp._sharedModelContainer.mainContext
+        guard let ctx = executionContexts[logId] else { return }
         let desc = FetchDescriptor<ExecutionLog>(predicate: #Predicate { $0.id == logId })
         if let live = try? ctx.fetch(desc).first {
             live.pid = pid
@@ -746,213 +713,162 @@ final class ScriptExecutor: ObservableObject {
         logFileWriter: LogFileWriter? = nil,
         captureLimitBytes: Int? = nil
     ) async -> ProcessResult {
-        // Treat any non-positive value as "no timeout" — the script runs until it
-        // exits on its own (or the user cancels). Lets users keep dev servers /
-        // long-running interactive processes alive without TaskTick killing them.
         let isUnlimited = timeoutSeconds <= 0
-
-        // Run the entire process on a background queue to avoid blocking the main thread
-        return await withCheckedContinuation { (continuation: CheckedContinuation<ProcessResult, Never>) in
-            // Bounded tasks share an 8-slot semaphore to prevent resource exhaustion.
-            // Unlimited tasks would hold their slot indefinitely and starve the
-            // scheduler, so they bypass the semaphore entirely.
-            if !isUnlimited {
-                self.executionSemaphore.wait()
-            }
+        let control = executionControls[taskId] ?? ExecutionControl()
+        let semaphore = executionSemaphore
+        return await withCheckedContinuation { continuation in
             DispatchQueue.global(qos: .userInitiated).async {
+                // Wait off the main actor, with a cancellable queueing period.
+                if !isUnlimited {
+                    while semaphore.wait(timeout: .now() + .milliseconds(50)) == .timedOut {
+                        if control.stopReason != nil {
+                            continuation.resume(returning: ProcessResult(
+                                stdout: "", stderr: "", exitCode: nil, status: .cancelled))
+                            return
+                        }
+                    }
+                }
+                defer { if !isUnlimited { semaphore.signal() } }
+                guard control.stopReason == nil else {
+                    continuation.resume(returning: ProcessResult(
+                        stdout: "", stderr: "", exitCode: nil, status: .cancelled))
+                    return
+                }
+
                 let process = Process()
                 let stdoutPipe = Pipe()
                 let stderrPipe = Pipe()
-
                 process.executableURL = executableURL
                 process.arguments = arguments
                 process.standardOutput = stdoutPipe
                 process.standardError = stderrPipe
-
                 if let dir = workingDirectory, !dir.isEmpty {
                     process.currentDirectoryURL = URL(fileURLWithPath: dir)
                 }
-
                 if let envVars = environmentVariables {
-                    var env = ProcessInfo.processInfo.environment
-                    for (key, value) in envVars {
-                        env[key] = value
-                    }
-                    process.environment = env
+                    process.environment = ProcessInfo.processInfo.environment.merging(envVars) { _, new in new }
                 }
-
-                // Collect output incrementally via readabilityHandler for real-time streaming
-                let stdoutHandle = stdoutPipe.fileHandleForReading
-                let stderrHandle = stderrPipe.fileHandleForReading
-
-                let outputBuffer = PipeOutputBuffer(maximumBytes: captureLimitBytes)
-                // Coalesce pipe chunks at 50ms intervals before dispatching to
-                // the main thread. With high-output scripts (npm run dev +
-                // Spring Boot) the pipe can fire 100+ times/sec — without
-                // batching each fire becomes a separate main-queue hop,
-                // saturating the run loop. 50ms is well under perceptible UI
-                // lag for live logs and lets us amortize the dispatch cost.
+                let outputBuffer = PipeOutputBuffer(maximumBytes: captureLimitBytes ?? ExecutionLog.maxOutputSize)
                 let batcher = IOBatcher(taskId: taskId)
-
-                // Scan stdout for `@tasktick:notify {…}` directives, strip them
-                // from the sinks, and fire one TaskTick notification each.
-                // Per-execution state: each run gets its own buffer + cap counter.
-                let directiveScanner = NotificationDirectiveScanner()
-                let directiveGate = DirectiveNotificationGate()
-                // Dispatch on main (FIFO) so notifications fire in the order the
-                // script printed them, and the cap counter stays single-threaded.
+                let scanner = NotificationDirectiveScanner()
+                let gate = DirectiveNotificationGate()
                 let fireDirective: @Sendable (NotificationDirective) -> Void = { directive in
                     DispatchQueue.main.async {
-                        guard directiveGate.count < DirectiveNotificationGate.maxPerRun else { return }
-                        let enabled = UserDefaults.standard.object(forKey: "notificationsEnabled") as? Bool ?? true
-                        guard enabled else { return }
-                        directiveGate.count += 1
+                        guard gate.count < DirectiveNotificationGate.maxPerRun,
+                              UserDefaults.standard.object(forKey: "notificationsEnabled") as? Bool ?? true else { return }
+                        gate.count += 1
                         NotificationManager.shared.sendNotification(title: directive.title, body: directive.body ?? "")
                     }
                 }
-
-                stdoutHandle.readabilityHandler = { handle in
-                    let data = handle.availableData
-                    guard !data.isEmpty else {
-                        stdoutHandle.readabilityHandler = nil
-                        return
+                func consume(_ data: Data, stdout: Bool) {
+                    if stdout {
+                        let (bytes, directives) = scanner.feed(data)
+                        directives.forEach(fireDirective)
+                        outputBuffer.appendStdout(bytes)
+                        logFileWriter?.append(bytes)
+                        batcher.appendStdout(bytes)
+                    } else {
+                        outputBuffer.appendStderr(data)
+                        logFileWriter?.append(data)
+                        batcher.appendStderr(data)
                     }
-                    let (passthrough, directives) = directiveScanner.feed(data)
-                    for directive in directives { fireDirective(directive) }
-                    guard !passthrough.isEmpty else { return }
-                    outputBuffer.appendStdout(passthrough)
-                    logFileWriter?.append(passthrough)
-                    batcher.appendStdout(passthrough)
                 }
 
-                stderrHandle.readabilityHandler = { handle in
-                    let data = handle.availableData
-                    guard !data.isEmpty else {
-                        stderrHandle.readabilityHandler = nil
-                        return
-                    }
-                    outputBuffer.appendStderr(data)
-                    logFileWriter?.append(data)
-                    batcher.appendStderr(data)
-                }
-
-                do {
-                    try process.run()
-                } catch {
-                    if !isUnlimited { self.executionSemaphore.signal() }
+                do { try process.run() } catch {
+                    logFileWriter?.close()
                     continuation.resume(returning: ProcessResult(
-                        stdout: "",
-                        stderr: "Failed to start process: \(error.localizedDescription)",
-                        exitCode: nil,
-                        status: .failure
-                    ))
+                        stdout: "", stderr: "Failed to start process: \(error.localizedDescription)",
+                        exitCode: nil, status: control.stopReason ?? .failure))
                     return
                 }
-
-                // Make the child its own process group leader so we can later
-                // signal the entire descendant tree with `kill(-pgid, sig)`.
-                // Without this, a `npm run dev` style script (zsh → npm → node)
-                // would leave the node grandchild orphaned when we SIGTERM only
-                // zsh — exactly the leak this app's quit-time cleanup must
-                // avoid. Race window is the gap between run() and setpgid; in
-                // practice scripts don't fork that early.
-                setpgid(process.processIdentifier, process.processIdentifier)
-
-                // Snapshot pid + start-time so the next app launch can tell
-                // whether this exact process is still alive (vs. PID recycled
-                // to a different program). Both fields are persisted to the
-                // log so a crash here doesn't lose the breadcrumb. lstart is
-                // captured here on the bg queue (not on @MainActor) so the
-                // ~10ms `ps` subprocess doesn't stall the UI.
-                let capturedPID = process.processIdentifier
-                let capturedStart = ProcessReconciler.startTime(pid: capturedPID)
-
+                // Foundation creates the child in its own group on macOS.
+                // Only signal a group whose ID belongs to this execution.
+                let pid = process.processIdentifier
+                let ownsGroup = getpgid(pid) == pid
+                let capturedStart = ProcessReconciler.startTime(pid: pid)
                 Task { @MainActor in
-                    self.runningProcesses[taskId] = process
-                    self.persistRunningPID(logId: logId, pid: capturedPID, startTime: capturedStart)
-                }
-
-                // Timeout handling: send SIGTERM first, then SIGKILL 3s later if still alive.
-                // Prevents scripts that ignore SIGTERM from blocking waitUntilExit forever,
-                // which would leak the execution semaphore slot.
-                // Skipped entirely for unlimited tasks (timeoutSeconds <= 0).
-                let timeoutWorkItem = DispatchWorkItem {
-                    if process.isRunning {
-                        process.terminate()
+                    if self.activeLogs[taskId]?.id == logId {
+                        self.runningProcesses[taskId] = process
+                        self.persistRunningPID(logId: logId, pid: pid, startTime: capturedStart)
                     }
                 }
-                let killWorkItem = DispatchWorkItem {
-                    if process.isRunning {
-                        kill(process.processIdentifier, SIGKILL)
-                    }
-                }
-                if !isUnlimited {
-                    DispatchQueue.global().asyncAfter(deadline: .now() + .seconds(timeoutSeconds), execute: timeoutWorkItem)
-                    DispatchQueue.global().asyncAfter(deadline: .now() + .seconds(timeoutSeconds + 3), execute: killWorkItem)
+                func signalTree(_ signal: Int32) {
+                    if ownsGroup { kill(-pid, signal) }
+                    if process.isRunning { kill(pid, signal) }
                 }
 
-                // Wait for process to finish (on background thread — won't block UI)
+                // One worker reads both pipes without blocking. A descendant that
+                // inherits a pipe cannot pin readDataToEndOfFile indefinitely.
+                let handles = [stdoutPipe.fileHandleForReading, stderrPipe.fileHandleForReading]
+                for handle in handles {
+                    let fd = handle.fileDescriptor
+                    _ = fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK)
+                }
+                defer { handles.forEach { try? $0.close() } }
+                var eof = [false, false]
+                var bytes = [UInt8](repeating: 0, count: 16 * 1024)
+                let started = ProcessInfo.processInfo.systemUptime
+                var stoppingAt: TimeInterval?
+                var exitedAt: TimeInterval?
+                var sentKill = false
+                while true {
+                    for index in 0..<2 where !eof[index] {
+                        // Bound each pass so a noisy stream cannot starve stop/deadline checks.
+                        for _ in 0..<16 {
+                            let count = read(handles[index].fileDescriptor, &bytes, bytes.count)
+                            if count > 0 {
+                                consume(Data(bytes.prefix(count)), stdout: index == 0)
+                            } else {
+                                if count == 0 || (errno != EAGAIN && errno != EINTR) { eof[index] = true }
+                                break
+                            }
+                        }
+                    }
+                    let now = ProcessInfo.processInfo.systemUptime
+                    let running = process.isRunning
+                    if !running && exitedAt == nil { exitedAt = now }
+                    if !running && eof.allSatisfy({ $0 }) && control.stopReason == nil { break }
+                    if !isUnlimited && now - started >= Double(timeoutSeconds) {
+                        control.requestStop(.timeout)
+                    }
+                    // A shell may exit leaving background children holding its pipes.
+                    // Give trailing output a bounded grace period, then clean them up.
+                    let drainExpired = exitedAt.map { now - $0 >= 3 } ?? false
+                    if stoppingAt == nil && (control.stopReason != nil || drainExpired) {
+                        stoppingAt = now
+                        signalTree(SIGTERM)
+                    }
+                    if let stoppingAt, now - stoppingAt >= 3 && !sentKill {
+                        signalTree(SIGKILL)
+                        sentKill = true
+                    }
+                    if !running, let stoppingAt {
+                        let groupAlive = ownsGroup && kill(-pid, 0) == 0
+                        if eof.allSatisfy({ $0 }) && (!groupAlive || sentKill) { break }
+                        if now - stoppingAt >= 3.5 { break }
+                    }
+                    Thread.sleep(forTimeInterval: 0.01)
+                }
                 process.waitUntilExit()
-                timeoutWorkItem.cancel()
-                killWorkItem.cancel()
-
-                // Drain remaining pipe data after process exits
-                stdoutHandle.readabilityHandler = nil
-                stderrHandle.readabilityHandler = nil
-                let remainingStdout = stdoutHandle.readDataToEndOfFile()
-                let remainingStderr = stderrHandle.readDataToEndOfFile()
-                // The drained stdout tail goes through the scanner too (feed then
-                // flush), so a directive printed right before exit — or one with no
-                // trailing newline — is detected and stripped, not leaked to the log.
-                let (drainPass, drainDirectives) = directiveScanner.feed(remainingStdout)
-                let (flushPass, flushDirectives) = directiveScanner.flush()
-                for directive in drainDirectives + flushDirectives { fireDirective(directive) }
-                var tailStdout = drainPass
-                tailStdout.append(flushPass)
-                if !tailStdout.isEmpty {
-                    outputBuffer.appendStdout(tailStdout)
-                    logFileWriter?.append(tailStdout)
-                    batcher.appendStdout(tailStdout)
-                }
-                if !remainingStderr.isEmpty {
-                    outputBuffer.appendStderr(remainingStderr)
-                    logFileWriter?.append(remainingStderr)
-                    batcher.appendStderr(remainingStderr)
-                }
+                let (tail, directives) = scanner.flush()
+                directives.forEach(fireDirective)
+                outputBuffer.appendStdout(tail)
+                logFileWriter?.append(tail)
+                batcher.appendStdout(tail)
                 logFileWriter?.close()
-                // Make sure any pending batched data lands in LiveOutputManager
-                // before the executor flips the task off — otherwise the live
-                // viewer can miss the last frame between exit and stopTracking.
-                batcher.flushNow()
-
-                // Remove from running processes
-                Task { @MainActor in
-                    self.runningProcesses.removeValue(forKey: taskId)
-                }
-
                 let (stdoutData, stderrData) = outputBuffer.read()
-                let stdout = cleanTerminalOutput(decodeProcessOutput(stdoutData))
-                let stderr = cleanTerminalOutput(decodeProcessOutput(stderrData))
-
                 let exitCode = Int(process.terminationStatus)
-
-                let status: ExecutionStatus
-                switch process.terminationReason {
-                case .uncaughtSignal:
-                    status = .timeout
-                case .exit:
-                    status = (exitCode == 0 || ignoreExitCode) ? .success : .failure
-                @unknown default:
-                    status = .failure
+                let status = control.stopReason ?? (
+                    process.terminationReason == .exit && (exitCode == 0 || ignoreExitCode)
+                        ? ExecutionStatus.success : .failure)
+                let result = ProcessResult(
+                    stdout: cleanTerminalOutput(decodeProcessOutput(stdoutData)),
+                    stderr: cleanTerminalOutput(decodeProcessOutput(stderrData)),
+                    exitCode: exitCode, status: status)
+                Task { @MainActor in
+                    batcher.flushNow()
+                    continuation.resume(returning: result)
                 }
-
-                if !isUnlimited { self.executionSemaphore.signal() }
-                continuation.resume(returning: ProcessResult(
-                    stdout: stdout,
-                    stderr: stderr,
-                    exitCode: exitCode,
-                    status: status
-                ))
             }
         }
     }

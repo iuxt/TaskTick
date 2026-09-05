@@ -240,9 +240,7 @@ public final class ScheduledTask {
     /// Kept separate from the text itself so switching back to the default
     /// wording doesn't throw away a template the user wrote.
     public var notificationTemplateEnabled: Bool = false
-    /// Custom reminder body, shared by every delivery channel — system
-    /// notification, Bark push and the strong-reminder panel. The channel
-    /// decides *how* the reminder shows up; this decides *what* it says.
+    /// Custom reminder body shared by system notifications and the strong-reminder panel.
     /// Supports `{{output}}`, `{{firstLine}}`, `{{lastLine}}`, `{{name}}`,
     /// `{{duration}}`, `{{exitCode}}` and `{{status}}` placeholders. Only
     /// consulted when `notificationTemplateEnabled` is on.
@@ -257,28 +255,6 @@ public final class ScheduledTask {
     /// "action feedback" banner (Started/Stopped/Restarted). Default `false`
     /// keeps these banners off unless the user opts in per task.
     public var notifyOnAction: Bool = false
-    /// When true, this task sends a remote push on completion (success and
-    /// failure). Default `false` keeps existing tasks unchanged on SwiftData
-    /// migration.
-    ///
-    /// The `bark` prefix on this and the two properties below is legacy
-    /// storage: they predate issue #51, when Bark was the only endpoint.
-    /// SwiftData can't rename a property without a store migration, so the
-    /// columns keep their names and the code reads them through the
-    /// provider-neutral aliases (`pushEnabled` and friends) further down.
-    public var barkPushEnabled: Bool = false
-    /// When true (and push is on), a completion push is sent only if this
-    /// run's script output differs from the previous run. Default `false`
-    /// keeps existing tasks notifying on every completion.
-    public var barkNotifyOnOutputChange: Bool = false
-    /// SHA-256 of the last compared script output. Runtime only — not
-    /// exported. nil means no previous run has been fingerprinted yet.
-    public var lastBarkOutputFingerprint: String? = nil
-    /// Which push channels this task delivers to (issue #51) — a JSON array of
-    /// channel UUID strings. `nil` means "every enabled channel", which is both
-    /// the pre-#51 behavior and the sane default for a task the user hasn't
-    /// narrowed down. Resolution lives in `PushChannelStore.resolve`.
-    public var pushChannelIDsJSON: String? = nil
     /// Upper bound (seconds) for random scheduling jitter — issue #38. When > 0
     /// every computed fire time gets a deterministic pseudo-random 0...N second
     /// delay so repeats don't hit machine-precise instants. Default 0 keeps
@@ -441,48 +417,6 @@ public final class ScheduledTask {
     public var serviceRestartPolicy: ServiceRestartPolicy {
         get { ServiceRestartPolicy(rawValue: serviceRestartPolicyRaw) ?? .onFailure }
         set { serviceRestartPolicyRaw = newValue.rawValue }
-    }
-
-    // MARK: - Remote push (issue #51)
-
-    /// Provider-neutral aliases over the legacy `bark*` columns. Pure
-    /// pass-throughs — one storage location, so the two names can never
-    /// disagree — that keep new multi-provider code from reading
-    /// `barkPushEnabled` while it pushes to Gotify.
-    public var pushEnabled: Bool {
-        get { barkPushEnabled }
-        set { barkPushEnabled = newValue }
-    }
-
-    public var pushOnlyWhenOutputChanged: Bool {
-        get { barkNotifyOnOutputChange }
-        set { barkNotifyOnOutputChange = newValue }
-    }
-
-    public var lastPushOutputFingerprint: String? {
-        get { lastBarkOutputFingerprint }
-        set { lastBarkOutputFingerprint = newValue }
-    }
-
-    /// Decoded view of `pushChannelIDsJSON`. `nil` = every enabled channel.
-    /// Unparseable ids are dropped rather than failing the whole selection —
-    /// a corrupt entry shouldn't silence a task's notifications entirely.
-    public var pushChannelIDs: [UUID]? {
-        get {
-            guard let json = pushChannelIDsJSON,
-                  let data = json.data(using: .utf8),
-                  let raw = try? JSONDecoder().decode([String].self, from: data)
-            else { return nil }
-            return raw.compactMap(UUID.init(uuidString:))
-        }
-        set {
-            guard let value = newValue,
-                  let data = try? JSONEncoder().encode(value.map(\.uuidString)) else {
-                pushChannelIDsJSON = nil
-                return
-            }
-            pushChannelIDsJSON = String(data: data, encoding: .utf8)
-        }
     }
 
     /// Repeat cadence for display, cron-aware: cron tasks describe their

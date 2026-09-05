@@ -119,6 +119,7 @@ struct CrontabImporter {
     /// Import crontab entries as ScheduledTask objects.
     /// Throws the underlying save error so the caller can present UI;
     /// this keeps the importer free of AppKit/UI dependencies.
+    @MainActor
     static func importEntries(_ entries: [CrontabEntry], into context: ModelContext) throws -> Int {
         var imported = 0
         var insertedTasks: [ScheduledTask] = []
@@ -141,6 +142,7 @@ struct CrontabImporter {
             // Store original cron for reference
             task.cronExpression = entry.cronExpression
             task.schedule = .cron
+            task.nextRunAt = TaskScheduler.shared.computeNextRunDate(for: task)
 
             context.insert(task)
             insertedTasks.append(task)

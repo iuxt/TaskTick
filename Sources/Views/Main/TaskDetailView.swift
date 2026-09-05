@@ -342,25 +342,10 @@ struct TaskDetailView: View {
                         }
                     }()
                     detailRow(L10n.tr("editor.section.notification"), value: notifyLabel)
-                    if task.pushEnabled {
-                        detailRow(L10n.tr("settings.push"), value: pushSummary)
-                    }
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-    }
-
-    /// "Bark, Gotify · Only when output changes", or an explicit warning when
-    /// the task's push switch is on but nothing will actually receive it —
-    /// the one state a user would otherwise have to discover by not getting
-    /// notified.
-    private var pushSummary: String {
-        let channels = PushChannelStore.resolve(for: task)
-        guard !channels.isEmpty else { return L10n.tr("task.detail.push.no_channel") }
-        let names = channels.map(\.displayName).joined(separator: ", ")
-        guard task.pushOnlyWhenOutputChanged else { return names }
-        return "\(names) · \(L10n.tr("editor.notify_push.on_output_change"))"
     }
 
     // MARK: - Script Card

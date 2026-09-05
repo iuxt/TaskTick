@@ -46,7 +46,7 @@ struct StatusCommand: AsyncParsableCommand {
         // Global summary
         let runningTasks = allTasks.filter { runningIds.contains($0.id) }
         let runningDTOs: [StatusGlobalDTO.RunningTask] = runningTasks.compactMap { task in
-            guard let log = try? store.fetchLatestLog(forTaskId: task.id) else { return nil }
+            guard let log = try? store.fetchRunningLog(forTaskId: task.id) else { return nil }
             let elapsed = Int(Date().timeIntervalSince(log.startedAt))
             return .init(id: task.id, name: task.name, startedAt: log.startedAt, elapsedSec: elapsed)
         }

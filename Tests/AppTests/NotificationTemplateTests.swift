@@ -153,17 +153,17 @@ final class NotificationTemplateTests: XCTestCase {
         XCTAssertEqual(rendered, "Sync: done (2s)")
     }
 
-    // MARK: - Push clamping
+    // MARK: - Notification clamping
 
     func testClampLeavesShortBodiesAlone() {
-        XCTAssertEqual(NotificationTemplate.clampForPush("short"), "short")
+        XCTAssertEqual(NotificationTemplate.clampForNotification("short"), "short")
     }
 
-    /// stdout is capped at 512 KB; banners and Bark must not carry all of it.
+    /// stdout is capped at 512 KB; banners must not carry all of it.
     func testClampTruncatesOversizedBody() {
-        let body = String(repeating: "x", count: NotificationTemplate.pushBodyLimit + 500)
-        let clamped = NotificationTemplate.clampForPush(body)
-        XCTAssertEqual(clamped.count, NotificationTemplate.pushBodyLimit + 1)
+        let body = String(repeating: "x", count: NotificationTemplate.notificationBodyLimit + 500)
+        let clamped = NotificationTemplate.clampForNotification(body)
+        XCTAssertEqual(clamped.count, NotificationTemplate.notificationBodyLimit + 1)
         XCTAssertTrue(clamped.hasSuffix("…"))
     }
 }

@@ -71,7 +71,7 @@ public final class ExecutionLog {
     public var durationMs: Int?
     public var triggeredByRaw: String = TriggerType.manual.rawValue
 
-    /// PID of the process group leader (set by setpgid in ScriptExecutor).
+    /// PID of the process group leader managed by ScriptExecutor.
     /// Nil for logs from before this feature shipped, and for runs whose
     /// process never reached `setpgid` (start failure).
     public var pid: Int32?

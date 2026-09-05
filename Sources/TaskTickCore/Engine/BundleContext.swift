@@ -33,6 +33,8 @@ public enum BundleContext {
     }
 
     /// True if the resolved bundle ID corresponds to the dev variant.
+    public static var urlScheme: String { isDev ? "tasktick-dev" : "tasktick" }
+
     public static var isDev: Bool {
         bundleID.hasSuffix(".dev")
     }

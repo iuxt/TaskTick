@@ -61,13 +61,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             // beneath the search bar.
             QuickLauncherController.shared.prewarmCursorUI()
             cleanupStaleRunningLogs()
-            // One-shot: folds the pre-#51 `barkServerURL` setting into a real
-            // push channel and pins the tasks that were using it. Runs here,
-            // not in a view's onAppear, because a login-item launch creates no
-            // window and the migration would simply never happen.
-            PushChannelStore.migrateLegacyBarkIfNeeded(
-                context: TaskTickApp._sharedModelContainer.mainContext
-            )
+            // Remove saved endpoints and credentials for the retired remote notification feature.
+            for key in ["pushChannels", "barkServerURL", "pushChannelsMigratedFromBark"] {
+                UserDefaults.standard.removeObject(forKey: key)
+            }
             TaskScheduler.shared.startAdoptionPoll()
         }
 

@@ -41,10 +41,9 @@ final class IOBatcher: @unchecked Sendable {
 
     /// Force-flush pending data through the main queue immediately. Called
     /// at process exit so the last frame lands before tracking is torn down.
+    @MainActor
     func flushNow() {
-        DispatchQueue.main.async { [weak self] in
-            self?.flush()
-        }
+        flush()
     }
 
     /// Atomically apply a mutation, then report whether a flush should be

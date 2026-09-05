@@ -59,6 +59,16 @@ final class ReadOnlyStore {
         return try container.mainContext.fetch(descriptor).first
     }
 
+    /// Current execution, including a task's very first run.
+    func fetchRunningLog(forTaskId taskId: UUID) throws -> ExecutionLog? {
+        var descriptor = FetchDescriptor<ExecutionLog>(
+            predicate: #Predicate { $0.task?.id == taskId && $0.statusRaw == "running" },
+            sortBy: [SortDescriptor(\.startedAt, order: .reverse)]
+        )
+        descriptor.fetchLimit = 1
+        return try container.mainContext.fetch(descriptor).first
+    }
+
     /// Most recent execution log for a task. Skips in-progress runs because
     /// their stdout/stderr live in GUI memory (LiveOutputManager) and aren't
     /// flushed to SwiftData until the run completes — fetching them here

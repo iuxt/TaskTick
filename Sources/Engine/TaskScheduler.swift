@@ -284,15 +284,18 @@ final class TaskScheduler: ObservableObject {
 
     func computeNextRunDate(for task: ScheduledTask, after date: Date = Date()) -> Date? {
         guard let base = computeBaseNextRunDate(for: task, after: date) else { return nil }
-        return Self.jittered(base, jitterSeconds: task.jitterSeconds, taskID: task.id)
+        let next = Self.jittered(base, jitterSeconds: task.jitterSeconds, taskID: task.id)
+        if task.endRepeatType == .onDate, let end = task.endRepeatDate, next > end {
+            return nil
+        }
+        return next
     }
 
     /// Random scheduling jitter (issue #38): delay `base` by a pseudo-random
     /// 0...jitterSeconds offset. The offset is a deterministic FNV-1a hash of
     /// (task id, base fire time) — schedule rebuilds within or across launches
     /// never re-roll a pending fire time, while each occurrence (different
-    /// base) gets a fresh offset. Note the jittered time may land slightly
-    /// past an `endRepeatDate` checked against the base — acceptable drift.
+    /// base) gets a fresh offset. The final time is checked against endRepeatDate.
     nonisolated static func jittered(_ base: Date, jitterSeconds: Int, taskID: UUID) -> Date {
         guard jitterSeconds > 0 else { return base }
         var hash: UInt64 = 0xcbf2_9ce4_8422_2325
@@ -507,10 +510,19 @@ final class TaskScheduler: ObservableObject {
         var occurrenceDay = calendar.startOfDay(for: scheduledDate)
         let logCount = task.executionLogs.filter { $0.modelContext != nil }.count
 
-        // ~2 years of daily steps, ~15 years of weekly. Pathological configs
-        // (e.g. end-on-date in the distant past with stride misaligned) bail
-        // out rather than spinning forever.
-        for _ in 0..<800 {
+        // Jump to the occurrence on/before the query's civil day, retaining
+        // the original weekly/biweekly phase across DST and old anchors.
+        let strideDays = intervalComponent == .weekOfYear ? intervalValue * 7 : intervalValue
+        let elapsedDays = calendar.dateComponents(
+            [.day], from: occurrenceDay, to: calendar.startOfDay(for: date)
+        ).day ?? 0
+        if elapsedDays > 0,
+           let advanced = calendar.date(byAdding: .day,
+               value: (elapsedDays / strideDays) * strideDays, to: occurrenceDay) {
+            occurrenceDay = advanced
+        }
+        // At most seven daily steps are needed for weekday/weekend filtering.
+        for _ in 0..<8 {
             let weekday = calendar.component(.weekday, from: occurrenceDay)
             let dayValid: Bool = switch repeatType {
             case .weekdays: (2...6).contains(weekday)

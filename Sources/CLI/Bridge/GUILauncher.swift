@@ -6,14 +6,8 @@ import TaskTickCore
 /// and waits up to 10s for it to be ready before returning.
 enum GUILauncher {
 
-    /// Bundle IDs to look for. Includes the dev variant so `tasktick` invoked
-    /// during development still works against TaskTick Dev.app.
-    private static let bundleIds = ["com.lifedever.TaskTick", "com.lifedever.TaskTick.dev"]
-
     static func isRunning() -> Bool {
-        bundleIds.contains { id in
-            !NSRunningApplication.runningApplications(withBundleIdentifier: id).isEmpty
-        }
+        !NSRunningApplication.runningApplications(withBundleIdentifier: BundleContext.bundleID).isEmpty
     }
 
     /// Launch TaskTick without dispatching any action — used by `create`,
@@ -22,7 +16,7 @@ enum GUILauncher {
     /// doesn't fit a multi-field create payload).
     static func launchAndWait(timeout: TimeInterval = 10) -> Bool {
         // Pick URL Scheme based on the CLI's bundle context.
-        let scheme = BundleContext.isDev ? "tasktick-dev" : "tasktick"
+        let scheme = BundleContext.urlScheme
         // Use a no-op host so AppDelegate.parse() returns nil and just wakes
         // the app without trying to act on a task. The URL still works to
         // launch the app via LaunchServices.
@@ -45,7 +39,7 @@ enum GUILauncher {
         // (inside TaskTick Dev.app) uses tasktick-dev:// which is registered
         // only by the dev .app, eliminating LaunchServices ambiguity when
         // both apps are installed.
-        let scheme = BundleContext.isDev ? "tasktick-dev" : "tasktick"
+        let scheme = BundleContext.urlScheme
         guard let url = URL(string: "\(scheme)://\(action.rawValue)?id=\(taskId.uuidString)") else {
             return false
         }

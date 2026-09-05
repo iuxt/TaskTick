@@ -3,10 +3,8 @@ import TaskTickCore
 
 /// Renders a task's custom reminder text (issue #48).
 ///
-/// One template per task, shared by every delivery channel — the system
-/// notification body, the Bark push body and the strong-reminder panel. The
-/// channel is only a *type* of reminder; the content comes from here, so the
-/// same run reads identically wherever the user sees it.
+/// One template per task, shared by system notifications and the strong-reminder
+/// panel so the same run reads identically wherever the user sees it.
 ///
 /// An empty template renders to `nil` and every caller falls back to its
 /// built-in wording, which is what existing tasks keep doing.
@@ -19,11 +17,9 @@ enum NotificationTemplate {
         "output", "firstLine", "lastLine", "name", "duration", "exitCode", "status"
     ]
 
-    /// Cap for the body handed to the system notification and Bark. `{{output}}`
-    /// can carry up to `ExecutionLog`'s 512 KB limit — a banner truncates that
-    /// anyway, and Bark would ship the whole payload over the network. The
-    /// strong-reminder panel scrolls, so it renders the untruncated text.
-    static let pushBodyLimit = 2000
+    /// Cap for the system notification body. The strong-reminder panel scrolls,
+    /// so it renders the untruncated text.
+    static let notificationBodyLimit = 2000
 
     struct Context {
         let taskName: String
@@ -58,10 +54,10 @@ enum NotificationTemplate {
         return rendered
     }
 
-    /// Clamp a rendered body for the push-style channels (notification / Bark).
-    static func clampForPush(_ body: String) -> String {
-        guard body.count > pushBodyLimit else { return body }
-        return String(body.prefix(pushBodyLimit)) + "…"
+    /// Clamp a rendered body for system notifications.
+    static func clampForNotification(_ body: String) -> String {
+        guard body.count > notificationBodyLimit else { return body }
+        return String(body.prefix(notificationBodyLimit)) + "…"
     }
 
     private static func values(for context: Context) -> [String: String] {

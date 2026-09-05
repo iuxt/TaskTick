@@ -133,6 +133,48 @@ struct TaskSchedulerTests {
         }
     }
 
+    @Test("Old multi-time schedules fast-forward to the current day")
+    @MainActor
+    func oldAdditionalTimesStillSchedule() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let scheduled = calendar.date(from: DateComponents(
+            year: 2023, month: 1, day: 1, hour: 9
+        ))!
+        let now = calendar.date(from: DateComponents(
+            year: 2026, month: 9, day: 5, hour: 10
+        ))!
+        let task = ScheduledTask(
+            name: "old multi-time", scheduledDate: scheduled, repeatType: .daily
+        )
+        task.timeZoneIdentifier = "UTC"
+        task.additionalTimes = [DateComponents(hour: 18, minute: 0)]
+
+        #expect(TaskScheduler.shared.computeNextRunDate(for: task, after: now) == calendar.date(
+            from: DateComponents(year: 2026, month: 9, day: 5, hour: 18)
+        ))
+    }
+
+    @Test("Cron schedule does not cross its end date")
+    @MainActor
+    func cronHonorsEndDate() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let now = calendar.date(from: DateComponents(
+            year: 2026, month: 9, day: 5, hour: 10
+        ))!
+        let task = ScheduledTask(name: "ending cron")
+        task.schedule = .cron
+        task.cronExpression = "0 9 * * *"
+        task.timeZoneIdentifier = "UTC"
+        task.endRepeatType = .onDate
+        task.endRepeatDate = calendar.date(from: DateComponents(
+            year: 2026, month: 9, day: 5, hour: 12
+        ))!
+
+        #expect(TaskScheduler.shared.computeNextRunDate(for: task, after: now) == nil)
+    }
+
     // Roundtrip: encoding then decoding `additionalTimes` should survive.
     @Test("additionalTimes serializes and deserializes via JSON")
     @MainActor

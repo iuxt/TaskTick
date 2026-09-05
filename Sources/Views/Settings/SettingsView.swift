@@ -186,12 +186,6 @@ struct SettingsView: View {
 
     // MARK: - Notifications
 
-    /// System notifications and remote push channels are the two halves of one
-    /// question — "how does a finished task reach me?" — so they share a tab.
-    /// They used to sit in General, which had accumulated everything from
-    /// appearance to default shell; the channel list (issue #51) is the first
-    /// item here that manages a collection rather than flipping a switch, and
-    /// it needs the room.
     private var notificationsTab: some View {
         Form {
             Section {
@@ -201,13 +195,8 @@ struct SettingsView: View {
             } footer: {
                 Text(L10n.tr("settings.notifications.hint"))
             }
-
-            PushChannelsSection()
         }
         .formStyle(.grouped)
-        // The launch-time Bark→channel migration writes straight to
-        // UserDefaults, possibly before PushChannelSettings was ever created.
-        .onAppear { PushChannelSettings.shared.reload() }
     }
 
     // MARK: - Quick Launcher
@@ -396,7 +385,7 @@ struct SettingsView: View {
         // the relaunch watcher — cancelling later would leave the store
         // already swapped under a live app plus a watcher waiting to
         // resurrect it.
-        if backup.format == .legacy, !AppDelegate.confirmTerminationOfRunningScripts() {
+        if (backup.format == .legacy || TaskTickApp._needsRecovery), !AppDelegate.confirmTerminationOfRunningScripts() {
             return
         }
         // Flush in-flight edits before swapping data so the user's last save isn't
@@ -414,16 +403,15 @@ struct SettingsView: View {
             let result = await backupManager.restore(from: backup)
             isRestoring = false
             switch result {
-            case .success:
-                switch backup.format {
-                case .legacy:
+            case .success(_, let requiresRestart):
+                if backup.format == .legacy || requiresRestart {
                     // Legacy restore swaps the SQLite files under SwiftData — must
                     // restart for the new file to be read.
                     let appPath = Bundle.main.bundlePath
                     let pid = ProcessInfo.processInfo.processIdentifier
                     let script = """
                     while kill -0 \(pid) 2>/dev/null; do sleep 0.5; done
-                    open "\(appPath)"
+                    open \(ScriptExecutor.singleQuoted(appPath))
                     """
                     let process = Process()
                     process.executableURL = URL(fileURLWithPath: "/bin/sh")
@@ -431,7 +419,7 @@ struct SettingsView: View {
                     try? process.run()
                     AppDelegate.shouldReallyQuit = true
                     NSApp.terminate(nil)
-                case .json:
+                } else {
                     // JSON restore went through ModelContext — no restart needed,
                     // SwiftUI views will refresh from the @Query subscription.
                     restoreSuccess = true

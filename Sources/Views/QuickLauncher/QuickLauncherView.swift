@@ -364,24 +364,14 @@ struct QuickLauncherView: View {
         onDismiss()
     }
 
-    /// ⌘R — restart. If the task is running, cancel and wait briefly for
-    /// SIGTERM to take effect before launching a fresh process. The wait is
-    /// short on purpose: scripts that ignore SIGTERM will overlap with the
-    /// new run for ~200ms, but that's preferable to blocking the UI thread
-    /// on `waitUntilExit`.
+    /// Restart through the same completion-aware path as the CLI.
     private func restartSelected() {
         guard let task = selectedTask else { return }
         let name = task.name
         let context = modelContext
-        let wasRunning = scheduler.runningTaskIDs.contains(task.id)
-        if wasRunning {
-            ScriptExecutor.shared.cancel(taskId: task.id)
-        }
+        let taskID = task.id
         Task {
-            if wasRunning {
-                try? await Task.sleep(for: .milliseconds(200))
-            }
-            _ = await ScriptExecutor.shared.execute(task: task, modelContext: context)
+            await ScriptExecutor.shared.restart(taskId: taskID, modelContext: context)
         }
         QuickLauncherUsage.markUsed(task.id)
         ActionToast.notify(.restarted(taskName: name), wantsBanner: task.notifyOnAction)

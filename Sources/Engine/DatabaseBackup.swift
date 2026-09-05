@@ -241,7 +241,7 @@ final class DatabaseBackup: ObservableObject {
     // MARK: - Restore
 
     enum RestoreResult {
-        case success(taskCount: Int)
+        case success(taskCount: Int, requiresRestart: Bool = false)
         case failed(message: String)
     }
 
@@ -267,6 +267,18 @@ final class DatabaseBackup: ObservableObject {
             // restart (legacy restore swaps SQLite files under SwiftData, which
             // can't be reloaded in-place).
             return restoreLegacy(from: entry)
+        }
+
+        if TaskTickApp._needsRecovery {
+            let storeURL = TaskTickApp._storeURL
+            return await Task.detached(priority: .userInitiated) {
+                do {
+                    try StoreRecovery.restore(payload.tasks, to: storeURL)
+                    return .success(taskCount: payload.tasks.count, requiresRestart: true)
+                } catch {
+                    return .failed(message: "Persistent recovery failed: \(error.localizedDescription)")
+                }
+            }.value
         }
 
         // Heavy SwiftData work off main: capture the container on main, then detach
@@ -529,23 +541,39 @@ final class DatabaseBackup: ObservableObject {
         let data = try Data(contentsOf: url)
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
-        return try decoder.decode(BackupPayload.self, from: data)
+        let payload = try decoder.decode(BackupPayload.self, from: data)
+        guard payload.format == BackupPayload.currentFormat,
+              payload.taskCount == payload.tasks.count else {
+            throw CocoaError(.fileReadCorruptFile)
+        }
+        return payload
     }
 
     private func pruneOldBackups(in backupDir: URL) {
-        let fm = FileManager.default
-        // Prune both JSON files and legacy dirs together; the user picked maxBackups
-        // for "total slots", not "JSON only". Sort by name desc (ISO timestamps).
-        guard let entries = try? fm.contentsOfDirectory(at: backupDir, includingPropertiesForKeys: nil) else { return }
-        let sorted = entries
-            .filter { $0.pathExtension == Self.fileExtension || $0.hasDirectoryPath }
-            .sorted { $0.lastPathComponent > $1.lastPathComponent }
+        Self.pruneOldBackups(in: backupDir, keeping: maxBackups,
+            legacyStoreName: TaskTickApp._storeURL.lastPathComponent)
+    }
 
-        if sorted.count > maxBackups {
-            for old in sorted.dropFirst(maxBackups) {
-                try? fm.removeItem(at: old)
-                Self.logger.info("Pruned old backup: \(old.lastPathComponent)")
+    /// Only known JSON snapshots and valid legacy store directories belong to
+    /// TaskTick. In particular, never recurse into arbitrary user folders.
+    static func pruneOldBackups(in directory: URL, keeping count: Int, legacyStoreName: String) {
+        let fm = FileManager.default
+        guard let entries = try? fm.contentsOfDirectory(at: directory,
+            includingPropertiesForKeys: [.isDirectoryKey, .isSymbolicLinkKey]) else { return }
+        let backups = entries.filter { url in
+            guard let values = try? url.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey]),
+                  values.isSymbolicLink != true else { return false }
+            if values.isDirectory == true {
+                guard Self.parseDate(fromName: url.lastPathComponent) != nil else { return false }
+                let store = url.appendingPathComponent(legacyStoreName)
+                let info = try? store.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey])
+                return info?.isRegularFile == true && info?.isSymbolicLink != true
             }
+            return url.pathExtension == Self.fileExtension && (try? Self.readPayload(at: url)) != nil
+        }.sorted { $0.lastPathComponent > $1.lastPathComponent }
+        for old in backups.dropFirst(max(1, count)) {
+            do { try fm.removeItem(at: old) }
+            catch { Self.logger.error("Cannot prune backup: \(error.localizedDescription)") }
         }
     }
 

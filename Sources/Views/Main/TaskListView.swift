@@ -296,9 +296,6 @@ struct TaskListView: View {
         copy.notifyOnlyWhenOutput = task.notifyOnlyWhenOutput
         copy.notificationTemplateEnabled = task.notificationTemplateEnabled
         copy.notificationTemplate = task.notificationTemplate
-        copy.pushEnabled = task.pushEnabled
-        copy.pushOnlyWhenOutputChanged = task.pushOnlyWhenOutputChanged
-        copy.pushChannelIDsJSON = task.pushChannelIDsJSON
         copy.strongReminder = task.strongReminder
         copy.ignoreExitCode = task.ignoreExitCode
         copy.isManualOnly = task.isManualOnly
@@ -463,7 +460,7 @@ struct TaskListRow: View {
 
             Spacer()
 
-            if isRunning {
+            if isRunning && !task.isBackgroundService {
                 ProgressView()
                     .controlSize(.mini)
                     // Same first-line alignment as the status icon, now that

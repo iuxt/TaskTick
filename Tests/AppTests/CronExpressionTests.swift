@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 @testable import TaskTickApp
 import TaskTickCore
@@ -53,6 +54,41 @@ struct CronExpressionTests {
         let cron = try CronExpression(parsing: "* * * * *")
         let next = cron.nextFireDate()
         #expect(next != nil)
+    }
+
+    @Test("Restricted day-of-month and weekday use crontab OR semantics")
+    func dayFieldsUseOrSemantics() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let start = calendar.date(from: DateComponents(
+            year: 2026, month: 9, day: 1, hour: 0, minute: 0
+        ))!
+        let cron = try CronExpression(parsing: "0 0 1 * 1")
+
+        // September 7 is a Monday and must match even though it is not day 1.
+        let next = cron.nextFireDate(after: start, calendar: calendar)
+        #expect(next == calendar.date(from: DateComponents(
+            year: 2026, month: 9, day: 7, hour: 0, minute: 0
+        )))
+    }
+
+    @Test("Steps in one-based fields start at the field minimum")
+    func oneBasedStepsUseFieldMinimum() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let start = calendar.date(from: DateComponents(
+            year: 2026, month: 9, day: 1, hour: 0, minute: 0
+        ))!
+
+        let dayStep = try CronExpression(parsing: "0 0 */2 * *")
+        #expect(dayStep.nextFireDate(after: start, calendar: calendar) == calendar.date(
+            from: DateComponents(year: 2026, month: 9, day: 3, hour: 0, minute: 0)
+        ))
+
+        let monthStep = try CronExpression(parsing: "0 0 1 */2 *")
+        #expect(monthStep.nextFireDate(after: start, calendar: calendar) == calendar.date(
+            from: DateComponents(year: 2026, month: 11, day: 1, hour: 0, minute: 0)
+        ))
     }
 
     @Test("Human readable presets")

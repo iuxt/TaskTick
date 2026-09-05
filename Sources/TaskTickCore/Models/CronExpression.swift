@@ -15,6 +15,8 @@ public struct CronExpression: Sendable {
     public let dayOfWeek: CronField
 
     public let raw: String
+    private let dayOfMonthUsesWildcard: Bool
+    private let dayOfWeekUsesWildcard: Bool
 
     public enum CronField: Sendable, Equatable {
         case any                          // *
@@ -69,6 +71,8 @@ public struct CronExpression: Sendable {
             throw ParseError.invalidFormat(expression)
         }
 
+        self.dayOfMonthUsesWildcard = parts[2].hasPrefix("*")
+        self.dayOfWeekUsesWildcard = parts[4].hasPrefix("*")
         self.minute = try Self.parseField(parts[0], fieldIndex: 0)
         self.hour = try Self.parseField(parts[1], fieldIndex: 1)
         self.dayOfMonth = try Self.parseField(parts[2], fieldIndex: 2)
@@ -208,19 +212,23 @@ public struct CronExpression: Sendable {
     /// `cronWeekday` uses cron numbering (0=Sunday..6=Saturday); Calendar's
     /// `.weekday` is 1=Sunday..7=Saturday, so callers pass `weekday - 1`.
     private func minuteLevelMatches(m: Int, h: Int, d: Int, mo: Int, cronWeekday: Int) -> Bool {
-        matches(field: month, value: mo) &&
-        matches(field: dayOfMonth, value: d) &&
-        matches(field: dayOfWeek, value: cronWeekday) &&
+        let domMatches = matches(field: dayOfMonth, value: d, minimum: 1)
+        let dowMatches = matches(field: dayOfWeek, value: cronWeekday)
+        // crontab combines restricted day fields with OR. A wildcard (including
+        // */N) in either field instead requires both fields to match.
+        let dayMatches = dayOfMonthUsesWildcard || dayOfWeekUsesWildcard
+            ? domMatches && dowMatches : domMatches || dowMatches
+        return matches(field: month, value: mo, minimum: 1) && dayMatches &&
         matches(field: hour, value: h) &&
         matches(field: minute, value: m)
     }
 
-    private func matches(field: CronField, value: Int) -> Bool {
+    private func matches(field: CronField, value: Int, minimum: Int = 0) -> Bool {
         switch field {
         case .any:
             return true
         case .step(let step):
-            return value % step == 0
+            return (value - minimum) % step == 0
         case .value(let v):
             return value == v
         case .range(let low, let high):
@@ -230,7 +238,7 @@ public struct CronExpression: Sendable {
                 switch entry {
                 case .value(let v): return value == v
                 case .range(let low, let high): return value >= low && value <= high
-                case .step(let step): return value % step == 0
+                case .step(let step): return (value - minimum) % step == 0
                 }
             }
         }

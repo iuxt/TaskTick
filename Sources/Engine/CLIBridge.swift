@@ -80,20 +80,8 @@ final class CLIBridge {
             ScriptExecutor.shared.cancel(taskId: task.id)
             ActionToast.notify(.stopped(taskName: task.name), wantsBanner: wantsBanner)
         case .restart:
-            let wasRunning = TaskScheduler.shared.runningTaskIDs.contains(task.id)
-            if wasRunning { ScriptExecutor.shared.cancel(taskId: task.id) }
             Task {
-                if wasRunning {
-                    // Wait for the old process group to actually leave before
-                    // starting its replacement. cancel() escalates to SIGKILL
-                    // after 3s, so this loop also covers SIGTERM-resistant apps.
-                    for _ in 0..<35 {
-                        if !TaskScheduler.shared.runningTaskIDs.contains(task.id) { break }
-                        try? await Task.sleep(for: .milliseconds(100))
-                    }
-                }
-                guard !TaskScheduler.shared.runningTaskIDs.contains(task.id) else { return }
-                _ = await ScriptExecutor.shared.execute(task: task, modelContext: context)
+                await ScriptExecutor.shared.restart(taskId: task.id, modelContext: context)
             }
             ActionToast.notify(.restarted(taskName: task.name), wantsBanner: wantsBanner)
         case .reveal:
@@ -107,7 +95,7 @@ final class CLIBridge {
     /// Parse `tasktick://run?id=<uuid>` into (action, uuid). Returns nil for
     /// malformed URLs.
     func parse(url: URL) -> (action: Action, taskId: UUID)? {
-        guard url.scheme == "tasktick",
+        guard url.scheme == BundleContext.urlScheme,
               let host = url.host,
               let action = Action(rawValue: host),
               let comps = URLComponents(url: url, resolvingAgainstBaseURL: false),

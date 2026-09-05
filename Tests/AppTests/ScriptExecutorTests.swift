@@ -1,5 +1,7 @@
 import Testing
 import Foundation
+import SwiftData
+import TaskTickCore
 @testable import TaskTickApp
 
 @Suite("ScriptExecutor Tests")
@@ -8,8 +10,195 @@ struct ScriptExecutorTests {
     @Test("Executor singleton exists")
     @MainActor
     func executorExists() {
-        let executor = ScriptExecutor.shared
-        #expect(executor != nil)
+        #expect(ScriptExecutor.shared === ScriptExecutor.shared)
+    }
+
+    @Test("A ninth bounded execution does not block the main actor")
+    @MainActor
+    func boundedQueueDoesNotBlockMainActor() async throws {
+        let schema = Schema([ScheduledTask.self, ExecutionLog.self])
+        let container = try ModelContainer(
+            for: schema,
+            configurations: [ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)]
+        )
+        let context = container.mainContext
+        let executor = ScriptExecutor()
+        var jobs: [Task<Void, Never>] = []
+        for index in 0..<9 {
+            let task = ScheduledTask(
+                name: "bounded-\(index)", scriptBody: "sleep 0.7", shell: "/bin/sh",
+                timeoutSeconds: 5, notifyOnSuccess: false, notifyOnFailure: false
+            )
+            context.insert(task)
+            jobs.append(Task { @MainActor in
+                _ = await executor.execute(task: task, modelContext: context)
+            })
+        }
+
+        let started = Date()
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(Date().timeIntervalSince(started) < 0.5)
+        for job in jobs { await job.value }
+    }
+
+    @Test("User cancellation is recorded separately from timeout")
+    @MainActor
+    func cancellationStatus() async throws {
+        let schema = Schema([ScheduledTask.self, ExecutionLog.self])
+        let container = try ModelContainer(
+            for: schema,
+            configurations: [ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)]
+        )
+        let context = container.mainContext
+        let executor = ScriptExecutor()
+        let task = ScheduledTask(
+            name: "cancel", scriptBody: "sleep 10", shell: "/bin/sh",
+            timeoutSeconds: 30, notifyOnSuccess: false, notifyOnFailure: false
+        )
+        context.insert(task)
+        let run = Task { @MainActor in
+            _ = await executor.execute(task: task, modelContext: context)
+        }
+        try await Task.sleep(for: .milliseconds(150))
+        executor.cancel(taskId: task.id)
+        await run.value
+
+        let log = try #require(task.executionLogs.first)
+        #expect(log.status == .cancelled)
+    }
+
+    @Test("A process crash is recorded as failure")
+    @MainActor
+    func crashStatus() async throws {
+        let schema = Schema([ScheduledTask.self, ExecutionLog.self])
+        let container = try ModelContainer(
+            for: schema,
+            configurations: [ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)]
+        )
+        let context = container.mainContext
+        let executor = ScriptExecutor()
+        let task = ScheduledTask(
+            name: "crash", scriptBody: "kill -KILL $$", shell: "/bin/sh",
+            timeoutSeconds: 30, notifyOnSuccess: false, notifyOnFailure: false
+        )
+        context.insert(task)
+
+        let log = await executor.execute(task: task, modelContext: context)
+
+        #expect(log.status == .failure)
+    }
+
+    @Test("Timeout kills descendants that ignore SIGTERM")
+    @MainActor
+    func timeoutKillsResistantDescendants() async throws {
+        let schema = Schema([ScheduledTask.self, ExecutionLog.self])
+        let container = try ModelContainer(
+            for: schema,
+            configurations: [ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)]
+        )
+        let context = container.mainContext
+        let executor = ScriptExecutor()
+        let task = ScheduledTask(
+            name: "timeout-tree",
+            scriptBody: "trap '' TERM\nsleep 20 & wait",
+            shell: "/bin/sh",
+            timeoutSeconds: 1,
+            notifyOnSuccess: false,
+            notifyOnFailure: false
+        )
+        context.insert(task)
+
+        let started = Date()
+        let log = await executor.execute(task: task, modelContext: context)
+
+        #expect(log.status == .timeout)
+        #expect(
+            Date().timeIntervalSince(started) < 8,
+            "A resistant descendant should be killed after the bounded escalation period"
+        )
+    }
+
+    @Test("Restart waits for cleanup and tracks the replacement process")
+    @MainActor
+    func restartTracksReplacementProcess() async throws {
+        let schema = Schema([ScheduledTask.self, ExecutionLog.self])
+        let container = try ModelContainer(
+            for: schema,
+            configurations: [ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)]
+        )
+        let context = container.mainContext
+        let executor = ScriptExecutor()
+        let task = ScheduledTask(
+            name: "restart",
+            scriptBody: "trap '' TERM\nsleep 20 & wait",
+            shell: "/bin/sh",
+            timeoutSeconds: -1,
+            notifyOnSuccess: false,
+            notifyOnFailure: false
+        )
+        context.insert(task)
+
+        let originalRun = Task { @MainActor in
+            _ = await executor.execute(task: task, modelContext: context)
+        }
+        let originalPID = try await waitForProcess(taskId: task.id, in: executor)?.processIdentifier
+        #expect(originalPID != nil)
+
+        task.scriptBody = "sleep 2"
+        let restartedRun = Task { @MainActor in
+            await executor.restart(taskId: task.id, modelContext: context)
+        }
+
+        let replacement = try await waitForProcess(taskId: task.id, in: executor) { process in
+            process.processIdentifier != originalPID
+        }
+        #expect(replacement != nil)
+        #expect(TaskScheduler.shared.runningTaskIDs.contains(task.id))
+
+        await originalRun.value
+        await restartedRun.value
+    }
+
+    @Test("Ordinary task output is bounded")
+    @MainActor
+    func ordinaryOutputIsBounded() async throws {
+        let schema = Schema([ScheduledTask.self, ExecutionLog.self])
+        let container = try ModelContainer(
+            for: schema,
+            configurations: [ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)]
+        )
+        let context = container.mainContext
+        let executor = ScriptExecutor()
+        let task = ScheduledTask(
+            name: "bounded-output",
+            scriptBody: "yes x | head -c 1048576",
+            shell: "/bin/sh",
+            timeoutSeconds: 5,
+            notifyOnSuccess: false,
+            notifyOnFailure: false
+        )
+        context.insert(task)
+
+        let log = await executor.execute(task: task, modelContext: context)
+
+        #expect(log.status == .success)
+        #expect((log.stdout ?? "").utf8.count <= ExecutionLog.maxOutputSize)
+    }
+
+    @MainActor
+    private func waitForProcess(
+        taskId: UUID,
+        in executor: ScriptExecutor,
+        matching predicate: (Process) -> Bool = { _ in true }
+    ) async throws -> Process? {
+        let deadline = Date().addingTimeInterval(6)
+        while Date() < deadline {
+            if let process = executor.runningProcesses[taskId], predicate(process) {
+                return process
+            }
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        return nil
     }
 
     /// Reproduces the ipcheck output-truncation bug: runs the same ipcheck
