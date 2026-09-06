@@ -1,7 +1,7 @@
 # TaskTick
 
 <p align="center">
-  <img src="docs/icon.svg" width="128" height="128" alt="TaskTick Icon">
+  <img src="docs/icon.png" width="128" height="128" alt="TaskTick Icon">
 </p>
 
 <h3 align="center">TaskTick 定时任务</h3>
