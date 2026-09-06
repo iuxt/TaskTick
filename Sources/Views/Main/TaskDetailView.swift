@@ -605,7 +605,9 @@ struct TaskDetailView: View {
             .buttonStyle(.plain)
             .pointerCursor()
 
-            // Trailing slot while running — spinner, or stop button on hover
+            // Long-running background processes show elapsed time instead of
+            // looking indefinitely stuck in a loading state. Hover still
+            // exposes the stop action; short-lived tasks keep their spinner.
             if log.status == .running {
                 if hoveredLogID == log.id {
                     Button {
@@ -618,6 +620,14 @@ struct TaskDetailView: View {
                     .buttonStyle(.plain)
                     .pointerCursor()
                     .help(L10n.tr("task.detail.stop"))
+                } else if task.isBackgroundService {
+                    TimelineView(.periodic(from: .now, by: 1)) { context in
+                        Text(RunningDuration.format(since: log.startedAt, now: context.date))
+                            .font(.system(.caption2, design: .monospaced))
+                            .foregroundStyle(.tertiary)
+                            .monospacedDigit()
+                    }
+                    .help(L10n.tr("status.running"))
                 } else {
                     ProgressView()
                         .controlSize(.mini)
