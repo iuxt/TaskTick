@@ -294,7 +294,7 @@ struct TaskTickApp: App {
 
         CommandGroup(replacing: .help) {
             Link(L10n.tr("command.github_home"), destination: URL(string: "https://github.com/iuxt")!)
-            Link(L10n.tr("command.report_issue"), destination: URL(string: "https://github.com/lifedever/TaskTick/issues")!)
+            Link(L10n.tr("command.report_issue"), destination: URL(string: "https://github.com/iuxt/TaskTick/issues")!)
         }
     }
 

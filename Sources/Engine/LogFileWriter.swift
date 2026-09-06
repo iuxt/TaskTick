@@ -12,7 +12,7 @@ import TaskTickCore
 final class LogFileWriter: @unchecked Sendable {
     let fileURL: URL
     private var handle: FileHandle?
-    private let queue = DispatchQueue(label: "com.lifedever.tasktick.logwriter")
+    private let queue = DispatchQueue(label: "com.iuxt.tasktick.logwriter")
     private let maximumBytes: Int64
     private let rotationCount: Int
     private var currentBytes: Int64

@@ -393,7 +393,7 @@
 "settings.about.build" = "Сборка";
 "settings.about.github" = "Репозиторий GitHub";
 "settings.about.issues" = "Сообщить о проблеме";
-"settings.about.copyright" = "© 2026 lifedever. Лицензия GPL-3.0.";
+"settings.about.copyright" = "© 2026 iuxt. Лицензия GPL-3.0.";
 "settings.about.description" = "Нативное приложение macOS для управления задачами по расписанию. Без crontab, без launchd — только TaskTick.";
 
 /* Commands */

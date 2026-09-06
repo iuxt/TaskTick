@@ -42,7 +42,7 @@ import os
 ///    throw there would crash the app on launch. Any failure is logged and
 ///    the caller falls back to opening the (possibly empty) new path.
 public enum StoreMigration {
-    private static let logger = Logger(subsystem: "com.lifedever.TaskTick", category: "StoreMigration")
+    private static let logger = Logger(subsystem: "com.iuxt.TaskTick", category: "StoreMigration")
     private static let tmpSuffix = ".migrating"
     /// All three SwiftData SQLite sidecars. Order matters for the rename phase.
     private static let extensions = ["-wal", "-shm", ""]

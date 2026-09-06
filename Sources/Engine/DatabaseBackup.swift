@@ -22,7 +22,7 @@ import TaskTickCore
 final class DatabaseBackup: ObservableObject {
     static let shared = DatabaseBackup()
 
-    private static let logger = Logger(subsystem: "com.lifedever.TaskTick", category: "DatabaseBackup")
+    private static let logger = Logger(subsystem: "com.iuxt.TaskTick", category: "DatabaseBackup")
     private static let fileExtension = "tasktickbackup"
     /// Filenames look like `2026-04-21T10-30-45Z.tasktickbackup` so they sort lexically.
     private static let timestampFormatter: ISO8601DateFormatter = {
@@ -64,7 +64,7 @@ final class DatabaseBackup: ObservableObject {
         self.isEnabled = UserDefaults.standard.object(forKey: "backupEnabled") as? Bool ?? true
         self.intervalHours = UserDefaults.standard.object(forKey: "backupIntervalHours") as? Int ?? 24
         self.maxBackups = UserDefaults.standard.object(forKey: "backupMaxCount") as? Int ?? 5
-        let bundleId = Bundle.main.bundleIdentifier ?? "com.lifedever.TaskTick"
+        let bundleId = Bundle.main.bundleIdentifier ?? "com.iuxt.TaskTick"
         let subDir = bundleId.hasSuffix(".dev") ? "backups-dev" : "backups"
         let defaultDir = NSHomeDirectory() + "/.tasktick/" + subDir
         self.customDirectory = UserDefaults.standard.string(forKey: "backupDirectory") ?? defaultDir

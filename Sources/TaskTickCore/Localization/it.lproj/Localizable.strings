@@ -393,7 +393,7 @@
 "settings.about.build" = "Build";
 "settings.about.github" = "Repository GitHub";
 "settings.about.issues" = "Segnala un problema";
-"settings.about.copyright" = "© 2026 lifedever. Licenza GPL-3.0.";
+"settings.about.copyright" = "© 2026 iuxt. Licenza GPL-3.0.";
 "settings.about.description" = "Un'app nativa per macOS per gestire le attività pianificate. Niente crontab, niente launchd, solo TaskTick.";
 
 /* Commands */

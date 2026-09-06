@@ -9,12 +9,12 @@ set -euo pipefail
 # ─────────────────────────────────────────────
 
 APP_NAME="TaskTick"
-BUNDLE_ID="com.lifedever.TaskTick"
+BUNDLE_ID="com.iuxt.TaskTick"
 # GitHub Actions exposes the owner/repository currently being built. Keep the
 # upstream repository as the local-release default, while allowing forks to
 # publish to themselves without editing this script.
-REPO="${GITHUB_REPOSITORY:-lifedever/TaskTick}"
-GITEE_REPO="lifedever/task-tick"
+REPO="${GITHUB_REPOSITORY:-iuxt/TaskTick}"
+GITEE_REPO="iuxt/task-tick"
 MIN_MACOS="14.0"
 
 # ── Parse args ──

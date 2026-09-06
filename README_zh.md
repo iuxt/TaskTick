@@ -12,14 +12,14 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/lifedever/TaskTick/releases/latest"><img src="https://img.shields.io/github/v/release/lifedever/TaskTick?style=flat-square&color=34D399&label=%E6%9C%80%E6%96%B0%E7%89%88%E6%9C%AC" alt="最新版本"></a>
-  <a href="https://github.com/lifedever/TaskTick/releases"><img src="https://img.shields.io/github/downloads/lifedever/TaskTick/total?style=flat-square&color=7C3AED&label=%E4%B8%8B%E8%BD%BD%E6%AC%A1%E6%95%B0" alt="下载次数"></a>
+  <a href="https://github.com/iuxt/TaskTick/releases/latest"><img src="https://img.shields.io/github/v/release/iuxt/TaskTick?style=flat-square&color=34D399&label=%E6%9C%80%E6%96%B0%E7%89%88%E6%9C%AC" alt="最新版本"></a>
+  <a href="https://github.com/iuxt/TaskTick/releases"><img src="https://img.shields.io/github/downloads/iuxt/TaskTick/total?style=flat-square&color=7C3AED&label=%E4%B8%8B%E8%BD%BD%E6%AC%A1%E6%95%B0" alt="下载次数"></a>
   <img src="https://img.shields.io/badge/platform-macOS%2014%2B-blue?style=flat-square" alt="Platform">
   <a href="https://www.gnu.org/licenses/gpl-3.0.html"><img src="https://img.shields.io/badge/license-GPL--3.0-blue?style=flat-square" alt="License"></a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/lifedever/TaskTick/releases/latest">⬇️ <strong>点击下载最新版本</strong></a>
+  <a href="https://github.com/iuxt/TaskTick/releases/latest">⬇️ <strong>点击下载最新版本</strong></a>
 </p>
 
 <p align="center">
@@ -29,7 +29,7 @@
 ---
 
 <p align="center">
-  <img src="https://cdn.jsdelivr.net/gh/lifedever/images@master/uPic/2026/03/CS2026-03-16-12.47.53@2x.png" width="800" alt="TaskTick 截图">
+  <img src="https://cdn.jsdelivr.net/gh/iuxt/images@master/uPic/2026/03/CS2026-03-16-12.47.53@2x.png" width="800" alt="TaskTick 截图">
 </p>
 
 ## 功能特色
@@ -58,7 +58,7 @@
 ### Homebrew（推荐）
 
 ```bash
-brew tap lifedever/tap
+brew tap iuxt/tap
 brew install --cask task-tick
 ```
 
@@ -70,7 +70,7 @@ brew upgrade --cask task-tick
 
 ### 下载
 
-从 [Releases](https://github.com/lifedever/TaskTick/releases) 下载最新 `.dmg`：
+从 [Releases](https://github.com/iuxt/TaskTick/releases) 下载最新 `.dmg`：
 
 | 文件 | 架构 |
 |------|------|
@@ -84,7 +84,7 @@ brew upgrade --cask task-tick
 ### 从源码构建
 
 ```bash
-git clone https://github.com/lifedever/TaskTick.git
+git clone https://github.com/iuxt/TaskTick.git
 cd TaskTick
 swift build -c release
 swift run
@@ -92,4 +92,4 @@ swift run
 
 ## 开源协议
 
-GPL-3.0 © [lifedever](https://github.com/lifedever)
+GPL-3.0 © [iuxt](https://github.com/iuxt)

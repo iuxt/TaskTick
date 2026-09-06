@@ -393,7 +393,7 @@
 "settings.about.build" = "빌드";
 "settings.about.github" = "GitHub 저장소";
 "settings.about.issues" = "문제 보고";
-"settings.about.copyright" = "© 2026 lifedever. GPL-3.0 라이선스.";
+"settings.about.copyright" = "© 2026 iuxt. GPL-3.0 라이선스.";
 "settings.about.description" = "예약 작업을 관리하는 네이티브 macOS 앱. crontab도, launchd도 필요 없이 TaskTick 하나면 됩니다.";
 
 /* Commands */

@@ -393,7 +393,7 @@
 "settings.about.build" = "ビルド";
 "settings.about.github" = "GitHubリポジトリ";
 "settings.about.issues" = "問題を報告";
-"settings.about.copyright" = "© 2026 lifedever. GPL-3.0 License.";
+"settings.about.copyright" = "© 2026 iuxt. GPL-3.0 License.";
 "settings.about.description" = "スケジュールタスクを管理するネイティブmacOSアプリ。crontabもlaunchdも不要 — TaskTickだけ。";
 
 /* Commands */

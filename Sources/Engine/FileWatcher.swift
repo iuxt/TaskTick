@@ -18,7 +18,7 @@ final class FileWatcher: @unchecked Sendable {
 
     /// Serial queue owns all source/fd state, so event handling, debounce,
     /// re-arm and cancel never race.
-    private let queue = DispatchQueue(label: "com.lifedever.TaskTick.FileWatcher")
+    private let queue = DispatchQueue(label: "com.iuxt.TaskTick.FileWatcher")
     private var source: DispatchSourceFileSystemObject?
     private var pendingNotify: DispatchWorkItem?
     private var cancelled = false

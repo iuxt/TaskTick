@@ -26,14 +26,15 @@ struct ScriptExecutorTests {
         )
         context.insert(task)
         let run = Task { @MainActor in
-            await executor.execute(task: task, modelContext: context)
+            _ = await executor.execute(task: task, modelContext: context)
         }
         let startedProcess = try await waitForProcess(taskId: task.id, in: executor)
         let process = try #require(startedProcess)
         let pid = process.processIdentifier
 
         await executor.suspendAndDrainForRestore()
-        let log = await run.value
+        await run.value
+        let log = try #require(task.executionLogs.first)
         #expect(log.status == .cancelled)
         #expect(log.finishedAt != nil)
         #expect(!process.isRunning)

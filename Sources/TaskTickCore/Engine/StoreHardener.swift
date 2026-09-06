@@ -14,7 +14,7 @@ import os
 /// `ModelContainer` opens the store, otherwise SwiftData will hold the connection
 /// and SQLite won't let us change the mode.
 public enum StoreHardener {
-    private static let logger = Logger(subsystem: "com.lifedever.TaskTick", category: "StoreHardener")
+    private static let logger = Logger(subsystem: "com.iuxt.TaskTick", category: "StoreHardener")
 
     /// Flush any pending WAL into the main DB and switch to DELETE journal mode.
     /// No-op if the store doesn't exist yet (first launch).

@@ -10,7 +10,7 @@ set -euo pipefail
 APP_NAME="TaskTick"
 SPM_TARGET="TaskTickApp"
 DEV_APP_NAME="TaskTick Dev"
-BUNDLE_ID="com.lifedever.TaskTick.dev"
+BUNDLE_ID="com.iuxt.TaskTick.dev"
 MIN_MACOS="14.0"
 
 PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"

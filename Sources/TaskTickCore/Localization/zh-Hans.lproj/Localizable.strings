@@ -393,7 +393,7 @@
 "settings.about.build" = "构建号";
 "settings.about.github" = "GitHub 主页";
 "settings.about.issues" = "报告问题";
-"settings.about.copyright" = "© 2026 lifedever. GPL-3.0 许可证.";
+"settings.about.copyright" = "© 2026 iuxt. GPL-3.0 许可证.";
 "settings.about.description" = "一款原生 macOS 定时任务管理应用。无需 crontab，无需 launchd，交给 TaskTick。";
 
 /* Commands */

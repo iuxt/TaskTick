@@ -393,7 +393,7 @@
 "settings.about.build" = "Build";
 "settings.about.github" = "Repositori GitHub";
 "settings.about.issues" = "Laporkan Masalah";
-"settings.about.copyright" = "© 2026 lifedever. Lisensi GPL-3.0.";
+"settings.about.copyright" = "© 2026 iuxt. Lisensi GPL-3.0.";
 "settings.about.description" = "Aplikasi macOS native untuk mengelola tugas terjadwal. Tanpa crontab, tanpa launchd — cukup TaskTick.";
 
 /* Commands */

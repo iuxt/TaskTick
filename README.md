@@ -12,14 +12,14 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/lifedever/TaskTick/releases/latest"><img src="https://img.shields.io/github/v/release/lifedever/TaskTick?style=flat-square&color=34D399&label=Latest" alt="Latest Release"></a>
-  <a href="https://github.com/lifedever/TaskTick/releases"><img src="https://img.shields.io/github/downloads/lifedever/TaskTick/total?style=flat-square&color=7C3AED&label=Downloads" alt="Downloads"></a>
+  <a href="https://github.com/iuxt/TaskTick/releases/latest"><img src="https://img.shields.io/github/v/release/iuxt/TaskTick?style=flat-square&color=34D399&label=Latest" alt="Latest Release"></a>
+  <a href="https://github.com/iuxt/TaskTick/releases"><img src="https://img.shields.io/github/downloads/iuxt/TaskTick/total?style=flat-square&color=7C3AED&label=Downloads" alt="Downloads"></a>
   <img src="https://img.shields.io/badge/platform-macOS%2014%2B-blue?style=flat-square" alt="Platform">
   <a href="https://www.gnu.org/licenses/gpl-3.0.html"><img src="https://img.shields.io/badge/license-GPL--3.0-blue?style=flat-square" alt="License"></a>
 </p>
 
 <p align="center">
-  <a href="https://github.com/lifedever/TaskTick/releases/latest">⬇️ <strong>Download Latest</strong></a>
+  <a href="https://github.com/iuxt/TaskTick/releases/latest">⬇️ <strong>Download Latest</strong></a>
 </p>
 
 <p align="center">
@@ -29,7 +29,7 @@
 ---
 
 <p align="center">
-  <img src="https://cdn.jsdelivr.net/gh/lifedever/images@master/uPic/2026/03/CS2026-03-16-12.47.53@2x.png" width="800" alt="TaskTick Screenshot">
+  <img src="https://cdn.jsdelivr.net/gh/iuxt/images@master/uPic/2026/03/CS2026-03-16-12.47.53@2x.png" width="800" alt="TaskTick Screenshot">
 </p>
 
 ## Features
@@ -58,7 +58,7 @@ Choose **Background** on the editor's Schedule tab, then configure auto-start, r
 ### Homebrew (Recommended)
 
 ```bash
-brew tap lifedever/tap
+brew tap iuxt/tap
 brew install --cask task-tick
 ```
 
@@ -70,7 +70,7 @@ brew upgrade --cask task-tick
 
 ### Download
 
-Grab the latest `.dmg` from [Releases](https://github.com/lifedever/TaskTick/releases):
+Grab the latest `.dmg` from [Releases](https://github.com/iuxt/TaskTick/releases):
 
 | File | Architecture |
 |------|-------------|
@@ -84,7 +84,7 @@ Grab the latest `.dmg` from [Releases](https://github.com/lifedever/TaskTick/rel
 ### Build from Source
 
 ```bash
-git clone https://github.com/lifedever/TaskTick.git
+git clone https://github.com/iuxt/TaskTick.git
 cd TaskTick
 swift build -c release
 swift run
@@ -92,4 +92,4 @@ swift run
 
 ## License
 
-GPL-3.0 © [lifedever](https://github.com/lifedever)
+GPL-3.0 © [iuxt](https://github.com/iuxt)
