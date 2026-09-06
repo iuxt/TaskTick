@@ -576,9 +576,8 @@ struct TaskDetailView: View {
 
     @ViewBuilder
     private func recentLogRow(_ log: ExecutionLog) -> some View {
-        // Outer button opens the detail sheet; the trailing area conditionally
-        // exposes a stop button on hover for `.running` logs (covers both live
-        // tasks and stale phantoms left over from an earlier session).
+        // Outer button opens the detail sheet; the trailing area exposes a
+        // stop button on hover for every running log, including stale sessions.
         HStack(spacing: 8) {
             Button {
                 selectedLogIdForSheet = log.id
