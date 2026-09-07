@@ -18,7 +18,7 @@
 "task.sort.descending" = "Absteigend";
 "task.search.prompt" = "Aufgaben suchen...";
 "task.empty.title" = "Noch keine Aufgaben";
-"task.empty.description" = "Klicke auf +, um deine erste geplante Aufgabe zu erstellen";
+"task.empty.description" = "Klicke auf +, um deine erste Aufgabe zu erstellen";
 "task.select.title" = "Aufgabe auswählen";
 "task.select.description" = "Wähle eine Aufgabe in der Seitenleiste aus, um Details anzuzeigen, oder klicke auf +, um eine neue zu erstellen";
 "task.interval.seconds" = "%d Sek.";

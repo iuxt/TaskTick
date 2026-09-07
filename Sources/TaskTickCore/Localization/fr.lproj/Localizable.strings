@@ -16,7 +16,7 @@
 "task.sort.descending" = "Décroissant";
 "task.search.prompt" = "Rechercher des tâches...";
 "task.empty.title" = "Aucune tâche";
-"task.empty.description" = "Cliquez sur + pour créer votre première tâche planifiée";
+"task.empty.description" = "Cliquez sur + pour créer votre première tâche";
 "task.select.title" = "Sélectionnez une tâche";
 "task.select.description" = "Sélectionnez une tâche dans la barre latérale pour voir les détails, ou cliquez sur + pour en créer une nouvelle";
 "task.interval.seconds" = "%d sec";

@@ -18,7 +18,7 @@
 "task.sort.descending" = "Descending";
 "task.search.prompt" = "Search tasks...";
 "task.empty.title" = "No Tasks Yet";
-"task.empty.description" = "Click + to create your first scheduled task";
+"task.empty.description" = "Click + to create your first task";
 "task.select.title" = "Select a Task";
 "task.select.description" = "Select a task from the sidebar to view details, or click + to create a new one";
 "task.interval.seconds" = "%d sec";

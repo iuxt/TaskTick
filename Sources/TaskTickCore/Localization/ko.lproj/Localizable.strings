@@ -18,7 +18,7 @@
 "task.sort.descending" = "내림차순";
 "task.search.prompt" = "작업 검색...";
 "task.empty.title" = "작업이 없습니다";
-"task.empty.description" = "+를 클릭하여 첫 번째 예약 작업을 만드세요";
+"task.empty.description" = "+를 클릭하여 첫 번째 작업을 만드세요";
 "task.select.title" = "작업 선택";
 "task.select.description" = "사이드바에서 작업을 선택하여 세부 정보를 확인하거나, +를 클릭하여 새 작업을 만드세요";
 "task.interval.seconds" = "%d초";

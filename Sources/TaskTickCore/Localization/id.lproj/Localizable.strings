@@ -18,7 +18,7 @@
 "task.sort.descending" = "Menurun";
 "task.search.prompt" = "Cari tugas...";
 "task.empty.title" = "Belum Ada Tugas";
-"task.empty.description" = "Klik + untuk membuat tugas terjadwal pertama Anda";
+"task.empty.description" = "Klik + untuk membuat tugas pertama Anda";
 "task.select.title" = "Pilih Tugas";
 "task.select.description" = "Pilih tugas dari bilah sisi untuk melihat detail, atau klik + untuk membuat yang baru";
 "task.interval.seconds" = "%d dtk";

@@ -18,7 +18,7 @@
 "task.sort.descending" = "Decrescente";
 "task.search.prompt" = "Cerca attività...";
 "task.empty.title" = "Nessuna attività";
-"task.empty.description" = "Clicca + per creare la tua prima attività pianificata";
+"task.empty.description" = "Clicca + per creare la tua prima attività";
 "task.select.title" = "Seleziona un'attività";
 "task.select.description" = "Seleziona un'attività dalla barra laterale per visualizzarne i dettagli, oppure clicca + per crearne una nuova";
 "task.interval.seconds" = "%d sec";

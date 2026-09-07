@@ -18,7 +18,7 @@
 "task.sort.descending" = "По убыванию";
 "task.search.prompt" = "Поиск задач...";
 "task.empty.title" = "Задач пока нет";
-"task.empty.description" = "Нажмите +, чтобы создать первую задачу по расписанию";
+"task.empty.description" = "Нажмите +, чтобы создать первую задачу";
 "task.select.title" = "Выберите задачу";
 "task.select.description" = "Выберите задачу в боковой панели для просмотра или нажмите +, чтобы создать новую";
 "task.interval.seconds" = "%d сек";

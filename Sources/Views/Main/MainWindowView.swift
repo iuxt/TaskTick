@@ -7,7 +7,7 @@ struct MainWindowView: View {
     @Environment(\.openWindow) private var openWindow
     @StateObject private var editorState = EditorState.shared
     @State private var selectedTask: ScheduledTask?
-    @State private var selectedTab: TaskListTab = .scheduled
+    @State private var taskKindFilter: TaskKindFilter = .all
     @AppStorage("taskSortOption") private var sortOptionRaw = TaskSortOption.lastRunDesc.rawValue
     @Binding var showingCrontabImport: Bool
 
@@ -16,7 +16,7 @@ struct MainWindowView: View {
             TaskListView(
                 selectedTask: $selectedTask,
                 sortOptionRaw: $sortOptionRaw,
-                selectedTab: $selectedTab
+                kindFilter: $taskKindFilter
             )
                 .navigationSplitViewColumnWidth(min: 230, ideal: 270, max: 350)
                 // Keep the sidebar toolbar down to a single item. macOS 26 sizes
@@ -25,15 +25,26 @@ struct MainWindowView: View {
                 // (issue #46). Sorting now lives in the filter bar instead.
                 .toolbar {
                     ToolbarItem(placement: .primaryAction) {
-                        Button {
-                            EditorState.shared.openNew(kind: selectedTab.creationKind)
-                            openWindow(id: "editor")
+                        Menu {
+                            Button {
+                                taskKindFilter = .all
+                                EditorState.shared.openNew(kind: .scheduled)
+                                openWindow(id: "editor")
+                            } label: {
+                                Label(L10n.tr("task.mode.scheduled"), systemImage: "calendar.badge.clock")
+                            }
+
+                            Button {
+                                taskKindFilter = .all
+                                EditorState.shared.openNew(kind: .background)
+                                openWindow(id: "editor")
+                            } label: {
+                                Label(L10n.tr("task.mode.background"), systemImage: "terminal.fill")
+                            }
                         } label: {
                             Image(systemName: "plus")
                         }
-                        .help(selectedTab == .background
-                              ? L10n.tr("task.mode.background")
-                              : L10n.tr("command.new_task"))
+                        .help(L10n.tr("command.new_task"))
                     }
                 }
         } detail: {
@@ -53,7 +64,7 @@ struct MainWindowView: View {
         }
         .onChange(of: editorState.lastSavedTask) { _, newTask in
             if let task = newTask {
-                selectedTab = task.isBackgroundService ? .background : .scheduled
+                taskKindFilter = .all
                 selectedTask = task
                 editorState.lastSavedTask = nil
             }

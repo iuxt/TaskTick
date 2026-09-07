@@ -18,7 +18,7 @@
 "task.sort.descending" = "降序";
 "task.search.prompt" = "搜索任务...";
 "task.empty.title" = "还没有任务";
-"task.empty.description" = "点击 + 创建你的第一个定时任务";
+"task.empty.description" = "点击 + 创建你的第一个任务";
 "task.select.title" = "选择一个任务";
 "task.select.description" = "从左侧列表选择任务查看详情，或点击 + 创建新任务";
 "task.interval.seconds" = "%d 秒";

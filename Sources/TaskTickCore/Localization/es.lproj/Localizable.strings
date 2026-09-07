@@ -18,7 +18,7 @@
 "task.sort.descending" = "Descendente";
 "task.search.prompt" = "Buscar tareas...";
 "task.empty.title" = "No hay tareas";
-"task.empty.description" = "Haz clic en + para crear tu primera tarea programada";
+"task.empty.description" = "Haz clic en + para crear tu primera tarea";
 "task.select.title" = "Selecciona una tarea";
 "task.select.description" = "Selecciona una tarea de la barra lateral para ver los detalles, o haz clic en + para crear una nueva";
 "task.interval.seconds" = "%d seg";

@@ -18,7 +18,7 @@
 "task.sort.descending" = "降序";
 "task.search.prompt" = "搜尋任務...";
 "task.empty.title" = "還沒有任務";
-"task.empty.description" = "點擊 + 建立你的第一個排程任務";
+"task.empty.description" = "點擊 + 建立你的第一個任務";
 "task.select.title" = "選擇一個任務";
 "task.select.description" = "從左側列表選擇任務檢視詳情，或點擊 + 建立新任務";
 "task.interval.seconds" = "%d 秒";
