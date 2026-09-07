@@ -110,7 +110,10 @@ struct CrontabImportView: View {
         .onAppear { loadCrontab() }
         .alert(L10n.tr("crontab.comment.title"), isPresented: $showingCommentConfirm) {
             Button(L10n.tr("crontab.comment.yes"), role: .destructive) {
-                _ = CrontabImporter.commentOutEntries(importedEntries)
+                let entries = importedEntries
+                Task {
+                    _ = await CrontabImporter.commentOutEntries(entries)
+                }
             }
             Button(L10n.tr("crontab.comment.no"), role: .cancel) {}
         } message: {
@@ -119,9 +122,13 @@ struct CrontabImportView: View {
     }
 
     private func loadCrontab() {
-        entries = CrontabImporter.readCrontab()
-        selectedEntries = Set(entries.map(\.originalLine))
-        isLoading = false
+        isLoading = true
+        Task {
+            let loaded = await CrontabImporter.readCrontab()
+            entries = loaded
+            selectedEntries = Set(loaded.map(\.originalLine))
+            isLoading = false
+        }
     }
 
     private func performImport() {

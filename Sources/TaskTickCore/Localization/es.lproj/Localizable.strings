@@ -13,7 +13,7 @@
 "task.filter.enabled" = "Activas";
 "task.filter.disabled" = "Inactivas";
 "task.sort.created" = "Fecha de creación";
-"task.sort.last_run" = "Última ejecución";
+"task.sort.last_run" = "Última ejecución manual";
 "task.sort.ascending" = "Ascendente";
 "task.sort.descending" = "Descendente";
 "task.search.prompt" = "Buscar tareas...";
@@ -314,6 +314,8 @@
 "settings.general.language.restart_hint" = "El cambio de idioma se aplica de inmediato en la mayoría de los elementos de la interfaz.";
 "settings.general.startup" = "Inicio";
 "settings.general.launch_at_login" = "Iniciar al iniciar sesión";
+"settings.general.launch_at_login.failed" = "No se pudo cambiar el ítem de inicio";
+"settings.general.launch_at_login.approval" = "TaskTick requiere aprobación en Ajustes del Sistema → General → Ítems de inicio. La opción seguirá desactivada.";
 "settings.general.show_menubar_icon" = "Mostrar icono en la barra de menú";
 "settings.general.defaults" = "Valores predeterminados";
 "settings.general.default_shell" = "Shell predeterminado";

@@ -5,40 +5,63 @@ import TaskTickCore
 /// Imports tasks from the system crontab.
 struct CrontabImporter {
 
-    struct CrontabEntry {
+    struct CrontabEntry: Sendable {
         let cronExpression: String
         let command: String
         let originalLine: String
+        let environment: [String: String]
+
+        init(
+            cronExpression: String,
+            command: String,
+            originalLine: String,
+            environment: [String: String] = [:]
+        ) {
+            self.cronExpression = cronExpression
+            self.command = command
+            self.originalLine = originalLine
+            self.environment = environment
+        }
     }
 
     /// Read current user's crontab entries
-    static func readCrontab() -> [CrontabEntry] {
+    static func readCrontab() async -> [CrontabEntry] {
+        await Task.detached(priority: .userInitiated) {
+            readCrontabBlocking()
+        }.value
+    }
+
+    private static func readCrontabBlocking() -> [CrontabEntry] {
         let process = Process()
         let pipe = Pipe()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/crontab")
         process.arguments = ["-l"]
         process.standardOutput = pipe
-        process.standardError = Pipe()
+        process.standardError = FileHandle.nullDevice
 
         do {
             try process.run()
-            process.waitUntilExit()
         } catch {
             return []
         }
 
+        // Drain while the child is running. Waiting first can deadlock when a
+        // large crontab fills the pipe and blocks the child before it exits.
         let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        process.waitUntilExit()
         guard let output = String(data: data, encoding: .utf8) else { return [] }
 
         var entries: [CrontabEntry] = []
+        var environment: [String: String] = [:]
         for line in output.components(separatedBy: .newlines) {
             let trimmed = line.trimmingCharacters(in: .whitespaces)
-            // Skip empty lines, comments, and environment variables
-            if trimmed.isEmpty || trimmed.hasPrefix("#") || trimmed.contains("=") && !trimmed.contains(" ") {
+            if trimmed.isEmpty || trimmed.hasPrefix("#") { continue }
+            if let assignment = parseEnvironmentAssignment(trimmed) {
+                environment[assignment.name] = assignment.value
                 continue
             }
 
-            if let entry = parseCrontabLine(trimmed) {
+            if let entry = parseCrontabLine(trimmed, environment: environment) {
                 entries.append(entry)
             }
         }
@@ -46,25 +69,77 @@ struct CrontabImporter {
     }
 
     /// Parse a single crontab line into cron expression + command
-    static func parseCrontabLine(_ line: String) -> CrontabEntry? {
-        let parts = line.split(separator: " ", maxSplits: 5, omittingEmptySubsequences: true)
+    static func parseCrontabLine(
+        _ line: String,
+        environment: [String: String] = [:]
+    ) -> CrontabEntry? {
+        let trimmed = line.trimmingCharacters(in: .whitespaces)
+        if trimmed.hasPrefix("@") {
+            let parts = trimmed.split(
+                maxSplits: 1,
+                omittingEmptySubsequences: true,
+                whereSeparator: { $0.isWhitespace }
+            )
+            guard parts.count == 2 else { return nil }
+            let macro = String(parts[0]).lowercased()
+            let command = String(parts[1]).trimmingCharacters(in: .whitespaces)
+            guard !command.isEmpty else { return nil }
+            let expression: String
+            switch macro {
+            case "@reboot": expression = "@reboot"
+            case "@yearly", "@annually": expression = "0 0 1 1 *"
+            case "@monthly": expression = "0 0 1 * *"
+            case "@weekly": expression = "0 0 * * 0"
+            case "@daily", "@midnight": expression = "0 0 * * *"
+            case "@hourly": expression = "0 * * * *"
+            default: return nil
+            }
+            return CrontabEntry(
+                cronExpression: expression,
+                command: command,
+                originalLine: trimmed,
+                environment: environment
+            )
+        }
+
+        let parts = trimmed.split(
+            maxSplits: 5,
+            omittingEmptySubsequences: true,
+            whereSeparator: { $0.isWhitespace }
+        )
         guard parts.count >= 6 else { return nil }
 
         let cronFields = parts[0..<5].joined(separator: " ")
         let command = String(parts[5...].joined(separator: " "))
 
-        // Basic validation: first field should be a number, *, or start with */
-        let firstField = String(parts[0])
-        let validStarters = CharacterSet(charactersIn: "0123456789*/")
-        guard firstField.unicodeScalars.first.map({ validStarters.contains($0) }) == true else {
-            return nil
-        }
+        guard (try? CronExpression(parsing: cronFields)) != nil else { return nil }
 
         return CrontabEntry(
             cronExpression: cronFields,
             command: command.trimmingCharacters(in: .whitespaces),
-            originalLine: line
+            originalLine: trimmed,
+            environment: environment
         )
+    }
+
+    /// Crontab assignments apply to all following entries. Preserve quoted
+    /// values and optional whitespace around `=` instead of silently dropping
+    /// PATH, SHELL, locale and application-specific variables during import.
+    static func parseEnvironmentAssignment(_ line: String) -> (name: String, value: String)? {
+        guard let equals = line.firstIndex(of: "=") else { return nil }
+        let name = String(line[..<equals]).trimmingCharacters(in: .whitespaces)
+        guard let first = name.unicodeScalars.first,
+              CharacterSet.letters.union(CharacterSet(charactersIn: "_")).contains(first),
+              name.unicodeScalars.dropFirst().allSatisfy({
+                  CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "_")).contains($0)
+              }) else { return nil }
+        var value = line[line.index(after: equals)...].trimmingCharacters(in: .whitespaces)
+        if value.count >= 2,
+           (value.hasPrefix("\"") && value.hasSuffix("\"")
+            || value.hasPrefix("'") && value.hasSuffix("'")) {
+            value = String(value.dropFirst().dropLast())
+        }
+        return (name, value)
     }
 
     /// Convert a cron expression to the new RepeatType (best effort)
@@ -124,7 +199,10 @@ struct CrontabImporter {
         var imported = 0
         var insertedTasks: [ScheduledTask] = []
         for entry in entries {
-            let (repeatType, date) = cronToRepeatType(entry.cronExpression)
+            let isReboot = entry.cronExpression == "@reboot"
+            let scheduleInfo: (repeatType: RepeatType, date: Date?) = isReboot
+                ? (RepeatType.never, nil)
+                : cronToRepeatType(entry.cronExpression)
 
             // Generate a name from the command
             let name = generateTaskName(from: entry.command)
@@ -132,17 +210,29 @@ struct CrontabImporter {
             let task = ScheduledTask(
                 name: name,
                 scriptBody: entry.command,
-                shell: "/bin/bash",
-                scheduledDate: date,
-                repeatType: repeatType,
+                shell: entry.environment["SHELL"] ?? "/bin/bash",
+                scheduledDate: scheduleInfo.date,
+                repeatType: scheduleInfo.repeatType,
                 endRepeatType: .never,
                 isEnabled: true,
                 notifyOnFailure: true
             )
-            // Store original cron for reference
-            task.cronExpression = entry.cronExpression
-            task.schedule = .cron
-            task.nextRunAt = TaskScheduler.shared.computeNextRunDate(for: task)
+            task.environmentVariables = entry.environment.isEmpty ? nil : entry.environment
+            if let cronTimeZone = entry.environment["CRON_TZ"],
+               TimeZone(identifier: cronTimeZone) != nil {
+                task.timeZoneIdentifier = cronTimeZone
+            }
+            if isReboot {
+                task.runOnLaunch = true
+                task.schedule = .interval
+                task.cronExpression = nil
+                task.nextRunAt = nil
+            } else {
+                // Store original cron for reference and exact scheduling.
+                task.cronExpression = entry.cronExpression
+                task.schedule = .cron
+                task.nextRunAt = TaskScheduler.shared.computeNextRunDate(for: task)
+            }
 
             context.insert(task)
             insertedTasks.append(task)
@@ -162,22 +252,28 @@ struct CrontabImporter {
     }
 
     /// Comment out specified lines in the crontab
-    static func commentOutEntries(_ entries: [CrontabEntry]) -> Bool {
+    static func commentOutEntries(_ entries: [CrontabEntry]) async -> Bool {
+        await Task.detached(priority: .userInitiated) {
+            commentOutEntriesBlocking(entries)
+        }.value
+    }
+
+    private static func commentOutEntriesBlocking(_ entries: [CrontabEntry]) -> Bool {
         let process = Process()
         let pipe = Pipe()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/crontab")
         process.arguments = ["-l"]
         process.standardOutput = pipe
-        process.standardError = Pipe()
+        process.standardError = FileHandle.nullDevice
 
         do {
             try process.run()
-            process.waitUntilExit()
         } catch {
             return false
         }
 
         let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        process.waitUntilExit()
         guard var content = String(data: data, encoding: .utf8) else { return false }
 
         let originalLines = Set(entries.map(\.originalLine))

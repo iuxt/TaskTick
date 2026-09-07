@@ -52,4 +52,26 @@ struct LogFileWriterTests {
         let output = try String(contentsOf: url, encoding: .utf8)
         #expect(output == "before\nafter\n")
     }
+
+    @Test("Rotation never splits a UTF-8 scalar between files")
+    func rotationPreservesUTF8Boundaries() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let path = directory.appendingPathComponent("unicode-rotation.log").path
+        let writer = try #require(LogFileWriter(
+            taskName: "unicode",
+            path: path,
+            maximumBytes: 5,
+            rotationCount: 2
+        ))
+        writer.append(Data("abc🙂def".utf8))
+        writer.close()
+
+        let active = try String(contentsOfFile: path, encoding: .utf8)
+        let first = try String(contentsOfFile: path + ".1", encoding: .utf8)
+        let second = try String(contentsOfFile: path + ".2", encoding: .utf8)
+        #expect(second + first + active == "abc🙂def")
+    }
 }

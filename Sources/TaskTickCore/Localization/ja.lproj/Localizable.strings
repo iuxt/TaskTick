@@ -13,7 +13,7 @@
 "task.filter.enabled" = "有効";
 "task.filter.disabled" = "無効";
 "task.sort.created" = "作成日時";
-"task.sort.last_run" = "最終実行";
+"task.sort.last_run" = "最終手動実行";
 "task.sort.ascending" = "昇順";
 "task.sort.descending" = "降順";
 "task.search.prompt" = "タスクを検索...";
@@ -314,6 +314,8 @@
 "settings.general.language.restart_hint" = "言語の変更はほとんどのUI要素にすぐ反映されます。";
 "settings.general.startup" = "起動";
 "settings.general.launch_at_login" = "ログイン時に起動";
+"settings.general.launch_at_login.failed" = "ログイン項目を変更できませんでした";
+"settings.general.launch_at_login.approval" = "システム設定 → 一般 → ログイン項目で TaskTick を許可してください。設定はオフのままです。";
 "settings.general.show_menubar_icon" = "メニューバーアイコンを表示";
 "settings.general.defaults" = "デフォルト";
 "settings.general.default_shell" = "デフォルトシェル";

@@ -7,6 +7,7 @@ import Foundation
 /// and Finder's escaped spaces. A path that survives normalization wrong
 /// fails at *run* time, long after the editor accepted it.
 @Suite("Script path normalization")
+@MainActor
 struct ScriptPathNormalizationTests {
 
     private func normalize(_ raw: String) -> String {

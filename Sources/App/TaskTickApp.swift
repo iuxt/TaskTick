@@ -6,6 +6,7 @@ import TaskTickCore
 struct TaskTickApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @StateObject private var scheduler = TaskScheduler.shared
+    @StateObject private var taskSelection = TaskSelectionState.shared
     @Environment(\.openWindow) private var openWindow
     @AppStorage("showMenuBarIcon") private var showMenuBarIcon = true
     @State private var showingCrontabImport = false
@@ -23,6 +24,8 @@ struct TaskTickApp: App {
         let backup = DatabaseBackup.shared
         backup.configure(storeURL: Self._storeURL, modelContext: container.mainContext)
         backup.startScheduledBackups()
+
+        LogRetentionManager.shared.start(container: container)
     }
 
     var sharedModelContainer: ModelContainer { Self._sharedModelContainer }
@@ -253,23 +256,28 @@ struct TaskTickApp: App {
 
         CommandMenu(L10n.tr("command.task_menu")) {
             Button(L10n.tr("command.run_selected")) {
-                // TODO: implement run selected
+                runSelectedTask()
             }
             .keyboardShortcut("r", modifiers: .command)
+            .disabled(taskSelection.selectedTask == nil || selectedTaskIsRunning)
 
             Button(L10n.tr("command.stop_task")) {
-                // TODO: implement stop
+                stopSelectedTask()
             }
+            .disabled(taskSelection.selectedTask == nil || !selectedTaskIsRunning)
 
             Divider()
 
             Button(L10n.tr("command.toggle_enabled")) {
-                // TODO: implement toggle
+                guard let task = taskSelection.selectedTask else { return }
+                toggleTaskEnabled(task, context: sharedModelContainer.mainContext)
             }
+            .disabled(taskSelection.selectedTask == nil)
 
             Button(L10n.tr("command.delete_task")) {
-                // TODO: implement delete
+                deleteSelectedTask()
             }
+            .disabled(taskSelection.selectedTask == nil)
         }
 
         CommandGroup(after: .toolbar) {
@@ -298,6 +306,65 @@ struct TaskTickApp: App {
         }
     }
 
+    private var selectedTaskIsRunning: Bool {
+        guard let id = taskSelection.selectedTask?.id else { return false }
+        return scheduler.runningTaskIDs.contains(id)
+    }
+
+    private func runSelectedTask() {
+        guard let task = taskSelection.selectedTask, !selectedTaskIsRunning else { return }
+        Task {
+            _ = await ScriptExecutor.shared.execute(
+                task: task,
+                modelContext: sharedModelContainer.mainContext
+            )
+        }
+        ActionToast.notify(.started(taskName: task.name), wantsBanner: task.notifyOnAction)
+    }
+
+    private func stopSelectedTask() {
+        guard let task = taskSelection.selectedTask, selectedTaskIsRunning else { return }
+        ScriptExecutor.shared.cancel(taskId: task.id)
+        ActionToast.notify(.stopped(taskName: task.name), wantsBanner: task.notifyOnAction)
+    }
+
+    private func deleteSelectedTask() {
+        guard let task = taskSelection.selectedTask else { return }
+        let alert = NSAlert()
+        alert.messageText = L10n.tr("delete.title")
+        alert.informativeText = L10n.tr("delete.message", task.name)
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: L10n.tr("delete.cancel"))
+        let deleteButton = alert.addButton(withTitle: L10n.tr("delete.confirm"))
+        deleteButton.hasDestructiveAction = true
+        guard alert.runModal() == .alertSecondButtonReturn else { return }
+
+        let name = task.name
+        let id = task.id
+        let logPath = task.serviceLogPath
+        let rotations = task.serviceLogRotationCount
+        ScriptExecutor.shared.cancel(taskId: id)
+        taskSelection.selectedTask = nil
+        let context = sharedModelContainer.mainContext
+        context.delete(task)
+        do {
+            try context.save()
+            LogFileWriter.deleteFile(
+                for: name,
+                taskId: id,
+                path: logPath,
+                rotationCount: rotations
+            )
+            scheduler.rebuildSchedule()
+        } catch {
+            presentErrorAlert(
+                titleKey: "error.delete_failed.title",
+                messageKey: "error.delete_failed.message",
+                error: error
+            )
+        }
+    }
+
     private func seedDefaultTask(context: ModelContext) {
         let key = "hasSeededDefaultTask"
         guard !UserDefaults.standard.bool(forKey: key) else { return }
@@ -313,19 +380,24 @@ struct TaskTickApp: App {
             name: "Hello TaskTick",
             scriptBody: "echo \"Hello from TaskTick! 🎉\"\necho \"Current time: $(date)\"\necho \"Host: $(hostname)\"",
             shell: "/bin/zsh",
-            scheduledDate: Date(),
-            repeatType: .everyMinute,
+            scheduledDate: nil,
+            repeatType: .never,
             endRepeatType: .never,
             isEnabled: true,
-            notifyOnSuccess: true,
+            notifyOnSuccess: false,
             notifyOnFailure: true
         )
+        // The welcome task is an example the user can run explicitly. It must
+        // never begin a noisy every-minute schedule merely because the app was
+        // installed or relaunched.
+        task.isManualOnly = true
         context.insert(task)
         // Only mark the seed as done if we actually persisted it, otherwise a transient
         // save failure would prevent the welcome task from ever appearing.
         do {
             try context.save()
             UserDefaults.standard.set(true, forKey: key)
+            TaskScheduler.shared.rebuildSchedule()
         } catch {
             NSLog("⚠️ Seed default task save failed: \(error.localizedDescription)")
         }

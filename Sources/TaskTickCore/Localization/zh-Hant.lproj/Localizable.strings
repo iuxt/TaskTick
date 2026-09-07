@@ -13,7 +13,7 @@
 "task.filter.enabled" = "已啟用";
 "task.filter.disabled" = "已停用";
 "task.sort.created" = "創建時間";
-"task.sort.last_run" = "最後運行時間";
+"task.sort.last_run" = "最後手動運行";
 "task.sort.ascending" = "升序";
 "task.sort.descending" = "降序";
 "task.search.prompt" = "搜尋任務...";
@@ -314,6 +314,8 @@
 "settings.general.language.restart_hint" = "切換語言後大部分介面會立即生效。";
 "settings.general.startup" = "啟動";
 "settings.general.launch_at_login" = "開機自動啟動";
+"settings.general.launch_at_login.failed" = "無法更改登入項目";
+"settings.general.launch_at_login.approval" = "TaskTick 需要在「系統設定 → 一般 → 登入項目」中獲得批准。此開關已恢復為關閉。";
 "settings.general.show_menubar_icon" = "顯示選單列圖示";
 "settings.general.defaults" = "預設值";
 "settings.general.default_shell" = "預設 Shell";

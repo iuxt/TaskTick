@@ -21,6 +21,7 @@ final class LogFileWriter: @unchecked Sendable {
     /// `\x1B[0;32` followed by `m\nlog text\n` would have the head ESC
     /// orphaned (unstrippable) and the tail's `m` stranded as visible junk.
     private var pendingEscape = ""
+    private var utf8Decoder = UTF8StreamDecoder()
 
     init?(
         taskName: String,
@@ -72,14 +73,18 @@ final class LogFileWriter: @unchecked Sendable {
         guard !data.isEmpty else { return }
         queue.async { [weak self] in
             guard let self else { return }
-            let raw = String(decoding: data, as: UTF8.self)
-            let combined = self.pendingEscape + raw
-            let (safe, pending) = Self.splitOnIncompleteEscape(combined)
-            self.pendingEscape = pending
-            let cleaned = stripANSI(safe)
-            guard !cleaned.isEmpty else { return }
-            self.writeRotating(Data(cleaned.utf8))
+            self.appendDecoded(self.utf8Decoder.decode(data))
         }
+    }
+
+    private func appendDecoded(_ raw: String) {
+        guard !raw.isEmpty else { return }
+        let combined = pendingEscape + raw
+        let (safe, pending) = Self.splitOnIncompleteEscape(combined)
+        pendingEscape = pending
+        let cleaned = stripANSI(safe)
+        guard !cleaned.isEmpty else { return }
+        writeRotating(Data(cleaned.utf8))
     }
 
     /// Writes all bytes while keeping each active file at or below the limit
@@ -100,7 +105,28 @@ final class LogFileWriter: @unchecked Sendable {
             }
             let capacity = Int(maximumBytes - currentBytes)
             guard capacity > 0 else { return }
-            let count = min(capacity, data.count - offset)
+            var count = min(capacity, data.count - offset)
+            // `data` is valid UTF-8 from UTF8StreamDecoder. Rotate before a
+            // scalar rather than splitting its continuation bytes between two
+            // individually-invalid log files.
+            if offset + count < data.count {
+                while count > 0, Self.isUTF8Continuation(data[offset + count]) {
+                    count -= 1
+                }
+            }
+            if count == 0 {
+                if currentBytes > 0 {
+                    rotate()
+                    continue
+                }
+                // A pathological byte limit smaller than one scalar: keep the
+                // scalar intact even if that single write exceeds the limit.
+                var scalarEnd = offset + 1
+                while scalarEnd < data.count, Self.isUTF8Continuation(data[scalarEnd]) {
+                    scalarEnd += 1
+                }
+                count = scalarEnd - offset
+            }
             let chunk = data.subdata(in: offset..<(offset + count))
             do {
                 try handle?.write(contentsOf: chunk)
@@ -136,6 +162,10 @@ final class LogFileWriter: @unchecked Sendable {
               let newHandle = try? FileHandle(forWritingTo: fileURL) else { return }
         handle = newHandle
         currentBytes = 0
+    }
+
+    private static func isUTF8Continuation(_ byte: UInt8) -> Bool {
+        (byte & 0xC0) == 0x80
     }
 
     private func rotatedURL(_ index: Int) -> URL {
@@ -189,6 +219,7 @@ final class LogFileWriter: @unchecked Sendable {
     /// no-ops. The on-disk file is left in place for the user to inspect.
     func close() {
         queue.sync { [self] in
+            appendDecoded(utf8Decoder.finish())
             // A partial escape is terminal decoration, not user output; drop it.
             pendingEscape = ""
             try? handle?.close()

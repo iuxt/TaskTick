@@ -132,6 +132,10 @@ final class ScriptExecutor: ObservableObject {
             TaskScheduler.shared.runningTaskIDs.remove(executionTaskID)
         }
         modelContext.insert(log)
+        // This is a durable execution counter, not a mirror of retained logs.
+        // Automatic retention can safely prune history without changing an
+        // `afterCount` schedule's already-consumed occurrences.
+        task.executionCount += 1
         let startTime = Date()
         // Bump the manual-run recency NOW (not at end) so long-running scripts
         // — dev servers, watchers, anything that runs for hours — surface to
@@ -262,11 +266,6 @@ final class ScriptExecutor: ObservableObject {
             // Note: lastManualRunAt is set at task START (above) so running
             // scripts surface immediately. No need to update it again here.
             fetchedTask.updatedAt = endTime
-            // Keep executionCount in sync for both manual and scheduled runs so the UI
-            // badge and any downstream checks reflect actual completed executions.
-            fetchedTask.executionCount = fetchedTask.executionLogs
-                .filter { $0.modelContext != nil }
-                .count
         }
 
         do { try modelContext.save() } catch { NSLog("⚠️ ScriptExecutor save failed: \(error)") }
@@ -550,7 +549,12 @@ final class ScriptExecutor: ObservableObject {
         }
     }
 
-    /// Extract the interpreter from a shebang line.
+    struct ShebangInvocation: Sendable, Equatable {
+        let executable: String
+        let arguments: [String]
+    }
+
+    /// Extract the interpreter and its arguments from a shebang line.
     ///
     /// - `#!/opt/homebrew/bin/bash` → `/opt/homebrew/bin/bash` (must exist on disk)
     /// - `#!/usr/bin/env python3` → `python3` — a *bare name*, deliberately left for the
@@ -560,27 +564,45 @@ final class ScriptExecutor: ObservableObject {
     ///   instead — the exact mismatch the brewPrefix in `runProcess` exists to avoid.
     ///
     /// Returns nil when there's no shebang, or an absolute interpreter doesn't exist.
-    ///
-    /// Note: extra interpreter arguments (`#!/usr/bin/env -S python3 -u`) are dropped —
-    /// only the interpreter itself is honored.
-    nonisolated static func parseShebang(from script: String) -> String? {
+    nonisolated static func parseShebangInvocation(from script: String) -> ShebangInvocation? {
         guard let firstLine = script.components(separatedBy: .newlines).first,
               firstLine.hasPrefix("#!") else { return nil }
-        // Strip "#!" and trim whitespace, take the first token
         let interpreterLine = firstLine.dropFirst(2).trimmingCharacters(in: .whitespaces)
-        let parts = interpreterLine.components(separatedBy: .whitespaces).filter { !$0.isEmpty }
+        var parts = interpreterLine.components(separatedBy: .whitespaces).filter { !$0.isEmpty }
         guard let first = parts.first, !first.isEmpty else { return nil }
-        // "#!/usr/bin/env <interpreter>" — skip env's own flags (e.g. -S), keep the name.
+
         if first == "/usr/bin/env" {
-            guard let cmd = parts.dropFirst().first(where: { !$0.hasPrefix("-") }),
-                  !cmd.isEmpty else { return nil }
-            return cmd
+            parts.removeFirst()
+            if parts.first == "-S" {
+                parts.removeFirst()
+            } else {
+                // Handle common env options and NAME=value assignments before
+                // the command. Once the command is found, all remaining tokens
+                // are interpreter arguments and must be preserved.
+                while let token = parts.first {
+                    if token == "-u" || token == "--unset" {
+                        guard parts.count >= 2 else { return nil }
+                        parts.removeFirst(2)
+                    } else if token.hasPrefix("-") || token.contains("=") {
+                        parts.removeFirst()
+                    } else {
+                        break
+                    }
+                }
+            }
+            guard let executable = parts.first, !executable.isEmpty else { return nil }
+            return ShebangInvocation(executable: executable, arguments: Array(parts.dropFirst()))
         }
-        // Direct path like "#!/opt/homebrew/bin/bash"
+
         if FileManager.default.isExecutableFile(atPath: first) {
-            return first
+            return ShebangInvocation(executable: first, arguments: Array(parts.dropFirst()))
         }
         return nil
+    }
+
+    /// Compatibility convenience for validation and interpreter classification.
+    nonisolated static func parseShebang(from script: String) -> String? {
+        parseShebangInvocation(from: script)?.executable
     }
 
     /// Shell prelude that drops a run into the user's interactive environment:
@@ -647,19 +669,24 @@ final class ScriptExecutor: ObservableObject {
         filePath: String,
         uiShell: String
     ) -> (shell: String, body: String) {
-        guard let interpreter = parseShebang(from: fileContent) else {
+        guard let invocation = parseShebangInvocation(from: fileContent) else {
             // No usable shebang: fall back to the shell picked in the UI, as before.
             return (uiShell, fileContent)
         }
+        let interpreter = invocation.executable
         // An absolute shell path can run the contents directly — this is the long-standing
-        // path for .sh files, kept byte-for-byte identical to avoid any regression.
-        if interpreter.hasPrefix("/"), isShellInterpreter(interpreter) {
+        // path for argument-free .sh files, kept byte-for-byte identical.
+        if interpreter.hasPrefix("/"), invocation.arguments.isEmpty,
+           isShellInterpreter(interpreter) {
             return (interpreter, fileContent)
         }
         // Everything else — non-shell interpreters, and bare names like `bash` from
         // `#!/usr/bin/env bash` (which can't be a Process executableURL anyway) — is
         // handed to the interpreter as a file path.
-        return (uiShell, "exec \(singleQuoted(interpreter)) \(singleQuoted(filePath))")
+        let command = ([interpreter] + invocation.arguments + [filePath])
+            .map(singleQuoted)
+            .joined(separator: " ")
+        return (uiShell, "exec \(command)")
     }
 
     /// Check if a string contains meaningful printable content (not just whitespace).

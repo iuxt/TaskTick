@@ -114,6 +114,8 @@ public struct LineBuffer: Sendable {
 private struct TaskBuffer {
     var stdout = LineBuffer()
     var stderr = LineBuffer()
+    var stdoutDecoder = UTF8StreamDecoder()
+    var stderrDecoder = UTF8StreamDecoder()
 }
 
 @MainActor
@@ -153,21 +155,25 @@ final class LiveOutputManager: ObservableObject {
     // MARK: - Append
 
     func appendStdout(taskId: UUID, data: Data) {
-        guard buffers[taskId] != nil else { return }
-        let str = String(decoding: data, as: UTF8.self)
+        guard var buffer = buffers[taskId] else { return }
+        let str = buffer.stdoutDecoder.decode(data)
+        buffers[taskId] = buffer
         guard !str.isEmpty else { return }
         let cleaned = stripANSI(str)
-        buffers[taskId]?.stdout.append(cleaned)
+        buffer.stdout.append(cleaned)
+        buffers[taskId] = buffer
         pendingFlush.insert(taskId)
         scheduleFlush()
     }
 
     func appendStderr(taskId: UUID, data: Data) {
-        guard buffers[taskId] != nil else { return }
-        let str = String(decoding: data, as: UTF8.self)
+        guard var buffer = buffers[taskId] else { return }
+        let str = buffer.stderrDecoder.decode(data)
+        buffers[taskId] = buffer
         guard !str.isEmpty else { return }
         let cleaned = stripANSI(str)
-        buffers[taskId]?.stderr.append(cleaned)
+        buffer.stderr.append(cleaned)
+        buffers[taskId] = buffer
         pendingFlush.insert(taskId)
         scheduleFlush()
     }

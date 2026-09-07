@@ -13,7 +13,7 @@
 "task.filter.enabled" = "Aktiviert";
 "task.filter.disabled" = "Deaktiviert";
 "task.sort.created" = "Erstellt";
-"task.sort.last_run" = "Letzte Ausführung";
+"task.sort.last_run" = "Letzte manuelle Ausführung";
 "task.sort.ascending" = "Aufsteigend";
 "task.sort.descending" = "Absteigend";
 "task.search.prompt" = "Aufgaben suchen...";
@@ -314,6 +314,8 @@
 "settings.general.language.restart_hint" = "Die Sprachänderung wird für die meisten UI-Elemente sofort wirksam.";
 "settings.general.startup" = "Autostart";
 "settings.general.launch_at_login" = "Beim Anmelden starten";
+"settings.general.launch_at_login.failed" = "Anmeldeobjekt konnte nicht geändert werden";
+"settings.general.launch_at_login.approval" = "TaskTick muss unter Systemeinstellungen → Allgemein → Anmeldeobjekte genehmigt werden. Die Einstellung bleibt deaktiviert.";
 "settings.general.show_menubar_icon" = "Menüleistensymbol anzeigen";
 "settings.general.defaults" = "Standardwerte";
 "settings.general.default_shell" = "Standard-Shell";

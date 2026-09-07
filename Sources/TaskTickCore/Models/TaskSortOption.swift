@@ -1,19 +1,20 @@
 import Foundation
 
-/// How the task list is ordered. Two dimensions (creation time, last run time),
-/// each ascending or descending.
+/// How the task list is ordered. Two dimensions (creation time, last manual
+/// run time), each ascending or descending. Scheduled executions deliberately
+/// do not churn the user's task-list order.
 public enum TaskSortOption: String, CaseIterable, Sendable {
     case createdDesc
     case createdAsc
     case lastRunDesc
     case lastRunAsc
 
-    /// The date this option sorts by, for a given task. Last-run options fall
-    /// back to creation time for tasks that have never run.
+    /// The date this option sorts by, for a given task. Manual-run options fall
+    /// back to creation time for tasks that have never been run by the user.
     private func sortKey(for task: ScheduledTask) -> Date {
         switch self {
         case .createdDesc, .createdAsc: return task.createdAt
-        case .lastRunDesc, .lastRunAsc: return task.lastRunAt ?? task.createdAt
+        case .lastRunDesc, .lastRunAsc: return task.lastManualRunAt ?? task.createdAt
         }
     }
 

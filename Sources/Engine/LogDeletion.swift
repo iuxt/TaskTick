@@ -4,13 +4,11 @@ import TaskTickCore
 
 /// Shared delete path for execution logs removed from the log lists.
 ///
-/// Deleting logs is not just a `modelContext.delete` — `ScheduledTask`
-/// carries a denormalized `executionCount`, and `computeNextRunDate` reads
-/// `executionLogs.count` for run-count-limited schedules. Both must be
-/// resynced or a task can stall (thinking it already hit its run cap) or
-/// report a count that no longer matches its logs. The existing "clear all
-/// logs" flows in `TaskListView` / `TaskDetailView` do the same three steps;
-/// this keeps selective delete from drifting out of sync with them.
+/// User-initiated log deletion also resets the task's visible run history:
+/// `executionCount` is resynced to the surviving rows and the schedule is
+/// recalculated. Automatic retention intentionally uses a separate path and
+/// leaves the durable counter alone, so routine housekeeping cannot re-arm an
+/// `afterCount` task.
 enum LogDeletion {
     /// The row to select once `doomed` is removed from `visible`.
     ///
@@ -54,8 +52,8 @@ enum LogDeletion {
             context.delete(log)
         }
 
-        // Save first so the to-many relationship reflects the deletions
-        // before computeNextRunDate reads executionLogs.count.
+        // Save first so the to-many relationship reflects the deletions before
+        // deriving the user-requested reset count from the surviving history.
         do {
             try context.save()
         } catch {

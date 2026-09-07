@@ -13,7 +13,7 @@
 "task.filter.enabled" = "Активные";
 "task.filter.disabled" = "Отключённые";
 "task.sort.created" = "Дата создания";
-"task.sort.last_run" = "Последний запуск";
+"task.sort.last_run" = "Последний ручной запуск";
 "task.sort.ascending" = "По возрастанию";
 "task.sort.descending" = "По убыванию";
 "task.search.prompt" = "Поиск задач...";
@@ -314,6 +314,8 @@
 "settings.general.language.restart_hint" = "Смена языка вступает в силу немедленно для большинства элементов интерфейса.";
 "settings.general.startup" = "Запуск";
 "settings.general.launch_at_login" = "Запускать при входе в систему";
+"settings.general.launch_at_login.failed" = "Не удалось изменить объект входа";
+"settings.general.launch_at_login.approval" = "Разрешите TaskTick в Системных настройках → Основные → Объекты входа. Переключатель останется выключенным.";
 "settings.general.show_menubar_icon" = "Показывать значок в строке меню";
 "settings.general.defaults" = "Значения по умолчанию";
 "settings.general.default_shell" = "Shell по умолчанию";

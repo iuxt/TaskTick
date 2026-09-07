@@ -14,6 +14,8 @@ final class TaskScheduler: ObservableObject {
     private var modelContext: ModelContext?
     private var sleepObserver: NSObjectProtocol?
     private var wakeObserver: NSObjectProtocol?
+    private var clockChangeObserver: NSObjectProtocol?
+    private var timeZoneChangeObserver: NSObjectProtocol?
     /// Becomes true once the post-launch sweep has run. While false,
     /// `rebuildSchedule()` defers tasks with `runOnLaunch = true` so the launch
     /// sweep gets the first-fire (and `runMissedExecution` does not double-fire).
@@ -49,6 +51,7 @@ final class TaskScheduler: ObservableObject {
 
         rebuildSchedule()
         setupSleepWakeObservers()
+        setupSystemChangeObservers()
 
         // Fire onLaunch tasks once after a brief delay so app finishes booting
         // (model context, windows, etc.) before scripts run. See issue #25.
@@ -67,6 +70,7 @@ final class TaskScheduler: ObservableObject {
         isRunning = false
         hasFiredLaunchTasks = false
         removeSleepWakeObservers()
+        removeSystemChangeObservers()
     }
 
     func rebuildSchedule() {
@@ -286,14 +290,15 @@ final class TaskScheduler: ObservableObject {
 
         runningTaskIDs.insert(taskId)
 
-        // Sync executionCount with actual log count, skipping invalidated references
-        let validLogCount = task.executionLogs.filter { $0.modelContext != nil }.count
-        task.executionCount = validLogCount + 1 // +1 for current execution
-
         // Check end repeat count directly before computing next date
         if task.endRepeatType == .afterCount,
            let maxCount = task.endRepeatCount,
-           task.executionCount >= maxCount {
+           task.executionCount + 1 >= maxCount {
+            task.nextRunAt = nil
+            task.isEnabled = false
+        } else if Self.isScheduledOneShot(task: task, triggeredBy: triggeredBy) {
+            // Entering fireTask means the sole scheduled occurrence was
+            // consumed, even if a Timer happens to wake a fraction early.
             task.nextRunAt = nil
             task.isEnabled = false
         } else {
@@ -313,6 +318,16 @@ final class TaskScheduler: ObservableObject {
             runningTaskIDs.remove(taskId)
             rebuildSchedule()
         }
+    }
+
+    static func isScheduledOneShot(
+        task: ScheduledTask,
+        triggeredBy: TriggerType
+    ) -> Bool {
+        triggeredBy == .schedule
+            && task.schedule != .cron
+            && task.intervalSeconds == nil
+            && task.repeatType == .never
     }
 
     func computeNextRunDate(for task: ScheduledTask, after date: Date = Date()) -> Date? {
@@ -348,10 +363,12 @@ final class TaskScheduler: ObservableObject {
         }
 
         // Check end repeat count first (applies to all schedule types)
-        // Use executionLogs.count as source of truth for completed executions
+        // Keep the durable counter independent of retained log rows. Automatic
+        // retention may delete old logs, but it must never re-arm a task that
+        // already reached its configured execution limit.
         if task.endRepeatType == .afterCount,
            let maxCount = task.endRepeatCount,
-           task.executionLogs.filter({ $0.modelContext != nil }).count >= maxCount {
+           task.executionCount >= maxCount {
             return nil
         }
         if task.endRepeatType == .onDate,
@@ -463,6 +480,38 @@ final class TaskScheduler: ObservableObject {
         // Termination: every step advances the civil day (day-aligned) or the
         // instant (sub-day), and pinning only adjusts within the stepped day.
         var candidate = scheduledDate
+        let estimatedSteps: Int = {
+            switch intervalComponent {
+            case .second:
+                return Int(max(0, date.timeIntervalSince(scheduledDate))) / intervalValue
+            case .minute:
+                return Int(max(0, date.timeIntervalSince(scheduledDate)) / (Double(intervalValue) * 60))
+            case .hour:
+                return Int(max(0, date.timeIntervalSince(scheduledDate)) / (Double(intervalValue) * 3_600))
+            case .day:
+                return max(0, calendar.dateComponents([.day], from: scheduledDate, to: date).day ?? 0) / intervalValue
+            case .weekOfYear:
+                let days = max(0, calendar.dateComponents([.day], from: scheduledDate, to: date).day ?? 0)
+                return Int(Double(days) / (Double(intervalValue) * 7))
+            case .month:
+                return max(0, calendar.dateComponents([.month], from: scheduledDate, to: date).month ?? 0) / intervalValue
+            case .year:
+                return max(0, calendar.dateComponents([.year], from: scheduledDate, to: date).year ?? 0) / intervalValue
+            default:
+                return 0
+            }
+        }()
+        // Step to just before the estimate, then finish with the small exact
+        // loop below. The one-step cushion protects wall-clock schedules around
+        // DST/month-length boundaries without walking years of old occurrences.
+        if estimatedSteps > 1,
+           let advanced = calendar.date(
+               byAdding: intervalComponent,
+               value: (estimatedSteps - 1) * intervalValue,
+               to: scheduledDate
+           ) {
+            candidate = pinnedToTimeOfDay(advanced)
+        }
         while candidate <= date {
             guard let next = calendar.date(byAdding: intervalComponent, value: intervalValue, to: candidate) else {
                 return nil
@@ -489,7 +538,7 @@ final class TaskScheduler: ObservableObject {
             return candidate
         case .afterCount:
             if let maxCount = task.endRepeatCount,
-               task.executionLogs.filter({ $0.modelContext != nil }).count >= maxCount {
+               task.executionCount >= maxCount {
                 return nil
             }
             return candidate
@@ -541,7 +590,7 @@ final class TaskScheduler: ObservableObject {
         }
 
         var occurrenceDay = calendar.startOfDay(for: scheduledDate)
-        let logCount = task.executionLogs.filter { $0.modelContext != nil }.count
+        let executionCount = task.executionCount
 
         // Jump to the occurrence on/before the query's civil day, retaining
         // the original weekly/biweekly phase across DST and old anchors.
@@ -579,7 +628,7 @@ final class TaskScheduler: ObservableObject {
                         if let endDate = task.endRepeatDate, earliest > endDate { return nil }
                         return earliest
                     case .afterCount:
-                        if let maxCount = task.endRepeatCount, logCount >= maxCount { return nil }
+                        if let maxCount = task.endRepeatCount, executionCount >= maxCount { return nil }
                         return earliest
                     }
                 }
@@ -618,5 +667,77 @@ final class TaskScheduler: ObservableObject {
             NSWorkspace.shared.notificationCenter.removeObserver(observer)
         }
         wakeObserver = nil
+    }
+
+    /// A one-shot Timer is tied to the absolute `nextRunAt` computed when it was
+    /// installed. Rebuild after clock changes, and recompute system-zone tasks
+    /// after a time-zone change so "09:00 local" follows the user's new zone.
+    private func setupSystemChangeObservers() {
+        removeSystemChangeObservers()
+        clockChangeObserver = NotificationCenter.default.addObserver(
+            forName: .NSSystemClockDidChange,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in self?.systemClockDidChange() }
+        }
+        timeZoneChangeObserver = NotificationCenter.default.addObserver(
+            forName: .NSSystemTimeZoneDidChange,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in self?.systemTimeZoneDidChange() }
+        }
+    }
+
+    private func systemClockDidChange() {
+        guard isRunning, !isPausedForRestore, let modelContext else { return }
+        let descriptor = FetchDescriptor<ScheduledTask>(
+            predicate: #Predicate { $0.isEnabled }
+        )
+        if let tasks = try? modelContext.fetch(descriptor) {
+            let now = Date()
+            for task in tasks {
+                // Keep an overdue occurrence intact when rebuildSchedule should
+                // fire it. Everything else is recalculated from the corrected
+                // clock, including future dates made stale by a backwards jump.
+                if let nextRun = task.nextRunAt,
+                   nextRun <= now,
+                   (now.timeIntervalSince(nextRun) <= 60 || task.runMissedExecution) {
+                    continue
+                }
+                task.nextRunAt = computeNextRunDate(for: task, after: now)
+            }
+            do { try modelContext.save() }
+            catch { NSLog("⚠️ TaskScheduler clock-change save failed: \(error)") }
+        }
+        rebuildSchedule()
+    }
+
+    private func systemTimeZoneDidChange() {
+        guard isRunning, !isPausedForRestore, let modelContext else { return }
+        let descriptor = FetchDescriptor<ScheduledTask>(
+            predicate: #Predicate { $0.isEnabled && $0.timeZoneIdentifier == nil }
+        )
+        if let tasks = try? modelContext.fetch(descriptor) {
+            let now = Date()
+            for task in tasks {
+                task.nextRunAt = computeNextRunDate(for: task, after: now)
+            }
+            do { try modelContext.save() }
+            catch { NSLog("⚠️ TaskScheduler time-zone save failed: \(error)") }
+        }
+        rebuildSchedule()
+    }
+
+    private func removeSystemChangeObservers() {
+        if let observer = clockChangeObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
+        if let observer = timeZoneChangeObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
+        clockChangeObserver = nil
+        timeZoneChangeObserver = nil
     }
 }

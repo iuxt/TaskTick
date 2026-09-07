@@ -88,7 +88,36 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "Publishing v$version"
 
+      - name: Import Developer ID certificate
+        shell: bash
+        env:
+          CERTIFICATE_BASE64: ${{ secrets.DEVELOPER_ID_CERTIFICATE_BASE64 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.DEVELOPER_ID_CERTIFICATE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          : "${CERTIFICATE_BASE64:?Missing DEVELOPER_ID_CERTIFICATE_BASE64 secret}"
+          : "${CERTIFICATE_PASSWORD:?Missing DEVELOPER_ID_CERTIFICATE_PASSWORD secret}"
+
+          keychain="$RUNNER_TEMP/tasktick-signing.keychain-db"
+          certificate="$RUNNER_TEMP/tasktick-developer-id.p12"
+          keychain_password="$(uuidgen)"
+          printf '%s' "$CERTIFICATE_BASE64" | base64 --decode > "$certificate"
+          security create-keychain -p "$keychain_password" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$keychain_password" "$keychain"
+          security import "$certificate" -k "$keychain" -P "$CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$keychain_password" "$keychain"
+          security list-keychains -d user -s "$keychain" login.keychain-db
+          rm -f "$certificate"
+
+          identity="$(security find-identity -v -p codesigning "$keychain" | sed -n 's/.*"\(Developer ID Application:[^"]*\)".*/\1/p' | head -1)"
+          : "${identity:?Imported certificate does not contain a Developer ID Application identity}"
+          echo "DEVELOPER_ID_APPLICATION=$identity" >> "$GITHUB_ENV"
+
       - name: Build DMGs and publish GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
         run: ./scripts/release.sh "${{ steps.version.outputs.version }}" --yes

@@ -4,8 +4,10 @@ set -euo pipefail
 # ─────────────────────────────────────────────
 # TaskTick Release Script
 # Builds arm64 + x86_64 DMGs and uploads to GitHub Release
-# Usage: ./scripts/release.sh [version]
+# Usage: ./scripts/release.sh <version> [--yes] [--ad-hoc]
 #   e.g. ./scripts/release.sh 1.2.0
+# Developer ID releases require DEVELOPER_ID_APPLICATION plus either
+# APPLE_NOTARY_KEYCHAIN_PROFILE or APPLE_ID/APPLE_TEAM_ID/APPLE_APP_PASSWORD.
 # ─────────────────────────────────────────────
 
 APP_NAME="TaskTick"
@@ -19,13 +21,15 @@ MIN_MACOS="14.0"
 
 # ── Parse args ──
 ASSUME_YES=false
+AD_HOC=false
 VERSION=""
 for arg in "$@"; do
   case "$arg" in
     -y|--yes) ASSUME_YES=true ;;
+    --ad-hoc) AD_HOC=true ;;
     -*)
       echo "Unknown option: $arg"
-      echo "Usage: $0 <version> [--yes]"
+      echo "Usage: $0 <version> [--yes] [--ad-hoc]"
       exit 1
       ;;
     *)
@@ -39,9 +43,10 @@ for arg in "$@"; do
 done
 
 if [ -z "$VERSION" ]; then
-  echo "Usage: $0 <version> [--yes]"
+  echo "Usage: $0 <version> [--yes] [--ad-hoc]"
   echo "  e.g. $0 1.2.0"
   echo "  --yes  skip the upload prompt (required when stdin is not a TTY)"
+  echo "  --ad-hoc  local test build only; skips notarization and publishing"
   exit 1
 fi
 TAG="v${VERSION}"
@@ -50,6 +55,27 @@ BUILD_NUMBER=$(date +%Y%m%d%H%M)
 PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BUILD_DIR="${PROJECT_ROOT}/.release"
 ICON_PATH="${PROJECT_ROOT}/Sources/Resources/AppIcon.icns"
+SIGN_IDENTITY="${DEVELOPER_ID_APPLICATION:-}"
+NOTARY_PROFILE="${APPLE_NOTARY_KEYCHAIN_PROFILE:-}"
+
+if [ "$AD_HOC" = false ]; then
+  if [ -z "$SIGN_IDENTITY" ]; then
+    SIGN_IDENTITY=$(security find-identity -v -p codesigning 2>/dev/null \
+      | sed -n 's/.*"\(Developer ID Application:[^"]*\)".*/\1/p' \
+      | head -1)
+  fi
+  if [ -z "$SIGN_IDENTITY" ]; then
+    echo "ERROR: No Developer ID Application signing identity was found."
+    echo "Set DEVELOPER_ID_APPLICATION or import the certificate into the keychain."
+    echo "For a local, non-publishable build only, pass --ad-hoc."
+    exit 1
+  fi
+  if [ -z "$NOTARY_PROFILE" ] && { [ -z "${APPLE_ID:-}" ] || [ -z "${APPLE_TEAM_ID:-}" ] || [ -z "${APPLE_APP_PASSWORD:-}" ]; }; then
+    echo "ERROR: Notarization credentials are missing."
+    echo "Set APPLE_NOTARY_KEYCHAIN_PROFILE, or APPLE_ID + APPLE_TEAM_ID + APPLE_APP_PASSWORD."
+    exit 1
+  fi
+fi
 
 echo "══════════════════════════════════════════"
 echo "  ${APP_NAME} Release ${TAG}"
@@ -156,12 +182,49 @@ build_arch() {
 </plist>
 PLIST
 
-  # Ad-hoc code sign (deep sign all nested binaries/frameworks)
   echo "  Signing..."
-  codesign --force --deep --no-strict --sign - "${APP_BUNDLE}"
+  if [ "$AD_HOC" = true ]; then
+    codesign --force --deep --no-strict --sign - "${APP_BUNDLE}"
+  else
+    codesign --force --deep \
+      --options runtime \
+      --timestamp \
+      --sign "${SIGN_IDENTITY}" \
+      "${APP_BUNDLE}"
+  fi
+  codesign --verify --deep --strict --verbose=2 "${APP_BUNDLE}"
   echo "  Signed: $(codesign -dv "${APP_BUNDLE}" 2>&1 | grep 'Signature')"
 
   echo "  App bundle: ${APP_BUNDLE}"
+}
+
+notarize_file() {
+  local FILE_PATH="$1"
+  if [ -n "$NOTARY_PROFILE" ]; then
+    xcrun notarytool submit "$FILE_PATH" \
+      --keychain-profile "$NOTARY_PROFILE" \
+      --wait
+  else
+    xcrun notarytool submit "$FILE_PATH" \
+      --apple-id "$APPLE_ID" \
+      --team-id "$APPLE_TEAM_ID" \
+      --password "$APPLE_APP_PASSWORD" \
+      --wait
+  fi
+}
+
+notarize_app() {
+  local ARCH="$1"
+  local APP_BUNDLE="${BUILD_DIR}/${ARCH}/${APP_NAME}.app"
+  local ZIP_PATH="${BUILD_DIR}/${ARCH}/${APP_NAME}-notarization.zip"
+  echo ""
+  echo "── Notarizing app: ${ARCH} ──"
+  ditto -c -k --keepParent "$APP_BUNDLE" "$ZIP_PATH"
+  notarize_file "$ZIP_PATH"
+  rm -f "$ZIP_PATH"
+  xcrun stapler staple "$APP_BUNDLE"
+  xcrun stapler validate "$APP_BUNDLE"
+  spctl --assess --type execute --verbose=2 "$APP_BUNDLE"
 }
 
 # ── Create DMG function ──
@@ -190,6 +253,14 @@ create_dmg() {
     "${DMG_PATH}" \
     -quiet
 
+  if [ "$AD_HOC" = false ]; then
+    codesign --force --timestamp --sign "$SIGN_IDENTITY" "$DMG_PATH"
+    notarize_file "$DMG_PATH"
+    xcrun stapler staple "$DMG_PATH"
+    xcrun stapler validate "$DMG_PATH"
+    spctl --assess --type open --context context:primary-signature --verbose=2 "$DMG_PATH"
+  fi
+
   rm -rf "${DMG_STAGING}"
   echo "  DMG: ${DMG_PATH}"
   echo "  Size: $(du -h "${DMG_PATH}" | cut -f1)"
@@ -198,6 +269,11 @@ create_dmg() {
 # ── Build both architectures ──
 build_arch "arm64"
 build_arch "x86_64"
+
+if [ "$AD_HOC" = false ]; then
+  notarize_app "arm64"
+  notarize_app "x86_64"
+fi
 
 # ── Create DMGs ──
 create_dmg "arm64"
@@ -212,6 +288,11 @@ echo ""
 echo "  ${BUILD_DIR}/${APP_NAME}-${VERSION}-arm64.dmg"
 echo "  ${BUILD_DIR}/${APP_NAME}-${VERSION}-x86_64.dmg"
 echo ""
+
+if [ "$AD_HOC" = true ]; then
+  echo "  Ad-hoc build complete. It was not notarized and will not be published."
+  exit 0
+fi
 
 # ── Upload to GitHub Release ──
 #

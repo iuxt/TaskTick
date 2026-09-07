@@ -13,7 +13,7 @@
 "task.filter.enabled" = "Attive";
 "task.filter.disabled" = "Disattivate";
 "task.sort.created" = "Data creazione";
-"task.sort.last_run" = "Ultima esecuzione";
+"task.sort.last_run" = "Ultima esecuzione manuale";
 "task.sort.ascending" = "Crescente";
 "task.sort.descending" = "Decrescente";
 "task.search.prompt" = "Cerca attività...";
@@ -314,6 +314,8 @@
 "settings.general.language.restart_hint" = "Il cambio di lingua ha effetto immediato per la maggior parte degli elementi dell'interfaccia.";
 "settings.general.startup" = "Avvio";
 "settings.general.launch_at_login" = "Avvia al login";
+"settings.general.launch_at_login.failed" = "Impossibile modificare l’elemento di login";
+"settings.general.launch_at_login.approval" = "TaskTick richiede l’approvazione in Impostazioni di Sistema → Generali → Elementi login. L’opzione resta disattivata.";
 "settings.general.show_menubar_icon" = "Mostra icona nella barra dei menu";
 "settings.general.defaults" = "Predefiniti";
 "settings.general.default_shell" = "Shell predefinita";

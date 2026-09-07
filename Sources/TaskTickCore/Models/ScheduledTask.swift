@@ -189,6 +189,8 @@ public final class ScheduledTask {
     public var endRepeatTypeRaw: String = EndRepeatType.never.rawValue
     public var endRepeatDate: Date?
     public var endRepeatCount: Int?
+    /// Durable number of executions. Automatic log retention must not reduce
+    /// this value because run-count-limited schedules depend on it.
     public var executionCount: Int = 0
     public var customIntervalValue: Int = 1
     public var customIntervalUnitRaw: String = CustomRepeatUnit.day.rawValue

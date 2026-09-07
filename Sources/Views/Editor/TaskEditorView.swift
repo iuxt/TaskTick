@@ -61,6 +61,8 @@ struct TaskEditorView: View {
     @State private var scriptBody = ""
     @State private var scriptSource: ScriptSource = .inline
     @State private var scriptFilePath = ""
+    @State private var scriptPreview: String?
+    @State private var scriptPreviewTruncated = false
     @State private var preRunCommand = ""
     @State private var preRunEnabled = false
     @State private var workingDirectory = ""
@@ -204,6 +206,20 @@ struct TaskEditorView: View {
         .onAppear { loadTask() }
         .onChange(of: editorState.openTrigger) { _, _ in
             loadTask()
+        }
+        .task(id: scriptPreviewIdentity) {
+            guard !scriptPreviewIdentity.isEmpty else {
+                scriptPreview = nil
+                scriptPreviewTruncated = false
+                return
+            }
+            let path = scriptPreviewIdentity
+            let result = await Task.detached(priority: .userInitiated) {
+                PreviewFileReader.read(path: path)
+            }.value
+            guard !Task.isCancelled, path == scriptPreviewIdentity else { return }
+            scriptPreview = result?.content
+            scriptPreviewTruncated = result?.truncated ?? false
         }
     }
 
@@ -518,10 +534,10 @@ struct TaskEditorView: View {
                             .foregroundStyle(.orange)
                     }
 
-                    if !scriptFilePath.isEmpty,
-                       let content = try? String(contentsOfFile: Self.normalizePath(scriptFilePath), encoding: .utf8) {
+                    if !scriptFilePath.isEmpty, let content = scriptPreview {
                         ScrollView {
-                            Text(content.prefix(2000) + (content.count > 2000 ? "\n..." : ""))
+                            let visible = String(content.prefix(2000))
+                            Text(visible + (scriptPreviewTruncated || content.count > 2000 ? "\n..." : ""))
                                 .font(.system(size: 12, design: .monospaced))
                                 .foregroundStyle(.secondary)
                                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -542,7 +558,7 @@ struct TaskEditorView: View {
                             Text(L10n.tr("editor.script.validate"))
                         }
                     }
-                    .disabled(isValidating || currentScript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .disabled(isValidating || !hasValidatableScript)
                     .pointerCursor()
 
                     if let result = validationResult {
@@ -743,43 +759,50 @@ struct TaskEditorView: View {
 
     // MARK: - Script Validation
 
-    /// The script itself, without preRunCommand glued on. They're separate languages
-    /// once the script has a non-shell shebang, so validation keeps them apart.
-    private var currentScriptBody: String {
-        if scriptSource == .file {
-            if scriptFilePath.isEmpty { return "" }
-            return (try? String(contentsOfFile: Self.normalizePath(scriptFilePath), encoding: .utf8)) ?? ""
-        }
-        return scriptBody
+    private var scriptPreviewIdentity: String {
+        scriptSource == .file ? Self.normalizePath(scriptFilePath) : ""
     }
 
-    /// Both halves together — used only to decide whether there's anything to validate.
-    private var currentScript: String {
-        let body = currentScriptBody
-        let trimmedPre = preRunCommand.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmedPre.isEmpty ? body : trimmedPre + "\n" + body
+    /// Cheap redraw-time check. Reading a file's contents belongs to the explicit
+    /// validation action, never SwiftUI body evaluation.
+    private var hasValidatableScript: Bool {
+        let hasPreRun = !preRunCommand.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        switch scriptSource {
+        case .inline:
+            return hasPreRun || !scriptBody.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        case .file:
+            return hasPreRun || fileExistsAtScriptPath
+        }
     }
 
     /// Validation lives entirely in `ScriptValidator` — this screen used to carry its
     /// own near-duplicate copy, which is how the shebang fix landed in one of the two
     /// and not the other.
     private func validateScript() {
-        guard !currentScript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        guard hasValidatableScript else { return }
 
         isValidating = true
         validationResult = nil
-        let body = currentScriptBody
+        let source = scriptSource
+        let inlineBody = scriptBody
+        let filePath = Self.normalizePath(scriptFilePath)
         let pre = preRunCommand
         let selectedShell = shell
 
-        Task.detached {
+        Task {
+            let body: String
+            if source == .file {
+                body = await Task.detached(priority: .userInitiated) {
+                    (try? String(contentsOfFile: filePath, encoding: .utf8)) ?? ""
+                }.value
+            } else {
+                body = inlineBody
+            }
             let result = await ScriptValidator.validate(
                 scriptBody: body, preRun: pre, uiShell: selectedShell
             )
-            await MainActor.run {
-                validationResult = result
-                isValidating = false
-            }
+            validationResult = result
+            isValidating = false
         }
     }
 
@@ -1016,8 +1039,8 @@ struct TaskEditorView: View {
     }
 
     private func save() {
-        let isNewTask = task == nil
         let target = task ?? ScheduledTask()
+        let wasBackgroundService = target.isBackgroundService
 
         target.name = name.trimmingCharacters(in: .whitespaces)
         target.shell = shell
@@ -1136,10 +1159,13 @@ struct TaskEditorView: View {
             return
         }
         TaskScheduler.shared.rebuildSchedule()
-        if isNewTask && target.isEnabled && target.isBackgroundService && target.serviceAutoStart {
+        let isRunning = TaskScheduler.shared.runningTaskIDs.contains(target.id)
+        if target.isBackgroundService && target.isEnabled && target.serviceAutoStart && !isRunning {
             Task {
                 _ = await ScriptExecutor.shared.execute(task: target, modelContext: modelContext)
             }
+        } else if isRunning && (!target.isEnabled || (wasBackgroundService && !target.isBackgroundService)) {
+            ScriptExecutor.shared.cancel(taskId: target.id)
         }
         EditorState.shared.lastSavedTask = target
         closeWindow()

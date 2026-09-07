@@ -334,6 +334,14 @@ struct ScriptExecutorTests {
         #expect(ScriptExecutor.parseShebang(from: "echo hi") == nil)
         #expect(ScriptExecutor.parseShebang(from: "") == nil)
         #expect(ScriptExecutor.parseShebang(from: "#!/usr/bin/env\n") == nil)
+        #expect(
+            ScriptExecutor.parseShebangInvocation(from: "#!/usr/bin/env -S python3 -u\n")
+                == .init(executable: "python3", arguments: ["-u"])
+        )
+        #expect(
+            ScriptExecutor.parseShebangInvocation(from: "#!/bin/bash -e\n")
+                == .init(executable: "/bin/bash", arguments: ["-e"])
+        )
     }
 
     @Test("Shell interpreters are told apart from language interpreters")
@@ -357,6 +365,25 @@ struct ScriptExecutorTests {
         )
         #expect(resolved.shell == "/bin/zsh")
         #expect(resolved.body == "exec 'python3' '/tmp/a b.py'")
+    }
+
+    @Test("Shebang arguments are preserved when executing a script file")
+    @MainActor
+    func shebangArgumentsArePreserved() {
+        let envResolved = ScriptExecutor.resolveFileExecution(
+            fileContent: "#!/usr/bin/env -S python3 -u\nprint(1)",
+            filePath: "/tmp/a.py",
+            uiShell: "/bin/zsh"
+        )
+        #expect(envResolved.body == "exec 'python3' '-u' '/tmp/a.py'")
+
+        let shellResolved = ScriptExecutor.resolveFileExecution(
+            fileContent: "#!/bin/bash -e\nfalse\necho unreachable",
+            filePath: "/tmp/a.sh",
+            uiShell: "/bin/zsh"
+        )
+        #expect(shellResolved.shell == "/bin/zsh")
+        #expect(shellResolved.body == "exec '/bin/bash' '-e' '/tmp/a.sh'")
     }
 
     /// A quote in the path must not be able to end the quoted argument and let the

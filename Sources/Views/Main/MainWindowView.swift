@@ -6,7 +6,7 @@ struct MainWindowView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.openWindow) private var openWindow
     @StateObject private var editorState = EditorState.shared
-    @State private var selectedTask: ScheduledTask?
+    @StateObject private var taskSelection = TaskSelectionState.shared
     @State private var taskKindFilter: TaskKindFilter = .all
     @AppStorage("taskSortOption") private var sortOptionRaw = TaskSortOption.lastRunDesc.rawValue
     @Binding var showingCrontabImport: Bool
@@ -14,7 +14,7 @@ struct MainWindowView: View {
     var body: some View {
         NavigationSplitView {
             TaskListView(
-                selectedTask: $selectedTask,
+                selectedTask: $taskSelection.selectedTask,
                 sortOptionRaw: $sortOptionRaw,
                 kindFilter: $taskKindFilter
             )
@@ -48,7 +48,7 @@ struct MainWindowView: View {
                     }
                 }
         } detail: {
-            if let task = selectedTask {
+            if let task = taskSelection.selectedTask {
                 TaskDetailView(task: task)
                     .id(task.id)
             } else {
@@ -65,7 +65,7 @@ struct MainWindowView: View {
         .onChange(of: editorState.lastSavedTask) { _, newTask in
             if let task = newTask {
                 taskKindFilter = .all
-                selectedTask = task
+                taskSelection.selectedTask = task
                 editorState.lastSavedTask = nil
             }
         }

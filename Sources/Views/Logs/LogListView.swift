@@ -4,11 +4,22 @@ import TaskTickCore
 
 struct LogListView: View {
     @Environment(\.modelContext) private var modelContext
-    @Query(sort: \ExecutionLog.startedAt, order: .reverse) private var logs: [ExecutionLog]
+    @Query private var logs: [ExecutionLog]
     @State private var selection: Set<ExecutionLog> = []
     @State private var statusFilter: ExecutionStatus?
     @State private var logsToDelete: [ExecutionLog] = []
     @State private var showingDeleteAlert = false
+
+    /// Keep the global history window bounded even inside the configured
+    /// retention period. Individual task history remains available from its
+    /// detail view; this screen is the recent cross-task activity feed.
+    init() {
+        var descriptor = FetchDescriptor<ExecutionLog>(
+            sortBy: [SortDescriptor(\ExecutionLog.startedAt, order: .reverse)]
+        )
+        descriptor.fetchLimit = 2_000
+        _logs = Query(descriptor)
+    }
 
     var filteredLogs: [ExecutionLog] {
         // Deleted models linger in `@Query` results until the context saves;

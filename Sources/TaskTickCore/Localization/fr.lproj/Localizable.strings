@@ -11,7 +11,7 @@
 "task.filter.enabled" = "Activées";
 "task.filter.disabled" = "Désactivées";
 "task.sort.created" = "Date de création";
-"task.sort.last_run" = "Dernière exécution";
+"task.sort.last_run" = "Dernière exécution manuelle";
 "task.sort.ascending" = "Croissant";
 "task.sort.descending" = "Décroissant";
 "task.search.prompt" = "Rechercher des tâches...";
@@ -285,6 +285,8 @@
 "settings.general.language.restart_hint" = "Le changement de langue prend effet immédiatement pour la plupart des éléments de l'interface.";
 "settings.general.startup" = "Démarrage";
 "settings.general.launch_at_login" = "Lancer au démarrage";
+"settings.general.launch_at_login.failed" = "Impossible de modifier l’ouverture à la connexion";
+"settings.general.launch_at_login.approval" = "TaskTick doit être autorisé dans Réglages Système → Général → Ouverture. L’option reste désactivée.";
 "settings.general.show_menubar_icon" = "Afficher l'icône dans la barre des menus";
 "settings.general.defaults" = "Paramètres par défaut";
 "settings.general.default_shell" = "Shell par défaut";

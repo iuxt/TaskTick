@@ -89,6 +89,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         ScriptExecutor.shared.cancelAll(graceful: 0.2)
         TaskScheduler.shared.stop()
         TaskScheduler.shared.stopAdoptionPoll()
+        LogRetentionManager.shared.stop()
         do {
             try TaskTickApp._sharedModelContainer.mainContext.save()
         } catch {
@@ -328,14 +329,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        // Re-open main window when dock icon is clicked
+        // `Window(id:)` may have destroyed the NSWindow entirely. Route through
+        // the SwiftUI openWindow bridge so a Dock click recreates it as needed.
         if !flag {
-            for window in sender.windows {
-                if window.canBecomeMain {
-                    window.makeKeyAndOrderFront(self)
-                    break
-                }
-            }
+            Self.bringMainWindowForward()
         }
         return true
     }

@@ -155,6 +155,64 @@ struct TaskSchedulerTests {
         ))
     }
 
+    @Test("Old sub-day schedules fast-forward without walking every occurrence")
+    @MainActor
+    func oldSecondScheduleFastForwards() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let scheduled = calendar.date(from: DateComponents(
+            year: 2020, month: 1, day: 1, hour: 0, minute: 0, second: 0
+        ))!
+        let now = calendar.date(from: DateComponents(
+            year: 2026, month: 9, day: 7, hour: 12, minute: 0, second: 5
+        ))!
+        let task = ScheduledTask(name: "old seconds", scheduledDate: scheduled, repeatType: .custom)
+        task.customIntervalUnit = .second
+        task.customIntervalValue = 1
+        task.timeZoneIdentifier = "UTC"
+        let clock = ContinuousClock()
+        let started = clock.now
+
+        #expect(TaskScheduler.shared.computeNextRunDate(for: task, after: now) == now.addingTimeInterval(1))
+        #expect(started.duration(to: clock.now) < .milliseconds(100))
+    }
+
+    @Test("Run-count limit uses the durable counter when logs were retained")
+    @MainActor
+    func runCountLimitDoesNotDependOnRetainedLogs() {
+        let now = Date()
+        let task = ScheduledTask(
+            name: "retained count",
+            scheduledDate: now.addingTimeInterval(-60),
+            repeatType: .everyMinute
+        )
+        task.endRepeatType = .afterCount
+        task.endRepeatCount = 3
+        task.executionCount = 3
+
+        #expect(task.executionLogs.isEmpty)
+        #expect(TaskScheduler.shared.computeNextRunDate(for: task, after: now) == nil)
+    }
+
+    @Test("A scheduled one-shot disables itself after firing")
+    @MainActor
+    func oneShotDisablesAfterScheduledFire() {
+        let task = ScheduledTask(
+            name: "one shot",
+            scheduledDate: Date(),
+            repeatType: .never,
+            isEnabled: true
+        )
+        #expect(TaskScheduler.isScheduledOneShot(
+            task: task,
+            triggeredBy: .schedule
+        ))
+        #expect(!TaskScheduler.isScheduledOneShot(
+            task: task,
+            triggeredBy: .manual
+        ))
+    }
+
     @Test("Cron schedule does not cross its end date")
     @MainActor
     func cronHonorsEndDate() {

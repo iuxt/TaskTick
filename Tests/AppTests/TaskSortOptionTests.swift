@@ -9,7 +9,7 @@ struct TaskSortOptionTests {
     private func task(_ name: String, created: TimeInterval, lastRun: TimeInterval?) -> ScheduledTask {
         let t = ScheduledTask(name: name)
         t.createdAt = Date(timeIntervalSince1970: created)
-        t.lastRunAt = lastRun.map { Date(timeIntervalSince1970: $0) }
+        t.lastManualRunAt = lastRun.map { Date(timeIntervalSince1970: $0) }
         return t
     }
 
@@ -39,6 +39,14 @@ struct TaskSortOptionTests {
         let a = task("a", created: 100, lastRun: 500)
         let b = task("b", created: 300, lastRun: nil)
         #expect(TaskSortOption.lastRunAsc.sort([a, b]).map(\.name) == ["b", "a"])
+    }
+
+    @Test("Scheduled execution timestamps do not reorder the manual-recency sort")
+    func scheduledRunsDoNotAffectSort() {
+        let older = task("older", created: 100, lastRun: 500)
+        let scheduled = task("scheduled", created: 300, lastRun: nil)
+        scheduled.lastRunAt = Date(timeIntervalSince1970: 900)
+        #expect(TaskSortOption.lastRunDesc.sort([scheduled, older]).map(\.name) == ["older", "scheduled"])
     }
 
     @Test("disabled tasks sink below enabled ones, whatever the time ordering")

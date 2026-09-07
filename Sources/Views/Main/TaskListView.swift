@@ -108,8 +108,8 @@ struct TaskListView: View {
                             for log in Array(task.executionLogs) {
                                 modelContext.delete(log)
                             }
-                            // Save deletions first so to-many relationship reflects the empty state
-                            // before computeNextRunDate reads executionLogs.count.
+                            // Persist the cleared relationship before explicitly
+                            // resetting the user-visible run history and schedule.
                             do { try modelContext.save() } catch { NSLog("⚠️ clear logs save failed: \(error)") }
                             task.executionCount = 0
                             task.nextRunAt = TaskScheduler.shared.computeNextRunDate(for: task)

@@ -5,7 +5,7 @@ import TaskTickCore
 
 struct SettingsView: View {
     // General
-    @AppStorage("launchAtLogin") private var launchAtLogin = false
+    @State private var launchAtLogin = false
     @AppStorage("defaultShell") private var defaultShell = "/bin/zsh"
     @AppStorage("defaultTimeout") private var defaultTimeout = 300
     @AppStorage("appearanceMode") private var appearanceMode = "system"
@@ -83,6 +83,10 @@ struct SettingsView: View {
         .onExitCommand {
             NSApp.keyWindow?.close()
         }
+        .onAppear { syncLaunchAtLoginStatus() }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            syncLaunchAtLoginStatus()
+        }
     }
 
     /// How wide the window has to be for the whole tab bar to stay visible.
@@ -143,10 +147,13 @@ struct SettingsView: View {
                     }
                 }
 
-                Toggle(L10n.tr("settings.general.launch_at_login"), isOn: $launchAtLogin)
-                    .onChange(of: launchAtLogin) { _, newValue in
-                        toggleLaunchAtLogin(newValue)
-                    }
+                Toggle(
+                    L10n.tr("settings.general.launch_at_login"),
+                    isOn: Binding(
+                        get: { launchAtLogin },
+                        set: { toggleLaunchAtLogin($0) }
+                    )
+                )
 
                 Toggle(L10n.tr("settings.general.show_menubar_icon"), isOn: $showMenuBarIcon)
             }
@@ -643,8 +650,29 @@ struct SettingsView: View {
             } else {
                 try SMAppService.mainApp.unregister()
             }
+            syncLaunchAtLoginStatus()
+            if enabled && !launchAtLogin {
+                if SMAppService.mainApp.status == .requiresApproval {
+                    SMAppService.openSystemSettingsLoginItems()
+                }
+                showLaunchAtLoginError(L10n.tr("settings.general.launch_at_login.approval"))
+            }
         } catch {
-            print("Failed to toggle launch at login: \(error)")
+            syncLaunchAtLoginStatus()
+            showLaunchAtLoginError(error.localizedDescription)
         }
+    }
+
+    private func syncLaunchAtLoginStatus() {
+        launchAtLogin = SMAppService.mainApp.status == .enabled
+    }
+
+    private func showLaunchAtLoginError(_ message: String) {
+        let alert = NSAlert()
+        alert.messageText = L10n.tr("settings.general.launch_at_login.failed")
+        alert.informativeText = message
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "OK")
+        alert.runModal()
     }
 }

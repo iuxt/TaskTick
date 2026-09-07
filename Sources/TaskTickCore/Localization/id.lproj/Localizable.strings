@@ -13,7 +13,7 @@
 "task.filter.enabled" = "Aktif";
 "task.filter.disabled" = "Nonaktif";
 "task.sort.created" = "Tanggal dibuat";
-"task.sort.last_run" = "Terakhir dijalankan";
+"task.sort.last_run" = "Terakhir dijalankan manual";
 "task.sort.ascending" = "Menaik";
 "task.sort.descending" = "Menurun";
 "task.search.prompt" = "Cari tugas...";
@@ -314,6 +314,8 @@
 "settings.general.language.restart_hint" = "Perubahan bahasa langsung berlaku untuk sebagian besar elemen antarmuka.";
 "settings.general.startup" = "Mulai Otomatis";
 "settings.general.launch_at_login" = "Jalankan saat Login";
+"settings.general.launch_at_login.failed" = "Tidak Dapat Mengubah Item Masuk";
+"settings.general.launch_at_login.approval" = "TaskTick memerlukan persetujuan di Pengaturan Sistem → Umum → Item Masuk. Pengaturan tetap dinonaktifkan.";
 "settings.general.show_menubar_icon" = "Tampilkan ikon bilah menu";
 "settings.general.defaults" = "Bawaan";
 "settings.general.default_shell" = "Shell Bawaan";
