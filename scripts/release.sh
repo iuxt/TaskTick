@@ -118,13 +118,18 @@ build_arch() {
   # Copy binary (rename TaskTickApp → TaskTick during cp; user-facing name)
   cp "${BIN_PATH}" "${APP_BUNDLE}/Contents/MacOS/${APP_NAME}"
 
-  # Glob-copy ALL *.bundle (TaskTick_TaskTickCore.bundle and any future
-  # SPM target bundle). Per CLAUDE.md global rule.
+  # Copy every SwiftPM resource bundle into the standard macOS app resource
+  # directory. Putting them beside Contents/ leaves unsealed files at the app
+  # bundle root and makes `codesign --verify --strict` reject the package.
   echo "  Bundles:"
-  for bundle in $(find "${ARCH_BUILD_DIR}/build" -name "*.bundle" -type d -not -path '*\.dSYM*'); do
-    cp -R "${bundle}" "${APP_BUNDLE}/"
+  while IFS= read -r -d '' bundle; do
+    cp -R "${bundle}" "${APP_BUNDLE}/Contents/Resources/"
     echo "    $(basename "${bundle}")"
-  done
+  done < <(find "${ARCH_BUILD_DIR}/build" \
+    -name "*.bundle" \
+    -type d \
+    -not -path '*\.dSYM*' \
+    -print0)
 
   # Copy icon
   if [ -f "${ICON_PATH}" ]; then
