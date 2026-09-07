@@ -77,8 +77,13 @@ brew upgrade --cask task-tick
 | `TaskTick-x.x.x-arm64.dmg` | Apple Silicon (M1/M2/M3/M4) |
 | `TaskTick-x.x.x-x86_64.dmg` | Intel Mac |
 
-Release 下载包使用 Developer ID 签名并经过 Apple 公证。拖入“应用程序”后可直接打开，
-不再需要右键放行或执行 `xattr`。
+标记为 **Signed & Notarized** 的 Release 使用 Developer ID 签名并经过 Apple 公证，
+拖入“应用程序”后可直接打开。没有 Apple Developer 证书的 ad-hoc 版本首次打开时可能需要
+**右键点击 TaskTick.app → 打开 → 打开**，或执行：
+
+```bash
+xattr -cr /Applications/TaskTick.app
+```
 
 ### 从源码构建
 

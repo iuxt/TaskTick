@@ -46,7 +46,7 @@ if [ -z "$VERSION" ]; then
   echo "Usage: $0 <version> [--yes] [--ad-hoc]"
   echo "  e.g. $0 1.2.0"
   echo "  --yes  skip the upload prompt (required when stdin is not a TTY)"
-  echo "  --ad-hoc  local test build only; skips notarization and publishing"
+  echo "  --ad-hoc  use ad-hoc signing and skip notarization"
   exit 1
 fi
 TAG="v${VERSION}"
@@ -67,7 +67,7 @@ if [ "$AD_HOC" = false ]; then
   if [ -z "$SIGN_IDENTITY" ]; then
     echo "ERROR: No Developer ID Application signing identity was found."
     echo "Set DEVELOPER_ID_APPLICATION or import the certificate into the keychain."
-    echo "For a local, non-publishable build only, pass --ad-hoc."
+    echo "If you have no Apple Developer certificate, pass --ad-hoc."
     exit 1
   fi
   if [ -z "$NOTARY_PROFILE" ] && { [ -z "${APPLE_ID:-}" ] || [ -z "${APPLE_TEAM_ID:-}" ] || [ -z "${APPLE_APP_PASSWORD:-}" ]; }; then
@@ -290,8 +290,8 @@ echo "  ${BUILD_DIR}/${APP_NAME}-${VERSION}-x86_64.dmg"
 echo ""
 
 if [ "$AD_HOC" = true ]; then
-  echo "  Ad-hoc build complete. It was not notarized and will not be published."
-  exit 0
+  echo "  WARNING: ad-hoc build; not Developer ID signed or notarized."
+  echo "  Gatekeeper may require users to right-click Open or remove quarantine."
 fi
 
 # ── Upload to GitHub Release ──

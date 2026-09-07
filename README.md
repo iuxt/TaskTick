@@ -77,8 +77,13 @@ Grab the latest `.dmg` from [Releases](https://github.com/iuxt/TaskTick/releases
 | `TaskTick-x.x.x-arm64.dmg` | Apple Silicon (M1/M2/M3/M4) |
 | `TaskTick-x.x.x-x86_64.dmg` | Intel Mac |
 
-Release downloads are signed with Developer ID and notarized by Apple. Drag
-TaskTick to Applications and open it normally; no `xattr` workaround is needed.
+When a release is marked **Signed & Notarized**, drag TaskTick to Applications
+and open it normally. Ad-hoc releases built without an Apple Developer
+certificate may require **Right-click TaskTick.app → Open → Open**, or:
+
+```bash
+xattr -cr /Applications/TaskTick.app
+```
 
 ### Build from Source
 

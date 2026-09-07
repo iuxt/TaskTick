@@ -1,7 +1,12 @@
 # Releasing TaskTick
 
-Public releases must be signed with a **Developer ID Application** certificate
-and notarized by Apple. `scripts/release.sh` refuses to publish an ad-hoc build.
+The release workflow supports two modes:
+
+- With Apple credentials, releases use a **Developer ID Application**
+  certificate and are notarized and stapled by Apple.
+- Without Apple credentials, the workflow falls back to ad-hoc signing and
+  still publishes both DMGs. Gatekeeper may require users to explicitly approve
+  these builds on first launch.
 
 For a local release, import the certificate and either store notarization
 credentials in a keychain profile:
@@ -22,5 +27,5 @@ release workflow expects these repository secrets:
 - `APPLE_TEAM_ID`
 - `APPLE_APP_PASSWORD`
 
-Use `--ad-hoc` only to inspect a local package. That mode skips notarization
-and exits before upload.
+If the secrets are incomplete, GitHub Actions selects ad-hoc mode automatically.
+For a local ad-hoc build or release, pass `--ad-hoc`; notarization is skipped.

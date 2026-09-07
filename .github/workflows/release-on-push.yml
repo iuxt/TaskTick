@@ -88,16 +88,33 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "Publishing v$version"
 
+      - name: Select signing mode
+        shell: bash
+        env:
+          CERTIFICATE_BASE64: ${{ secrets.DEVELOPER_ID_CERTIFICATE_BASE64 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.DEVELOPER_ID_CERTIFICATE_PASSWORD }}
+          NOTARY_APPLE_ID: ${{ secrets.APPLE_ID }}
+          NOTARY_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          NOTARY_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [[ -n "$CERTIFICATE_BASE64" && -n "$CERTIFICATE_PASSWORD" && \
+                -n "$NOTARY_APPLE_ID" && -n "$NOTARY_TEAM_ID" && -n "$NOTARY_PASSWORD" ]]; then
+            echo "TASKTICK_SIGNING_MODE=signed" >> "$GITHUB_ENV"
+            echo "Developer ID credentials found; release will be signed and notarized."
+          else
+            echo "TASKTICK_SIGNING_MODE=adhoc" >> "$GITHUB_ENV"
+            echo "::warning::Developer ID/notarization credentials are incomplete. Publishing ad-hoc DMGs; users may need to approve them in Gatekeeper."
+          fi
+
       - name: Import Developer ID certificate
+        if: env.TASKTICK_SIGNING_MODE == 'signed'
         shell: bash
         env:
           CERTIFICATE_BASE64: ${{ secrets.DEVELOPER_ID_CERTIFICATE_BASE64 }}
           CERTIFICATE_PASSWORD: ${{ secrets.DEVELOPER_ID_CERTIFICATE_PASSWORD }}
         run: |
           set -euo pipefail
-          : "${CERTIFICATE_BASE64:?Missing DEVELOPER_ID_CERTIFICATE_BASE64 secret}"
-          : "${CERTIFICATE_PASSWORD:?Missing DEVELOPER_ID_CERTIFICATE_PASSWORD secret}"
-
           keychain="$RUNNER_TEMP/tasktick-signing.keychain-db"
           certificate="$RUNNER_TEMP/tasktick-developer-id.p12"
           keychain_password="$(uuidgen)"
@@ -120,4 +137,11 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
-        run: ./scripts/release.sh "${{ steps.version.outputs.version }}" --yes
+        shell: bash
+        run: |
+          set -euo pipefail
+          args=("${{ steps.version.outputs.version }}" --yes)
+          if [[ "$TASKTICK_SIGNING_MODE" == "adhoc" ]]; then
+            args+=(--ad-hoc)
+          fi
+          ./scripts/release.sh "${args[@]}"
