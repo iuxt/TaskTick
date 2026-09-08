@@ -411,15 +411,58 @@ struct ScriptExecutorTests {
         #expect(resolved.body == "exec '/usr/bin/python3' '/tmp/x.py'")
     }
 
-    @Test("Absolute-shell script files keep the legacy inline-contents path")
+    @Test("Absolute-shell script files are executed by path")
     @MainActor
-    func shellFileKeepsLegacyPath() {
+    func shellFileIsExeced() {
         let content = "#!/bin/bash\necho hi"
         let resolved = ScriptExecutor.resolveFileExecution(
             fileContent: content, filePath: "/tmp/x.sh", uiShell: "/bin/zsh"
         )
-        #expect(resolved.shell == "/bin/bash")
-        #expect(resolved.body == content)
+        #expect(resolved.shell == "/bin/zsh")
+        #expect(resolved.body == "exec '/bin/bash' '/tmp/x.sh'")
+    }
+
+    @Test("A bash script file keeps BASH_SOURCE when run end to end")
+    @MainActor
+    func bashSourceSurvivesFileExecution() throws {
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("tasktick-bash-source-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+
+        let file = dir.appendingPathComponent("probe.sh")
+        try """
+        #!/bin/bash
+        set -u
+        script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+        printf '%s\\n' "$script_dir"
+        """.write(to: file, atomically: true, encoding: .utf8)
+
+        let content = try String(contentsOf: file, encoding: .utf8)
+        let resolved = ScriptExecutor.resolveFileExecution(
+            fileContent: content, filePath: file.path, uiShell: "/bin/zsh"
+        )
+
+        let process = Process()
+        let stdoutPipe = Pipe()
+        let stderrPipe = Pipe()
+        process.executableURL = URL(fileURLWithPath: resolved.shell)
+        process.arguments = ["-l", "-c", resolved.body]
+        process.standardOutput = stdoutPipe
+        process.standardError = stderrPipe
+        try process.run()
+        let output = String(
+            decoding: stdoutPipe.fileHandleForReading.readDataToEndOfFile(),
+            as: UTF8.self
+        ).trimmingCharacters(in: .whitespacesAndNewlines)
+        let error = String(
+            decoding: stderrPipe.fileHandleForReading.readDataToEndOfFile(),
+            as: UTF8.self
+        )
+        process.waitUntilExit()
+
+        #expect(process.terminationStatus == 0, "stderr: \(error)")
+        #expect(output == dir.path)
     }
 
     @Test("Missing shebang falls back to the shell picked in the UI")

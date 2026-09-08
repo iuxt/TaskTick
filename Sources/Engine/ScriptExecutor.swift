@@ -674,15 +674,11 @@ final class ScriptExecutor: ObservableObject {
             return (uiShell, fileContent)
         }
         let interpreter = invocation.executable
-        // An absolute shell path can run the contents directly — this is the long-standing
-        // path for argument-free .sh files, kept byte-for-byte identical.
-        if interpreter.hasPrefix("/"), invocation.arguments.isEmpty,
-           isShellInterpreter(interpreter) {
-            return (interpreter, fileContent)
-        }
-        // Everything else — non-shell interpreters, and bare names like `bash` from
-        // `#!/usr/bin/env bash` (which can't be a Process executableURL anyway) — is
-        // handed to the interpreter as a file path.
+        // Execute every shebang-backed file by path, including shell scripts. Pasting a
+        // shell file's contents into `<shell> -c` loses its script identity: `$0` becomes
+        // the shell name and `BASH_SOURCE[0]` may be unset (and fatal under `set -u`).
+        // Invoking the interpreter with the file path preserves those semantics while the
+        // UI-selected wrapper still applies its environment prelude and pre-run command.
         let command = ([interpreter] + invocation.arguments + [filePath])
             .map(singleQuoted)
             .joined(separator: " ")
