@@ -2,6 +2,26 @@ import SwiftUI
 import SwiftData
 import TaskTickCore
 
+enum MenuBarTaskSelection {
+    static func backgroundTasks(
+        from tasks: [ScheduledTask],
+        limit: Int
+    ) -> [ScheduledTask] {
+        tasks
+            // Keep disabled services visible in the menu bar. A background
+            // service remains a useful launch target even when auto-start is
+            // disabled, and MenuBarTaskRow already renders that state in gray.
+            .filter(\.isBackgroundService)
+            .sorted {
+                // Most-recently-manually-run first; tasks that have never run
+                // manually fall back to their creation time.
+                ($0.lastManualRunAt ?? $0.createdAt) > ($1.lastManualRunAt ?? $1.createdAt)
+            }
+            .prefix(limit)
+            .map { $0 }
+    }
+}
+
 /// Content view displayed in the menu bar popover.
 struct MenuBarView: View {
     @Environment(\.modelContext) private var modelContext
@@ -26,15 +46,7 @@ struct MenuBarView: View {
     }
 
     var backgroundTasks: [ScheduledTask] {
-        tasks
-            .filter { $0.isEnabled && $0.isBackgroundService }
-            .sorted {
-                // Most-recently-manually-run first; tasks that have never run
-                // manually fall back to their creation time.
-                ($0.lastManualRunAt ?? $0.createdAt) > ($1.lastManualRunAt ?? $1.createdAt)
-            }
-            .prefix(Self.maxBackground)
-            .map { $0 }
+        MenuBarTaskSelection.backgroundTasks(from: tasks, limit: Self.maxBackground)
     }
 
     @State private var isHoveringHeader = false
