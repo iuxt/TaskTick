@@ -1,9 +1,30 @@
 import Foundation
 import Testing
+import TaskTickCore
 @testable import TaskTickApp
 
 @Suite("Running Duration Tests")
 struct RunningDurationTests {
+    @Test("Uses the latest running launch as the uptime origin")
+    func latestRunningLaunch() {
+        let task = ScheduledTask(name: "service")
+
+        let olderRunning = ExecutionLog(task: task)
+        olderRunning.startedAt = Date(timeIntervalSince1970: 100)
+
+        let latestRunning = ExecutionLog(task: task)
+        latestRunning.startedAt = Date(timeIntervalSince1970: 300)
+
+        let newerButFinished = ExecutionLog(task: task)
+        newerButFinished.startedAt = Date(timeIntervalSince1970: 400)
+        newerButFinished.finishedAt = Date(timeIntervalSince1970: 450)
+        newerButFinished.status = .success
+
+        task.executionLogs = [olderRunning, newerButFinished, latestRunning]
+
+        #expect(RunningDuration.startedAt(for: task) == latestRunning.startedAt)
+    }
+
     @Test("Uses localized abbreviated units")
     func localizedUnits() {
         let now = Date(timeIntervalSince1970: 10_000)

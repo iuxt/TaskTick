@@ -120,7 +120,12 @@ final class ScriptExecutor: ObservableObject {
         // that also insert (TaskScheduler.fireTask) stay correct.
         TaskScheduler.shared.runningTaskIDs.insert(task.id)
         let executionTaskID = task.id
+        let startTime = Date()
         let log = ExecutionLog(task: task, triggeredBy: triggeredBy)
+        // Keep every consumer (logs, detail view and menu-bar uptime) on the
+        // exact same start instant for this launch. This is reset for each
+        // supervised service restart because every restart creates a new log.
+        log.startedAt = startTime
         activeLogs[executionTaskID] = log
         executionContexts[log.id] = modelContext
         executionControls[executionTaskID] = ExecutionControl()
@@ -136,7 +141,6 @@ final class ScriptExecutor: ObservableObject {
         // Automatic retention can safely prune history without changing an
         // `afterCount` schedule's already-consumed occurrences.
         task.executionCount += 1
-        let startTime = Date()
         // Bump the manual-run recency NOW (not at end) so long-running scripts
         // — dev servers, watchers, anything that runs for hours — surface to
         // the top of the lists immediately when the user hits play, instead

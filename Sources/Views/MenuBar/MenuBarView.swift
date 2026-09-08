@@ -249,19 +249,23 @@ struct MenuBarTaskRow: View {
                     .pointerCursor()
                     .help(L10n.tr("task.detail.stop"))
                 } else if task.isBackgroundService {
-                    if let startedAt = RunningDuration.startedAt(for: task) {
-                        TimelineView(.periodic(from: .now, by: 1)) { context in
+                    TimelineView(.periodic(from: .now, by: 1)) { context in
+                        // Resolve the start on every tick instead of capturing
+                        // it when the popover opens. A supervised background
+                        // service can restart while the popover remains open;
+                        // its uptime must then reset to that latest launch.
+                        if let startedAt = RunningDuration.startedAt(for: task) {
                             Text(RunningDuration.format(since: startedAt, now: context.date))
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                                 .monospacedDigit()
+                        } else {
+                            Text(L10n.tr("status.running"))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
                         }
-                        .help(L10n.tr("status.running"))
-                    } else {
-                        Text(L10n.tr("status.running"))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
                     }
+                    .help(L10n.tr("status.running"))
                 } else {
                     ProgressView()
                         .controlSize(.mini)
