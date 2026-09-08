@@ -16,16 +16,32 @@ enum RunningDuration {
             .startedAt
     }
 
-    /// Compact "Xh Ym Zs" rendering. Auto-collapses zero leading components
-    /// (a 30-second run reads "30s", a 2-minute run reads "2m 5s"). Always
-    /// at most two units so the label stays compact.
-    static func format(since startedAt: Date, now: Date = Date()) -> String {
+    /// Compact localized duration rendering. Auto-collapses zero leading
+    /// components (for example, Simplified Chinese renders a 30-second run as
+    /// "30秒" and a 2-minute run as "2分钟5秒"). Always at most two units so
+    /// the label stays compact.
+    static func format(
+        since startedAt: Date,
+        now: Date = Date(),
+        locale: Locale = appLocale
+    ) -> String {
         let elapsed = Int(max(0, now.timeIntervalSince(startedAt)))
-        let h = elapsed / 3600
-        let m = (elapsed % 3600) / 60
-        let s = elapsed % 60
-        if h > 0 { return "\(h)h \(m)m" }
-        if m > 0 { return "\(m)m \(s)s" }
-        return "\(s)s"
+
+        let formatter = DateComponentsFormatter()
+        var calendar = Calendar.current
+        calendar.locale = locale
+        formatter.calendar = calendar
+        formatter.allowedUnits = [.hour, .minute, .second]
+        formatter.unitsStyle = .abbreviated
+        formatter.maximumUnitCount = 2
+        formatter.zeroFormattingBehavior = [.dropLeading]
+
+        return formatter.string(from: TimeInterval(elapsed)) ?? "0"
+    }
+
+    private static var appLocale: Locale {
+        let saved = UserDefaults.standard.string(forKey: "appLanguage") ?? AppLanguage.system.rawValue
+        let language = AppLanguage(rawValue: saved) ?? .system
+        return Locale(identifier: language.resolvedCode)
     }
 }
