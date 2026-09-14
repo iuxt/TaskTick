@@ -225,7 +225,11 @@ struct MenuBarTaskRow: View {
     var body: some View {
         HStack(spacing: 10) {
             Circle()
-                .fill(isRunning ? .blue : (task.isEnabled ? .green : .gray.opacity(0.4)))
+                .fill(
+                    isRunning
+                        ? .blue
+                        : (task.isBackgroundService || !task.isEnabled ? .gray.opacity(0.4) : .green)
+                )
                 .frame(width: 8, height: 8)
 
             Text(task.name)
