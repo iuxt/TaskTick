@@ -268,6 +268,9 @@ public final class ScheduledTask {
     /// times are interpreted in — issue #41. nil (default) follows the system
     /// time zone, preserving pre-existing behavior on SwiftData migration.
     public var timeZoneIdentifier: String? = nil
+    /// Zone in which the stored absolute anchor represented the intended civil
+    /// time. Optional for migration; persisted to detect changes while offline.
+    public var scheduleAnchorTimeZoneIdentifier: String? = nil
 
     @Relationship(deleteRule: .cascade, inverse: \ExecutionLog.task)
     public var executionLogs: [ExecutionLog]
@@ -296,6 +299,7 @@ public final class ScheduledTask {
         self.cronExpression = nil
         self.intervalSeconds = nil
         self.scheduledDate = scheduledDate
+        self.scheduleAnchorTimeZoneIdentifier = TimeZone.current.identifier
         self.repeatTypeRaw = repeatType.rawValue
         self.endRepeatTypeRaw = endRepeatType.rawValue
         self.endRepeatDate = endRepeatDate
@@ -354,6 +358,33 @@ public final class ScheduledTask {
             calendar.timeZone = tz
         }
         return calendar
+    }
+
+    /// Preserve the schedule's civil date/time when following a changed system
+    /// zone. Explicit-zone anchors are already rebased by the task editor.
+    @discardableResult
+    public func rebaseScheduleIfNeeded(to systemTimeZone: TimeZone = .current) -> Bool {
+        if let explicitZone = scheduleTimeZone {
+            scheduleAnchorTimeZoneIdentifier = explicitZone.identifier
+            return false
+        }
+        defer { scheduleAnchorTimeZoneIdentifier = systemTimeZone.identifier }
+        guard let previous = scheduleAnchorTimeZoneIdentifier,
+              previous != systemTimeZone.identifier,
+              let oldZone = TimeZone(identifier: previous) else { return false }
+        var oldCalendar = Calendar.current
+        oldCalendar.timeZone = oldZone
+        var newCalendar = oldCalendar
+        newCalendar.timeZone = systemTimeZone
+        func rebase(_ date: Date?) -> Date? {
+            guard let date else { return nil }
+            let components = oldCalendar.dateComponents([.year, .month, .day, .hour, .minute, .second, .nanosecond], from: date)
+            return newCalendar.date(from: components) ?? date
+        }
+        scheduledDate = rebase(scheduledDate)
+        endRepeatDate = rebase(endRepeatDate)
+        nextRunAt = nil
+        return true
     }
 
     /// Extra time-of-day points decoded from `additionalTimesJSON`. Each entry

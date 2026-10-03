@@ -183,6 +183,9 @@ public struct CronExpression: Sendable {
     /// `calendar` controls the time zone the cron fields are interpreted in;
     /// defaults to the system calendar (issue #41).
     public func nextFireDate(after date: Date = Date(), calendar: Calendar = Calendar.current) -> Date? {
+        // Keep the instant's occurrence of a repeated DST minute. Rebuilding
+        // civil components can select the first occurrence and move backwards.
+        guard let currentMinute = calendar.dateInterval(of: .minute, for: date) else { return nil }
 
         // 6-field expressions: the current minute may still contain a matching
         // second — check it before falling into the minute-by-minute scan.
@@ -193,22 +196,11 @@ public struct CronExpression: Sendable {
                let mo = comps.month, let wd = comps.weekday, let s = comps.second,
                minuteLevelMatches(m: m, h: h, d: d, mo: mo, cronWeekday: wd - 1),
                let nextSecond = ((s + 1)..<60).first(where: { matches(field: secondsField, value: $0) }) {
-                var c = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: date)
-                c.second = nextSecond
-                if let fire = calendar.date(from: c) {
-                    return fire
-                }
+                return currentMinute.start.addingTimeInterval(TimeInterval(nextSecond))
             }
         }
 
-        var components = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: date)
-        // Start from the next minute
-        components.second = 0
-        if let minute = components.minute {
-            components.minute = minute + 1
-        }
-
-        guard let firstCandidate = calendar.date(from: components) else { return nil }
+        let firstCandidate = currentMinute.end
 
         // Search up to 4 years ahead
         guard let limit = calendar.date(byAdding: .year, value: 4, to: date) else { return nil }

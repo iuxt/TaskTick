@@ -35,29 +35,30 @@ import os
 ///    soon as it exists at the final name, its companions already do too.
 /// 4. **Size sanity-check after every copy.** A short write on a full disk
 ///    would corrupt the new store. Size mismatch ⇒ rollback, leave legacy
-///    alone, return the (still-empty) new URL so SwiftData triggers recovery.
+///    alone, explicitly request recovery without opening an empty database.
 /// 5. **Ambiguous states fail safe.** If both legacy and new already have data,
 ///    use new (don't auto-merge). The operator can recover either manually.
 /// 6. **Never throw.** Migration runs inside a `static let` initializer; a
 ///    throw there would crash the app on launch. Any failure is logged and
-///    the caller falls back to opening the (possibly empty) new path.
+///    the caller enters recovery without opening the new path.
 public enum StoreMigration {
     private static let logger = Logger(subsystem: "com.iuxt.TaskTick", category: "StoreMigration")
     private static let tmpSuffix = ".migrating"
     /// All three SwiftData SQLite sidecars. Order matters for the rename phase.
     private static let extensions = ["-wal", "-shm", ""]
 
-    /// Returns the URL TaskTick should pass to `ModelConfiguration`. Migrates
-    /// legacy data into a per-bundleID subdirectory on first run of v1.4.2+.
-    /// Idempotent — safe to call on every launch.
-    public static func resolveStoreURL() -> URL {
-        let appSupport = URL.applicationSupportDirectory
-        let bundleID = BundleContext.bundleID
-        let isDev = BundleContext.isDev
-        // Filename kept identical to legacy so old DatabaseBackup `.store`-dir
-        // backups keep working (they record the legacy filename verbatim).
-        let filename = isDev ? "tasktick-dev.store" : "default.store"
+    public struct Resolution: Sendable {
+        public let url: URL
+        public let requiresRecovery: Bool
+    }
 
+    /// Explicitly reports migration failure: opening a missing path would create
+    /// an empty database and silently hide the preserved legacy data.
+    public static func resolveStore(
+        appSupport: URL = .applicationSupportDirectory,
+        bundleID: String = BundleContext.bundleID,
+        filename: String = BundleContext.isDev ? "tasktick-dev.store" : "default.store"
+    ) -> Resolution {
         let legacyURL = appSupport.appendingPathComponent(filename)
         let namespaceDir = appSupport.appendingPathComponent(bundleID)
         let newURL = namespaceDir.appendingPathComponent(filename)
@@ -74,12 +75,12 @@ public enum StoreMigration {
                 safety net at \(legacyURL.path)
                 """)
             }
-            return newURL
+            return Resolution(url: newURL, requiresRecovery: false)
         }
 
         // Case B: neither exists → fresh install. Use new path.
         if !legacyExists {
-            return newURL
+            return Resolution(url: newURL, requiresRecovery: false)
         }
 
         // Case C: legacy exists, new does not → do the migration.
@@ -88,15 +89,9 @@ public enum StoreMigration {
         if migrated {
             logger.notice("Store migration succeeded. Legacy preserved at \(legacyURL.path)")
         } else {
-            // Failure already rolled back to the pre-migration state. The caller
-            // will open an empty store at newURL, flip `_needsRecovery`, and the
-            // user can restore from a JSON backup.
-            logger.error("""
-            Store migration FAILED. Legacy files left untouched at \(legacyURL.path). \
-            New path will open empty and recovery mode will trigger.
-            """)
+            logger.error("Store migration FAILED. Legacy preserved at \(legacyURL.path); recovery required.")
         }
-        return newURL
+        return Resolution(url: newURL, requiresRecovery: !migrated)
     }
 
     // MARK: - Private
@@ -117,6 +112,17 @@ public enum StoreMigration {
         } catch {
             logger.error("Cannot create namespace directory \(namespaceDir.path): \(error.localizedDescription)")
             return false
+        }
+
+        // A crash after renaming a companion but before committing the main
+        // file leaves an ambiguous target. Check even companions absent from
+        // the source so stale WAL can never accompany a newly copied main file.
+        for ext in extensions {
+            let target = URL(fileURLWithPath: newURL.path + ext)
+            if fm.fileExists(atPath: target.path) {
+                logger.error("Unexpected existing file at migration target \(target.path). Aborting.")
+                return false
+            }
         }
 
         // Phase 1: copy every existing legacy file into its `.migrating` tmp.
@@ -141,7 +147,7 @@ public enum StoreMigration {
             }
 
             // An existing final at the target would mean we're in case A, which
-            // resolveStoreURL already handled. Refuse defensively rather than
+            // resolveStore already handled. Refuse defensively rather than
             // overwrite.
             if fm.fileExists(atPath: finalURL.path) {
                 logger.error("Unexpected existing file at migration target \(finalURL.path). Aborting.")
@@ -153,6 +159,7 @@ public enum StoreMigration {
                 try fm.copyItem(at: source, to: tmp)
             } catch {
                 logger.error("Copy failed for \(source.lastPathComponent): \(error.localizedDescription)")
+                try? fm.removeItem(at: tmp)
                 rollback(staged: staged)
                 return false
             }
@@ -164,6 +171,7 @@ public enum StoreMigration {
             let tmpSize = (try? fm.attributesOfItem(atPath: tmp.path))?[.size] as? Int
             guard let s = sourceSize, let t = tmpSize, s == t else {
                 logger.error("Size mismatch for \(source.lastPathComponent): source=\(String(describing: sourceSize)) tmp=\(String(describing: tmpSize))")
+                try? fm.removeItem(at: tmp)
                 rollback(staged: staged)
                 return false
             }
@@ -172,10 +180,11 @@ public enum StoreMigration {
             logger.info("Staged \(source.lastPathComponent) (\(s) bytes)")
         }
 
-        // Edge case: no legacy files existed after all (shouldn't happen — we
-        // verified `legacyExists` at the call site — but defend anyway).
-        guard !staged.isEmpty else {
-            logger.error("No files staged; nothing to migrate.")
+        // The source main file may disappear after the initial existence check.
+        // Sidecars alone must never count as a completed migration.
+        guard staged.contains(where: { $0.finalURL == newURL }) else {
+            logger.error("Main store was not staged; aborting migration.")
+            rollback(staged: staged)
             return false
         }
 

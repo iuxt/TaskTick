@@ -269,6 +269,7 @@ struct TaskListView: View {
         copy.customIntervalUnit = task.customIntervalUnit
         copy.additionalTimesJSON = task.additionalTimesJSON
         copy.timeZoneIdentifier = task.timeZoneIdentifier
+        copy.scheduleAnchorTimeZoneIdentifier = task.scheduleAnchorTimeZoneIdentifier
         copy.hasDate = task.hasDate
         copy.hasTime = task.hasTime
         copy.environmentVariablesJSON = task.environmentVariablesJSON

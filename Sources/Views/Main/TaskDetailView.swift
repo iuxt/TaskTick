@@ -422,7 +422,7 @@ struct TaskDetailView: View {
             }
             return LogFileWriter.fileURL(
                 for: task.name,
-                taskId: task.isBackgroundService ? task.id : nil
+                taskId: task.id
             )
         }()
         let fileExists = fileURL.map { FileManager.default.fileExists(atPath: $0.path) } ?? false

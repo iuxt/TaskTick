@@ -52,6 +52,7 @@ struct TaskExporter {
         /// Per-task schedule time zone (issue #41). Optional for older exports;
         /// nil = follow the system time zone.
         let timeZoneIdentifier: String?
+        let scheduleAnchorTimeZoneIdentifier: String?
         /// Custom reminder body shared by all channels (issue #48). Optional so
         /// older exports still decode; nil restores as "default wording".
         let notificationTemplateEnabled: Bool?
@@ -201,6 +202,7 @@ struct TaskExporter {
             scheduleType: task.scheduleType,
             jitterSeconds: task.jitterSeconds > 0 ? task.jitterSeconds : nil,
             timeZoneIdentifier: task.timeZoneIdentifier,
+            scheduleAnchorTimeZoneIdentifier: task.scheduleAnchorTimeZoneIdentifier,
             notificationTemplateEnabled: task.notificationTemplateEnabled ? true : nil,
             notificationTemplate: task.notificationTemplate.isEmpty ? nil : task.notificationTemplate,
             isBackgroundService: task.isBackgroundService ? true : nil,
@@ -250,6 +252,7 @@ struct TaskExporter {
         }
         task.jitterSeconds = item.jitterSeconds ?? 0
         task.timeZoneIdentifier = item.timeZoneIdentifier
+        task.scheduleAnchorTimeZoneIdentifier = item.scheduleAnchorTimeZoneIdentifier ?? task.scheduleCalendar.timeZone.identifier
         if let v = item.customIntervalValue { task.customIntervalValue = v }
         if let u = item.customIntervalUnit { task.customIntervalUnitRaw = u }
         if let v = item.runMissedExecution { task.runMissedExecution = v }

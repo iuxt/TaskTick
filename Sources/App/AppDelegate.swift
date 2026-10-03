@@ -185,7 +185,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
             // Case 4: adopt
             if let taskID = log.task?.id {
-                ScriptExecutor.shared.adoptedProcesses[taskID] = pid
+                ScriptExecutor.shared.adoptedProcesses[taskID] = ProcessReconciler.Identity(pid: pid, startTime: recordedStart)
                 TaskScheduler.shared.runningTaskIDs.insert(taskID)
                 if (log.stdout ?? "").isEmpty == false {
                     log.stdout = (log.stdout ?? "") +

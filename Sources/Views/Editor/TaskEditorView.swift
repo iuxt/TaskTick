@@ -860,6 +860,7 @@ struct TaskEditorView: View {
         tempTask.endRepeatDate = endRepeatDate
         tempTask.endRepeatCount = endRepeatCount
         tempTask.timeZoneIdentifier = timeZoneID
+        tempTask.scheduleAnchorTimeZoneIdentifier = editorTimeZone.identifier
         if hasTime {
             let cal = editorCalendar
             tempTask.additionalTimes = additionalTimes.map {
@@ -1113,6 +1114,7 @@ struct TaskEditorView: View {
 
         target.jitterSeconds = max(0, jitterSeconds)
         target.timeZoneIdentifier = timeZoneID
+        target.scheduleAnchorTimeZoneIdentifier = editorTimeZone.identifier
 
         // Cron mode rides the legacy schedule channel — TaskScheduler prefers
         // it whenever schedule == .cron (issue #38). Non-cron saves reset the

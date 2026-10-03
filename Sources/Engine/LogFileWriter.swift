@@ -16,12 +16,9 @@ final class LogFileWriter: @unchecked Sendable {
     private let maximumBytes: Int64
     private let rotationCount: Int
     private var currentBytes: Int64
-    /// Holds the tail of a chunk that might be the start of an ANSI escape
-    /// sequence split across pipe reads. Without this, a chunk ending in
-    /// `\x1B[0;32` followed by `m\nlog text\n` would have the head ESC
-    /// orphaned (unstrippable) and the tail's `m` stranded as visible junk.
-    private var pendingEscape = ""
-    private var utf8Decoder = UTF8StreamDecoder()
+    enum Stream { case stdout, stderr }
+    private var stdoutDecoder = ProcessOutputDecoder()
+    private var stderrDecoder = ProcessOutputDecoder()
 
     init?(
         taskName: String,
@@ -64,27 +61,18 @@ final class LogFileWriter: @unchecked Sendable {
     /// internal queue so concurrent stdout/stderr handlers don't interleave
     /// inside a single write() syscall.
     ///
-    /// ANSI escape codes are stripped before writing — the file is meant to
-    /// be opened in Console.app or `cat`, neither of which renders escape
-    /// sequences. Terminal users running `tail -f` lose color, which is
-    /// the lesser evil. Sequences split across pipe reads (rare but real)
-    /// are buffered via `pendingEscape`.
-    func append(_ data: Data) {
+    /// Each stream keeps its own ANSI and UTF-8 state between pipe reads.
+    func append(_ data: Data, stream: Stream = .stdout) {
         guard !data.isEmpty else { return }
         queue.async { [weak self] in
-            guard let self else { return }
-            self.appendDecoded(self.utf8Decoder.decode(data))
+            guard let self, self.handle != nil else { return }
+            let text: String
+            switch stream {
+            case .stdout: text = self.stdoutDecoder.decode(data)
+            case .stderr: text = self.stderrDecoder.decode(data)
+            }
+            self.writeRotating(Data(text.utf8))
         }
-    }
-
-    private func appendDecoded(_ raw: String) {
-        guard !raw.isEmpty else { return }
-        let combined = pendingEscape + raw
-        let (safe, pending) = Self.splitOnIncompleteEscape(combined)
-        pendingEscape = pending
-        let cleaned = stripANSI(safe)
-        guard !cleaned.isEmpty else { return }
-        writeRotating(Data(cleaned.utf8))
     }
 
     /// Writes all bytes while keeping each active file at or below the limit
@@ -172,56 +160,12 @@ final class LogFileWriter: @unchecked Sendable {
         URL(fileURLWithPath: fileURL.path + ".\(index)")
     }
 
-    /// Hold back any trailing partial ANSI sequence so the next chunk can
-    /// reassemble and strip it. Recognizes the three forms TaskTick's
-    /// `stripANSI()` regex covers: CSI (`ESC [ … letter`), OSC
-    /// (`ESC ] … BEL`), and the 3-byte charset selectors (`ESC ( X` /
-    /// `ESC ) X`). Anything else falls through as "complete" — those
-    /// sequences are rare and would just appear inline as plain text.
-    private static func splitOnIncompleteEscape(_ text: String) -> (safe: String, pending: String) {
-        guard let escIdx = text.lastIndex(of: "\u{1B}") else {
-            return (text, "")
-        }
-        let afterEsc = text[text.index(after: escIdx)...]
-        let head = String(text[..<escIdx])
-        let tail = String(text[escIdx...])
-
-        guard let firstByte = afterEsc.first else {
-            // Bare ESC at end — definitely incomplete.
-            return (head, tail)
-        }
-
-        switch firstByte {
-        case "[":
-            // CSI: complete iff we've seen the final letter.
-            if afterEsc.dropFirst().contains(where: { $0.isASCII && $0.isLetter }) {
-                return (text, "")
-            }
-            return (head, tail)
-        case "]":
-            // OSC: terminated by BEL (\x07).
-            if afterEsc.contains("\u{07}") {
-                return (text, "")
-            }
-            return (head, tail)
-        case "(", ")":
-            // Charset selector: ESC + paren + 1 byte.
-            if afterEsc.count >= 2 {
-                return (text, "")
-            }
-            return (head, tail)
-        default:
-            return (text, "")
-        }
-    }
-
     /// Idempotent — closes the underlying handle. Subsequent appends are
     /// no-ops. The on-disk file is left in place for the user to inspect.
     func close() {
         queue.sync { [self] in
-            appendDecoded(utf8Decoder.finish())
-            // A partial escape is terminal decoration, not user output; drop it.
-            pendingEscape = ""
+            writeRotating(Data(stdoutDecoder.finish().utf8))
+            writeRotating(Data(stderrDecoder.finish().utf8))
             try? handle?.close()
             handle = nil
         }

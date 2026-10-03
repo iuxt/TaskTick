@@ -36,13 +36,12 @@ final class TaskScheduler: ObservableObject {
         guard !isRunning else { return }
         isRunning = true
 
-        // Compute nextRunAt for all enabled tasks that don't have one
-        let descriptor = FetchDescriptor<ScheduledTask>(
-            predicate: #Predicate { $0.isEnabled }
-        )
+        // Include disabled tasks: their anchors must also follow zone changes.
+        let descriptor = FetchDescriptor<ScheduledTask>()
         if let tasks = try? modelContext.fetch(descriptor) {
             for task in tasks {
-                if task.nextRunAt == nil {
+                let rebased = task.rebaseScheduleIfNeeded()
+                if task.isEnabled && (rebased || task.nextRunAt == nil) {
                     task.nextRunAt = computeNextRunDate(for: task)
                 }
             }
@@ -160,7 +159,7 @@ final class TaskScheduler: ObservableObject {
     /// Polls every 30s to see whether any adopted process has exited.
     /// When one does, transition the corresponding log from .running to
     /// .cancelled and clear the runningTaskIDs entry. Cheap — typically
-    /// 0-2 adopted processes; each probe is a single `kill(pid, 0)` syscall.
+    /// 0-2 adopted processes; each probe checks liveness and start time.
     private var adoptionPollTimer: Timer?
 
     @MainActor
@@ -183,8 +182,9 @@ final class TaskScheduler: ObservableObject {
         let snapshot = ScriptExecutor.shared.adoptedProcesses
         guard !snapshot.isEmpty, let ctx = modelContext else { return }
         let now = Date()
-        for (taskID, pid) in snapshot {
-            if ProcessReconciler.isAlive(pid: pid) { continue }
+        for (taskID, identity) in snapshot {
+            if identity.isCurrent { continue }
+            let pid = identity.pid
             ScriptExecutor.shared.adoptedProcesses.removeValue(forKey: taskID)
             runningTaskIDs.remove(taskID)
 
@@ -331,6 +331,7 @@ final class TaskScheduler: ObservableObject {
     }
 
     func computeNextRunDate(for task: ScheduledTask, after date: Date = Date()) -> Date? {
+        task.rebaseScheduleIfNeeded()
         guard let base = computeBaseNextRunDate(for: task, after: date) else { return nil }
         let next = Self.jittered(base, jitterSeconds: task.jitterSeconds, taskID: task.id)
         if task.endRepeatType == .onDate, let end = task.endRepeatDate, next > end {
@@ -501,22 +502,19 @@ final class TaskScheduler: ObservableObject {
                 return 0
             }
         }()
-        // Step to just before the estimate, then finish with the small exact
-        // loop below. The one-step cushion protects wall-clock schedules around
-        // DST/month-length boundaries without walking years of old occurrences.
-        if estimatedSteps > 1,
-           let advanced = calendar.date(
-               byAdding: intervalComponent,
-               value: (estimatedSteps - 1) * intervalValue,
-               to: scheduledDate
-           ) {
-            candidate = pinnedToTimeOfDay(advanced)
-        }
-        while candidate <= date {
-            guard let next = calendar.date(byAdding: intervalComponent, value: intervalValue, to: candidate) else {
+        // Always count periods from the original anchor. Adding a month to a
+        // previously clamped February date permanently loses the original day.
+        var step = max(1, estimatedSteps - 1)
+        while true {
+            let (value, overflow) = step.multipliedReportingOverflow(by: intervalValue)
+            guard !overflow,
+                  let next = calendar.date(byAdding: intervalComponent, value: value, to: scheduledDate) else {
                 return nil
             }
             candidate = pinnedToTimeOfDay(next)
+            if candidate > date { break }
+            guard step < Int.max else { return nil }
+            step += 1
         }
 
         // For weekdays/weekends, skip to valid day (re-pin: the day walk can
@@ -716,13 +714,11 @@ final class TaskScheduler: ObservableObject {
 
     private func systemTimeZoneDidChange() {
         guard isRunning, !isPausedForRestore, let modelContext else { return }
-        let descriptor = FetchDescriptor<ScheduledTask>(
-            predicate: #Predicate { $0.isEnabled && $0.timeZoneIdentifier == nil }
-        )
-        if let tasks = try? modelContext.fetch(descriptor) {
+        if let tasks = try? modelContext.fetch(FetchDescriptor<ScheduledTask>()) {
             let now = Date()
-            for task in tasks {
-                task.nextRunAt = computeNextRunDate(for: task, after: now)
+            for task in tasks where task.scheduleTimeZone == nil {
+                task.rebaseScheduleIfNeeded()
+                if task.isEnabled { task.nextRunAt = computeNextRunDate(for: task, after: now) }
             }
             do { try modelContext.save() }
             catch { NSLog("⚠️ TaskScheduler time-zone save failed: \(error)") }

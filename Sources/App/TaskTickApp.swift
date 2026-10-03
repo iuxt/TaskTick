@@ -8,6 +8,7 @@ struct TaskTickApp: App {
     @StateObject private var scheduler = TaskScheduler.shared
     @StateObject private var taskSelection = TaskSelectionState.shared
     @Environment(\.openWindow) private var openWindow
+    @Environment(\.openSettings) private var openSettings
     @AppStorage("showMenuBarIcon") private var showMenuBarIcon = true
     @State private var showingCrontabImport = false
     @State private var showingRecoveryAlert = false
@@ -23,14 +24,15 @@ struct TaskTickApp: App {
 
         let backup = DatabaseBackup.shared
         backup.configure(storeURL: Self._storeURL, modelContext: container.mainContext)
-        backup.startScheduledBackups()
+        if !Self._needsRecovery { backup.startScheduledBackups() }
 
         LogRetentionManager.shared.start(container: container)
     }
 
     var sharedModelContainer: ModelContainer { Self._sharedModelContainer }
 
-    static let _storeURL: URL = StoreMigration.resolveStoreURL()
+    private static let _storeResolution = StoreMigration.resolveStore()
+    static let _storeURL: URL = _storeResolution.url
 
     static let _sharedModelContainer: ModelContainer = {
         let schema = Schema([
@@ -43,7 +45,7 @@ struct TaskTickApp: App {
         // file to DELETE journal mode. Runs before ModelContainer opens so SQLite
         // will honor the mode change. Any crash/kill between here and the next launch
         // can no longer strand data in a -wal sidecar.
-        StoreHardener.hardenStore(at: storeURL)
+        if !_storeResolution.requiresRecovery { StoreHardener.hardenStore(at: storeURL) }
 
         let modelConfiguration = ModelConfiguration(
             schema: schema,
@@ -52,6 +54,9 @@ struct TaskTickApp: App {
         )
 
         do {
+            guard !_storeResolution.requiresRecovery else {
+                throw CocoaError(.fileReadUnknown)
+            }
             return try ModelContainer(for: schema, configurations: [modelConfiguration])
         } catch {
             // Do NOT overwrite the store from a backup here. An open failure can be
@@ -78,7 +83,7 @@ struct TaskTickApp: App {
                 .localized()
                 .onAppear {
                     NSApp.setActivationPolicy(.regular)
-                    seedDefaultTask(context: sharedModelContainer.mainContext)
+                    if !Self._needsRecovery { seedDefaultTask(context: sharedModelContainer.mainContext) }
 
                     if Self._needsRecovery {
                         showingRecoveryAlert = true
@@ -86,7 +91,7 @@ struct TaskTickApp: App {
                 }
                 .alert(L10n.tr("recovery.title"), isPresented: $showingRecoveryAlert) {
                     Button(L10n.tr("recovery.open_settings")) {
-                        openWindow(id: "settings")
+                        openSettings()
                     }
                     Button(L10n.tr("recovery.open_folder")) {
                         NSWorkspace.shared.selectFile(Self._storeURL.path, inFileViewerRootedAtPath: Self._storeURL.deletingLastPathComponent().path)

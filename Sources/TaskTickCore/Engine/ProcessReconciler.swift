@@ -15,6 +15,28 @@ import Darwin
 /// stable across calls for the same process, which is all the reconciler
 /// needs — we compare strings, never parse.
 public enum ProcessReconciler {
+    /// Keep the fingerprint with the PID for the entire adopted lifetime.
+    public struct Identity: Sendable, Equatable {
+        public let pid: Int32
+        public let startTime: String
+
+        public init(pid: Int32, startTime: String) {
+            self.pid = pid
+            self.startTime = startTime
+        }
+
+        public var isCurrent: Bool {
+            ProcessReconciler.isAlive(pid: pid)
+                && ProcessReconciler.startTime(pid: pid) == startTime
+        }
+
+        @discardableResult
+        public func signalGroup(_ signal: Int32) -> Bool {
+            guard isCurrent, getpgid(pid) == pid else { return false }
+            return kill(-pid, signal) == 0
+        }
+    }
+
 
     public static func isAlive(pid: Int32) -> Bool {
         guard pid > 0 else { return false }

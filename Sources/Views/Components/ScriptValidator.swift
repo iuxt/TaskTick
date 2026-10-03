@@ -76,7 +76,10 @@ enum ScriptValidator {
         }
         switch name {
         case "node": return ["--check", "/dev/stdin"]
-        case "ruby", "perl": return ["-c"]
+        case "ruby": return ["-c"]
+        // Perl -c executes BEGIN/CHECK blocks and imports. It cannot be used
+        // as a non-executing syntax check for user scripts.
+        case "perl": return nil
         default: return nil
         }
     }

@@ -114,8 +114,8 @@ public struct LineBuffer: Sendable {
 private struct TaskBuffer {
     var stdout = LineBuffer()
     var stderr = LineBuffer()
-    var stdoutDecoder = UTF8StreamDecoder()
-    var stderrDecoder = UTF8StreamDecoder()
+    var stdoutDecoder = ProcessOutputDecoder()
+    var stderrDecoder = ProcessOutputDecoder()
 }
 
 @MainActor
@@ -159,8 +159,7 @@ final class LiveOutputManager: ObservableObject {
         let str = buffer.stdoutDecoder.decode(data)
         buffers[taskId] = buffer
         guard !str.isEmpty else { return }
-        let cleaned = stripANSI(str)
-        buffer.stdout.append(cleaned)
+        buffer.stdout.append(str)
         buffers[taskId] = buffer
         pendingFlush.insert(taskId)
         scheduleFlush()
@@ -171,8 +170,7 @@ final class LiveOutputManager: ObservableObject {
         let str = buffer.stderrDecoder.decode(data)
         buffers[taskId] = buffer
         guard !str.isEmpty else { return }
-        let cleaned = stripANSI(str)
-        buffer.stderr.append(cleaned)
+        buffer.stderr.append(str)
         buffers[taskId] = buffer
         pendingFlush.insert(taskId)
         scheduleFlush()

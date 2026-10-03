@@ -5,11 +5,7 @@ import TaskTickCore
 /// Strip ANSI escape sequences and terminal control codes.
 /// Safe for plain text — only removes invisible control characters.
 func stripANSI(_ text: String) -> String {
-    text.replacingOccurrences(
-        of: "\\x1b\\[[0-9;]*[A-Za-z]|\\x1b\\][^\u{07}]*\u{07}|\\x1b[()][A-Za-z0-9]|[\\x00-\\x08\\x0e-\\x1f]",
-        with: "",
-        options: .regularExpression
-    )
+    decodeProcessOutput(Data(text.utf8))
 }
 
 /// Strip ANSI codes, simulate \r overwrites, and collapse consecutive empty lines.
@@ -39,34 +35,8 @@ func cleanTerminalOutput(_ text: String) -> String {
 /// Decode process output data, stripping ANSI escape sequences at the byte level first
 /// to avoid corrupted multi-byte UTF-8 sequences (ANSI codes can split CJK characters).
 func decodeProcessOutput(_ data: Data) -> String {
-    var cleaned = Data()
-    cleaned.reserveCapacity(data.count)
-    var i = data.startIndex
-    while i < data.endIndex {
-        if data[i] == 0x1B { // ESC
-            i = data.index(after: i)
-            guard i < data.endIndex else { break }
-            if data[i] == 0x5B { // [ → CSI: skip until letter
-                i = data.index(after: i)
-                while i < data.endIndex {
-                    let b = data[i]; i = data.index(after: i)
-                    if (0x40...0x7E).contains(b) { break }
-                }
-            } else if data[i] == 0x5D { // ] → OSC: skip until BEL
-                i = data.index(after: i)
-                while i < data.endIndex && data[i] != 0x07 { i = data.index(after: i) }
-                if i < data.endIndex { i = data.index(after: i) }
-            } else if data[i] == 0x28 || data[i] == 0x29 { // charset
-                i = data.index(after: i)
-                if i < data.endIndex { i = data.index(after: i) }
-            }
-        } else if data[i] < 0x20 && data[i] != 0x09 && data[i] != 0x0A && data[i] != 0x0D {
-            i = data.index(after: i) // strip control chars except tab/newline/CR
-        } else {
-            cleaned.append(data[i]); i = data.index(after: i)
-        }
-    }
-    return String(decoding: cleaned, as: UTF8.self)
+    var decoder = ProcessOutputDecoder()
+    return decoder.decode(data) + decoder.finish()
 }
 
 /// Executes shell scripts using Process (NSTask) with async output capture.
@@ -76,10 +46,10 @@ final class ScriptExecutor: ObservableObject {
     @Published var runningProcesses: [UUID: Process] = [:]
 
     /// Processes that were running when a previous TaskTick session ended
-    /// and we re-acquired on launch. Only have a bare PID — no Foundation
+    /// and we re-acquired on launch. Retain the PID and start-time fingerprint — no Foundation
     /// `Process`, no live output capture. Cancellation works via direct
     /// signals to the process group.
-    @Published var adoptedProcesses: [UUID: Int32] = [:]
+    @Published var adoptedProcesses: [UUID: ProcessReconciler.Identity] = [:]
 
     static let shared = ScriptExecutor()
     private let executionSemaphore = DispatchSemaphore(value: 8)
@@ -173,32 +143,40 @@ final class ScriptExecutor: ObservableObject {
         let notificationTemplate = task.notificationTemplateEnabled ? task.notificationTemplate : ""
         let logId = log.id
 
-        // Resolve script: inline body or file content.
-        let scriptBody: String
-        let effectiveShell: String
+        // Preparation failures use the same finalization, notifications and
+        // service supervision as failures from an actual child process.
+        var temporaryScriptDirectory: URL?
+        defer {
+            if let temporaryScriptDirectory { try? FileManager.default.removeItem(at: temporaryScriptDirectory) }
+        }
+        var preparationError: String?
+        var scriptBody = task.scriptBody
+        var effectiveShell = shell
         if let filePath = task.scriptFilePath, !filePath.isEmpty {
-            if let content = try? String(contentsOfFile: filePath, encoding: .utf8) {
-                // Respect the shebang — but a shebang names an interpreter, not a shell,
-                // so a .py/.rb/.js file gets exec'd rather than pasted into `<shell> -c`.
-                let resolved = ScriptExecutor.resolveFileExecution(
-                    fileContent: content,
-                    filePath: filePath,
-                    uiShell: shell
-                )
+            do {
+                let content = try String(contentsOfFile: filePath, encoding: .utf8)
+                let resolved = Self.resolveFileExecution(fileContent: content, filePath: filePath, uiShell: shell)
                 effectiveShell = resolved.shell
                 scriptBody = resolved.body
-            } else {
-                // File not readable
-                log.status = .failure
-                log.stderr = "Cannot read script file: \(filePath)"
-                log.finishedAt = Date()
-                log.durationMs = 0
-                do { try modelContext.save() } catch { NSLog("⚠️ ScriptExecutor save failed: \(error)") }
-                return log
+            } catch {
+                preparationError = "Cannot read script file: \(filePath)"
             }
-        } else {
-            scriptBody = task.scriptBody
-            effectiveShell = shell
+        } else if Self.parseShebangInvocation(from: scriptBody) != nil {
+            do {
+                let directory = FileManager.default.temporaryDirectory
+                    .appendingPathComponent("tasktick-script-\(UUID().uuidString)")
+                try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false,
+                    attributes: [.posixPermissions: 0o700])
+                temporaryScriptDirectory = directory
+                let file = directory.appendingPathComponent("script")
+                try scriptBody.write(to: file, atomically: true, encoding: .utf8)
+                try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: file.path)
+                let resolved = Self.resolveFileExecution(fileContent: scriptBody, filePath: file.path, uiShell: shell)
+                effectiveShell = resolved.shell
+                scriptBody = resolved.body
+            } catch {
+                preparationError = "Cannot prepare inline script: \(error.localizedDescription)"
+            }
         }
 
         // Prepend pre-run commands (e.g. proxy exports) into the same shell invocation
@@ -216,7 +194,7 @@ final class ScriptExecutor: ObservableObject {
         // Scheduled jobs are excluded — short bursty runs would just churn
         // the file and the database log already covers their needs.
         let logFileWriter: LogFileWriter? = {
-            guard task.isManualOnly else { return nil }
+            guard task.isManualOnly, preparationError == nil else { return nil }
             if isBackgroundService {
                 guard serviceLogEnabled else { return nil }
                 return LogFileWriter(
@@ -230,21 +208,26 @@ final class ScriptExecutor: ObservableObject {
             }
             let enabled = UserDefaults.standard.object(forKey: "logs.streamManualToFile") as? Bool ?? true
             guard enabled else { return nil }
-            return LogFileWriter(taskName: taskName)
+            return LogFileWriter(taskName: taskName, taskId: taskId)
         }()
 
-        let result = await runProcess(
-            shell: effectiveShell,
-            script: finalScript,
-            workingDirectory: workingDirectory,
-            environmentVariables: envVars,
-            timeoutSeconds: timeoutSeconds,
-            taskId: taskId,
-            logId: logId,
-            ignoreExitCode: ignoreExitCode,
-            logFileWriter: logFileWriter,
-            captureLimitBytes: ExecutionLog.maxOutputSize
-        )
+        let result: ProcessResult
+        if let preparationError {
+            result = ProcessResult(stdout: "", stderr: preparationError, exitCode: nil, status: .failure)
+        } else {
+            result = await runProcess(
+                shell: effectiveShell,
+                script: finalScript,
+                workingDirectory: workingDirectory,
+                environmentVariables: envVars,
+                timeoutSeconds: timeoutSeconds,
+                taskId: taskId,
+                logId: logId,
+                ignoreExitCode: ignoreExitCode,
+                logFileWriter: logFileWriter,
+                captureLimitBytes: ExecutionLog.maxOutputSize
+            )
+        }
 
         let endTime = Date()
         let durationMs = Int(endTime.timeIntervalSince(startTime) * 1000)
@@ -340,7 +323,7 @@ final class ScriptExecutor: ObservableObject {
         }
 
         if isBackgroundService {
-            scheduleServiceRestartIfNeeded(taskId: taskId, lastStatus: result.status)
+            scheduleServiceRestartIfNeeded(taskId: taskId, lastStatus: result.status, context: modelContext)
         }
 
         return log
@@ -349,9 +332,8 @@ final class ScriptExecutor: ObservableObject {
     /// Re-launch a managed background command after its configured delay.
     /// A user Stop (or app shutdown) records an explicit suppression marker,
     /// so an in-flight process completion can never resurrect the service.
-    private func scheduleServiceRestartIfNeeded(taskId: UUID, lastStatus: ExecutionStatus) {
+    private func scheduleServiceRestartIfNeeded(taskId: UUID, lastStatus: ExecutionStatus, context: ModelContext) {
         guard !stoppedServiceIDs.contains(taskId) else { return }
-        let context = TaskTickApp._sharedModelContainer.mainContext
         let descriptor = FetchDescriptor<ScheduledTask>(predicate: #Predicate { $0.id == taskId })
         guard let service = try? context.fetch(descriptor).first,
               service.isEnabled,
@@ -385,7 +367,7 @@ final class ScriptExecutor: ObservableObject {
     /// orphan when zsh exits without forwarding SIGTERM.
     ///
     /// Adopted entries (re-acquired from a previous session) only have a
-    /// bare PID — no `Process` object, no waitpid (we're not the parent).
+    /// PID and fingerprint — no `Process` object, no waitpid (we're not the parent).
     /// They get SIGTERM with a 3s SIGKILL escalation; we don't waitpid
     /// because launchd has the parent slot.
     func cancel(taskId: UUID) {
@@ -395,14 +377,14 @@ final class ScriptExecutor: ObservableObject {
         // The worker owns signals and escalation, even after the leader exits.
         executionControls[taskId]?.requestStop(.cancelled)
 
-        if let adoptedPID = adoptedProcesses[taskId] {
-            kill(-adoptedPID, SIGTERM)
+        if let identity = adoptedProcesses[taskId] {
+            identity.signalGroup(SIGTERM)
             Task { @MainActor in
                 try? await Task.sleep(for: .seconds(3))
-                guard self.adoptedProcesses[taskId] == adoptedPID else { return }
-                kill(-adoptedPID, SIGKILL)
-                self.finalizeAdoptedLog(taskId: taskId, pid: adoptedPID,
-                    reason: "[TaskTick] Adopted process \(adoptedPID) was stopped by user.")
+                guard self.adoptedProcesses[taskId] == identity else { return }
+                identity.signalGroup(SIGKILL)
+                self.finalizeAdoptedLog(taskId: taskId, pid: identity.pid,
+                    reason: "[TaskTick] Adopted process \(identity.pid) was stopped by user.")
                 self.adoptedProcesses.removeValue(forKey: taskId)
                 TaskScheduler.shared.runningTaskIDs.remove(taskId)
             }
@@ -459,7 +441,7 @@ final class ScriptExecutor: ObservableObject {
     /// SIGKILL anything still alive. Blocks the caller — ok during
     /// applicationWillTerminate, since the app is dying anyway.
     ///
-    /// Adopted processes (re-acquired from a previous session, PID-only)
+    /// Adopted processes (re-acquired from a previous session, with recorded fingerprints)
     /// go through the same two-stage flow via process-group signals.
     func cancelAll(graceful: TimeInterval = 0.3) {
         for control in executionControls.values { control.requestStop(.cancelled) }
@@ -480,8 +462,8 @@ final class ScriptExecutor: ObservableObject {
             kill(-pid, SIGTERM)
             process.terminate()
         }
-        for pid in adoptedSnapshot {
-            kill(-pid, SIGTERM)
+        for identity in adoptedSnapshot {
+            identity.signalGroup(SIGTERM)
         }
 
         Thread.sleep(forTimeInterval: graceful)
@@ -491,8 +473,8 @@ final class ScriptExecutor: ObservableObject {
             kill(-pid, SIGKILL)
             if process.isRunning { kill(pid, SIGKILL) }
         }
-        for pid in adoptedSnapshot where ProcessReconciler.isAlive(pid: pid) {
-            kill(-pid, SIGKILL)
+        for identity in adoptedSnapshot {
+            identity.signalGroup(SIGKILL)
         }
     }
 
@@ -653,14 +635,13 @@ final class ScriptExecutor: ObservableObject {
     }
 
     /// Decide which shell wraps the run, and what text that shell is handed, for a
-    /// task backed by a script *file*.
+    /// task backed by a script file or a staged inline script.
     ///
     /// The distinction that matters: a shebang names an **interpreter**, which is not
     /// necessarily a **shell**. `runProcess` always invokes `<shell> -l -c "<text>"`, so
-    /// the file's contents may only be pasted into `<text>` when the interpreter is
-    /// itself a shell. For anything else (python/ruby/node/…) we keep the user's shell
-    /// as the wrapper — preserving rc files, preRunCommand, env and cwd — and have it
-    /// `exec` the real interpreter against the file on disk.
+    /// we keep the user's shell as the wrapper, preserving rc files,
+    /// preRunCommand, environment and cwd, and `exec` the named interpreter
+    /// against the file on disk.
     ///
     /// `exec` matters: it replaces the shell process instead of forking a child, so the
     /// interpreter inherits the same PID. Timeout (SIGTERM→SIGKILL), cancellation and
@@ -806,7 +787,7 @@ final class ScriptExecutor: ObservableObject {
                         batcher.appendStdout(bytes)
                     } else {
                         outputBuffer.appendStderr(data)
-                        logFileWriter?.append(data)
+                        logFileWriter?.append(data, stream: .stderr)
                         batcher.appendStderr(data)
                     }
                 }

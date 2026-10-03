@@ -282,7 +282,7 @@ final class DatabaseBackup: ObservableObject {
         }
 
         guard let payload else {
-            let result = restoreLegacy(from: entry)
+            let result = await restoreLegacy(from: entry)
             if case .success = result { requiresRestart = true }
             return result
         }
@@ -372,50 +372,18 @@ final class DatabaseBackup: ObservableObject {
         return .success(taskCount: payload.tasks.count)
     }
 
-    /// Legacy restore: same logic as the old DatabaseBackup did — copy the SQLite
-    /// files from the backup dir into the live store path. Returns a sentinel that
-    /// the UI translates to "restart now" because SwiftData cannot reload after the
-    /// underlying file changes.
-    private func restoreLegacy(from entry: BackupEntry) -> RestoreResult {
+    /// The replacement is staged and validated before any live path changes.
+    private func restoreLegacy(from entry: BackupEntry) async -> RestoreResult {
         let storeURL = TaskTickApp._storeURL
-        let baseName = storeURL.lastPathComponent
-        let backupStore = entry.url.appendingPathComponent(baseName)
-        let fm = FileManager.default
-
-        guard fm.fileExists(atPath: backupStore.path) else {
-            return .failed(message: "Legacy backup is missing the main store file")
-        }
-
-        do {
-            // Since v1.4.2 the store lives in a bundleID-namespaced subdirectory.
-            // Make sure it exists before writing — on a fresh install that has
-            // never opened a store, the directory won't have been created yet.
-            let storeDir = storeURL.deletingLastPathComponent()
-            try fm.createDirectory(at: storeDir, withIntermediateDirectories: true)
-
-            let extensions = ["", "-shm", "-wal"]
-            for ext in extensions {
-                let fileURL = storeDir.appendingPathComponent(baseName + ext)
-                if fm.fileExists(atPath: fileURL.path) {
-                    try fm.removeItem(at: fileURL)
-                }
+        let backupStore = entry.url.appendingPathComponent(storeURL.lastPathComponent)
+        return await Task.detached(priority: .userInitiated) {
+            do {
+                try StoreRecovery.restoreLegacy(from: backupStore, to: storeURL)
+                return RestoreResult.success(taskCount: 0, requiresRestart: true)
+            } catch {
+                return RestoreResult.failed(message: "Legacy restore failed: \(error.localizedDescription)")
             }
-            for ext in extensions {
-                let sourceURL = entry.url.appendingPathComponent(baseName + ext)
-                if fm.fileExists(atPath: sourceURL.path) {
-                    let destURL = storeDir.appendingPathComponent(baseName + ext)
-                    try fm.copyItem(at: sourceURL, to: destURL)
-                }
-            }
-            // Match the old behavior — flush WAL into the main file before the
-            // process restarts so the next launch sees a self-contained store.
-            StoreHardener.checkpoint(at: storeURL)
-        } catch {
-            return .failed(message: "Legacy restore failed: \(error.localizedDescription)")
-        }
-
-        // Caller (SettingsView) must trigger a restart for legacy restores.
-        return .success(taskCount: 0, requiresRestart: true)
+        }.value
     }
 
     // MARK: - List Backups
