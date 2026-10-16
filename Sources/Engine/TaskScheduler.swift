@@ -25,7 +25,11 @@ final class TaskScheduler: ObservableObject {
 
     static let shared = TaskScheduler()
 
-    private init() {}
+    private let executor: ScriptExecutor
+
+    init(executor: ScriptExecutor = .shared) {
+        self.executor = executor
+    }
 
     func configure(modelContext: ModelContext) {
         self.modelContext = modelContext
@@ -34,6 +38,9 @@ final class TaskScheduler: ObservableObject {
     func start() {
         guard let modelContext else { return }
         guard !isRunning else { return }
+        // Adopt surviving runs before any overdue task can be dispatched.
+        executor.reconcileRunningLogs(in: modelContext)
+        runningTaskIDs.formUnion(executor.adoptedProcesses.keys)
         isRunning = true
 
         // Include disabled tasks: their anchors must also follow zone changes.
@@ -177,34 +184,12 @@ final class TaskScheduler: ObservableObject {
     }
 
     @MainActor
-    private func pollAdoptedProcesses() {
-        guard !isPausedForRestore else { return }
-        let snapshot = ScriptExecutor.shared.adoptedProcesses
-        guard !snapshot.isEmpty, let ctx = modelContext else { return }
-        let now = Date()
-        for (taskID, identity) in snapshot {
-            if identity.isCurrent { continue }
-            let pid = identity.pid
-            ScriptExecutor.shared.adoptedProcesses.removeValue(forKey: taskID)
-            runningTaskIDs.remove(taskID)
-
-            // Mark the most recent running log for this task as cancelled.
-            let runningRaw = ExecutionStatus.running.rawValue
-            let descriptor = FetchDescriptor<ExecutionLog>(
-                predicate: #Predicate { $0.statusRaw == runningRaw && $0.task?.id == taskID }
-            )
-            if let log = try? ctx.fetch(descriptor).first {
-                log.status = .cancelled
-                log.finishedAt = now
-                if log.durationMs == nil {
-                    log.durationMs = Int(now.timeIntervalSince(log.startedAt) * 1000)
-                }
-                if (log.stderr ?? "").isEmpty {
-                    log.stderr = "[TaskTick] Adopted process \(pid) exited externally."
-                }
-            }
-        }
-        do { try ctx.save() } catch { NSLog("⚠️ TaskScheduler save failed: \(error)") }
+    func pollAdoptedProcesses() {
+        guard !isPausedForRestore, let modelContext else { return }
+        let exited = executor.pollAdoptedProcesses(in: modelContext)
+        runningTaskIDs.subtract(exited)
+        // An adopted scheduled run may have blocked an overdue occurrence.
+        if !exited.isEmpty { rebuildSchedule() }
     }
 
     // MARK: - Private
@@ -274,7 +259,7 @@ final class TaskScheduler: ObservableObject {
             let serviceID = service.id
             runningTaskIDs.insert(serviceID)
             Task { @MainActor in
-                await ScriptExecutor.shared.execute(
+                await executor.execute(
                     task: service,
                     triggeredBy: .launch,
                     modelContext: modelContext
@@ -314,7 +299,7 @@ final class TaskScheduler: ObservableObject {
         }
 
         Task { @MainActor in
-            await ScriptExecutor.shared.execute(task: task, triggeredBy: triggeredBy, modelContext: modelContext)
+            await executor.execute(task: task, triggeredBy: triggeredBy, modelContext: modelContext)
             runningTaskIDs.remove(taskId)
             rebuildSchedule()
         }

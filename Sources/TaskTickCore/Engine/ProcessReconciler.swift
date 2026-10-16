@@ -35,8 +35,61 @@ public enum ProcessReconciler {
             guard isCurrent, getpgid(pid) == pid else { return false }
             return kill(-pid, signal) == 0
         }
+
+        /// Capture before sending TERM: the leader may exit before escalation.
+        /// A surviving member's kernel start time then proves group ownership.
+        public func captureGroup() -> GroupIdentity? {
+            guard isCurrent, getpgid(pid) == pid else { return nil }
+            let capacity = max(64, Int(proc_listpgrppids(pid, nil, 0)))
+            var pids = [Int32](repeating: 0, count: capacity)
+            let count = pids.withUnsafeMutableBytes {
+                proc_listpgrppids(pid, $0.baseAddress, Int32($0.count))
+            }
+            guard count > 0 else { return nil }
+            let members = pids.prefix(Int(count)).compactMap { GroupIdentity.Member(pid: $0, group: pid) }
+            guard isCurrent, !members.isEmpty else { return nil }
+            return GroupIdentity(pid: pid, members: members)
+        }
     }
 
+    public struct GroupIdentity: Sendable {
+        public let pid: Int32
+        fileprivate let members: [Member]
+
+        fileprivate struct Member: Sendable {
+            let pid: Int32
+            let seconds: UInt64
+            let microseconds: UInt64
+
+            init?(pid: Int32, group: Int32) {
+                guard let info = Self.info(pid: pid), info.pbi_pgid == UInt32(group) else { return nil }
+                self.pid = pid
+                seconds = info.pbi_start_tvsec
+                microseconds = info.pbi_start_tvusec
+            }
+
+            func isCurrent(in group: Int32) -> Bool {
+                guard let info = Self.info(pid: pid) else { return false }
+                return info.pbi_pgid == UInt32(group)
+                    && info.pbi_start_tvsec == seconds && info.pbi_start_tvusec == microseconds
+            }
+
+            private static func info(pid: Int32) -> proc_bsdinfo? {
+                var info = proc_bsdinfo()
+                let size = Int32(MemoryLayout<proc_bsdinfo>.size)
+                guard proc_pidinfo(pid, PROC_PIDTBSDINFO, 0, &info, size) == size else { return nil }
+                return info
+            }
+        }
+
+        /// Never trust a bare PGID after its leader exits. At least one captured
+        /// member must still have the same kernel identity and group membership.
+        @discardableResult
+        public func signal(_ signal: Int32) -> Bool {
+            guard members.contains(where: { $0.isCurrent(in: pid) }) else { return false }
+            return kill(-pid, signal) == 0
+        }
+    }
 
     public static func isAlive(pid: Int32) -> Bool {
         guard pid > 0 else { return false }

@@ -37,7 +37,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         Task { @MainActor in
-            cleanupStaleRunningLogs()
             // Remove saved endpoints and credentials for the retired remote notification feature.
             for key in ["pushChannels", "barkServerURL", "pushChannelsMigratedFromBark"] {
                 UserDefaults.standard.removeObject(forKey: key)
@@ -117,93 +116,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 break
             }
             NSApp.activate(ignoringOtherApps: true)
-        }
-    }
-
-    /// Reconcile logs left in `.running` state by a previous session.
-    /// Four cases:
-    ///   1. log.pid == nil → legacy entry pre-dating this feature. Mark cancelled.
-    ///   2. PID dead       → process exited while we were down. Mark cancelled.
-    ///   3. PID alive, lstart mismatch → PID was recycled to a different
-    ///      process. Mark cancelled. NEVER signal — the new owner may be
-    ///      anything (Safari, etc.) and killing it would be catastrophic.
-    ///   4. PID alive, lstart match → adopt: register in adoptedProcesses,
-    ///      mark in runningTaskIDs so the UI lights up correctly.
-    @MainActor
-    private func cleanupStaleRunningLogs() {
-        let context = TaskTickApp._sharedModelContainer.mainContext
-        let runningRaw = ExecutionStatus.running.rawValue
-        let descriptor = FetchDescriptor<ExecutionLog>(
-            predicate: #Predicate { $0.statusRaw == runningRaw }
-        )
-        guard let logs = try? context.fetch(descriptor), !logs.isEmpty else { return }
-
-        let now = Date()
-        var adopted = 0
-        var cancelled = 0
-
-        for log in logs {
-            guard let pid = log.pid, let recordedStart = log.processStartTime else {
-                // Case 1: legacy entry
-                log.status = .cancelled
-                log.finishedAt = now
-                if log.durationMs == nil {
-                    log.durationMs = Int(now.timeIntervalSince(log.startedAt) * 1000)
-                }
-                cancelled += 1
-                continue
-            }
-
-            if !ProcessReconciler.isAlive(pid: pid) {
-                // Case 2: process exited
-                log.status = .cancelled
-                log.finishedAt = now
-                if log.durationMs == nil {
-                    log.durationMs = Int(now.timeIntervalSince(log.startedAt) * 1000)
-                }
-                if (log.stderr ?? "").isEmpty {
-                    log.stderr = "[TaskTick] Process \(pid) exited while the app was not running. Exit code unknown."
-                }
-                cancelled += 1
-                continue
-            }
-
-            let currentStart = ProcessReconciler.startTime(pid: pid)
-            guard currentStart == recordedStart else {
-                // Case 3: PID recycled — do NOT touch the live process
-                log.status = .cancelled
-                log.finishedAt = now
-                if log.durationMs == nil {
-                    log.durationMs = Int(now.timeIntervalSince(log.startedAt) * 1000)
-                }
-                if (log.stderr ?? "").isEmpty {
-                    log.stderr = "[TaskTick] PID \(pid) was recycled by macOS to a different process; this log's owner is presumed dead."
-                }
-                cancelled += 1
-                continue
-            }
-
-            // Case 4: adopt
-            if let taskID = log.task?.id {
-                ScriptExecutor.shared.adoptedProcesses[taskID] = ProcessReconciler.Identity(pid: pid, startTime: recordedStart)
-                TaskScheduler.shared.runningTaskIDs.insert(taskID)
-                if (log.stdout ?? "").isEmpty == false {
-                    log.stdout = (log.stdout ?? "") +
-                        "\n\n[TaskTick] App was restarted while this script kept running. Output capture is paused — Stop will still work."
-                }
-                adopted += 1
-            } else {
-                // Orphan log (task was deleted) — clean up
-                log.status = .cancelled
-                log.finishedAt = now
-                cancelled += 1
-            }
-        }
-
-        try? context.save()
-
-        if adopted > 0 || cancelled > 0 {
-            NSLog("Reconcile: adopted \(adopted) running process(es), cancelled \(cancelled) stale log(s)")
         }
     }
 

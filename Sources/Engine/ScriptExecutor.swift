@@ -49,12 +49,16 @@ final class ScriptExecutor: ObservableObject {
     /// and we re-acquired on launch. Retain the PID and start-time fingerprint — no Foundation
     /// `Process`, no live output capture. Cancellation works via direct
     /// signals to the process group.
-    @Published var adoptedProcesses: [UUID: ProcessReconciler.Identity] = [:]
+    @Published private(set) var adoptedProcesses: [UUID: ProcessReconciler.Identity] = [:]
 
     static let shared = ScriptExecutor()
     private let executionSemaphore = DispatchSemaphore(value: 8)
     private var stoppedServiceIDs: Set<UUID> = []
     private var serviceRestartTasks: [UUID: Task<Void, Never>] = [:]
+
+    private var adoptedContexts: [UUID: ModelContext] = [:]
+    private var adoptedStopTasks: [UUID: Task<Void, Never>] = [:]
+    private var adoptedStopGroups: [UUID: ProcessReconciler.GroupIdentity] = [:]
 
     private var activeLogs: [UUID: ExecutionLog] = [:]
     private var executionContexts: [UUID: ModelContext] = [:]
@@ -62,6 +66,92 @@ final class ScriptExecutor: ObservableObject {
     private(set) var isSuspendedForRestore = false
 
     init() {}
+
+    /// Reconcile logs left in `.running` state by a previous session.
+    /// Four cases:
+    ///   1. log.pid == nil → legacy entry pre-dating this feature. Mark cancelled.
+    ///   2. PID dead       → process exited while we were down. Mark cancelled.
+    ///   3. PID alive, lstart mismatch → PID was recycled to a different
+    ///      process. Mark cancelled. NEVER signal — the new owner may be
+    ///      anything (Safari, etc.) and killing it would be catastrophic.
+    ///   4. PID alive, lstart match → adopt. The scheduler reserves these IDs
+    ///      before dispatching any time-based or launch-triggered work.
+    func reconcileRunningLogs(in context: ModelContext) {
+        let runningRaw = ExecutionStatus.running.rawValue
+        let descriptor = FetchDescriptor<ExecutionLog>(
+            predicate: #Predicate { $0.statusRaw == runningRaw }
+        )
+        guard let logs = try? context.fetch(descriptor), !logs.isEmpty else { return }
+
+        let now = Date()
+        var adopted = 0
+        var cancelled = 0
+
+        for log in logs {
+            if let taskID = log.task?.id, activeLogs[taskID] != nil || adoptedProcesses[taskID] != nil { continue }
+            guard let pid = log.pid, let recordedStart = log.processStartTime else {
+                // Case 1: legacy entry
+                log.status = .cancelled
+                log.finishedAt = now
+                if log.durationMs == nil {
+                    log.durationMs = Int(now.timeIntervalSince(log.startedAt) * 1000)
+                }
+                cancelled += 1
+                continue
+            }
+
+            if !ProcessReconciler.isAlive(pid: pid) {
+                // Case 2: process exited
+                log.status = .cancelled
+                log.finishedAt = now
+                if log.durationMs == nil {
+                    log.durationMs = Int(now.timeIntervalSince(log.startedAt) * 1000)
+                }
+                if (log.stderr ?? "").isEmpty {
+                    log.stderr = "[TaskTick] Process \(pid) exited while the app was not running. Exit code unknown."
+                }
+                cancelled += 1
+                continue
+            }
+
+            let currentStart = ProcessReconciler.startTime(pid: pid)
+            guard currentStart == recordedStart else {
+                // Case 3: PID recycled — do NOT touch the live process
+                log.status = .cancelled
+                log.finishedAt = now
+                if log.durationMs == nil {
+                    log.durationMs = Int(now.timeIntervalSince(log.startedAt) * 1000)
+                }
+                if (log.stderr ?? "").isEmpty {
+                    log.stderr = "[TaskTick] PID \(pid) was recycled by macOS to a different process; this log's owner is presumed dead."
+                }
+                cancelled += 1
+                continue
+            }
+
+            // Case 4: adopt
+            if let taskID = log.task?.id {
+                adoptedProcesses[taskID] = ProcessReconciler.Identity(pid: pid, startTime: recordedStart)
+                adoptedContexts[taskID] = context
+                if (log.stdout ?? "").isEmpty == false {
+                    log.stdout = (log.stdout ?? "") +
+                        "\n\n[TaskTick] App was restarted while this script kept running. Output capture is paused — Stop will still work."
+                }
+                adopted += 1
+            } else {
+                // Orphan log (task was deleted) — clean up
+                log.status = .cancelled
+                log.finishedAt = now
+                cancelled += 1
+            }
+        }
+
+        try? context.save()
+
+        if adopted > 0 || cancelled > 0 {
+            NSLog("Reconcile: adopted \(adopted) running process(es), cancelled \(cancelled) stale log(s)")
+        }
+    }
 
     /// Run a task's script and return the execution log entry.
     @discardableResult
@@ -333,7 +423,7 @@ final class ScriptExecutor: ObservableObject {
     /// A user Stop (or app shutdown) records an explicit suppression marker,
     /// so an in-flight process completion can never resurrect the service.
     private func scheduleServiceRestartIfNeeded(taskId: UUID, lastStatus: ExecutionStatus, context: ModelContext) {
-        guard !stoppedServiceIDs.contains(taskId) else { return }
+        guard !isSuspendedForRestore, !stoppedServiceIDs.contains(taskId) else { return }
         let descriptor = FetchDescriptor<ScheduledTask>(predicate: #Predicate { $0.id == taskId })
         guard let service = try? context.fetch(descriptor).first,
               service.isEnabled,
@@ -351,6 +441,7 @@ final class ScriptExecutor: ObservableObject {
         serviceRestartTasks[taskId] = Task { @MainActor [weak self] in
             try? await Task.sleep(for: .seconds(delay))
             guard !Task.isCancelled, let self,
+                  !self.isSuspendedForRestore,
                   !self.stoppedServiceIDs.contains(taskId),
                   !TaskScheduler.shared.runningTaskIDs.contains(taskId) else { return }
             let descriptor = FetchDescriptor<ScheduledTask>(predicate: #Predicate { $0.id == taskId })
@@ -378,28 +469,59 @@ final class ScriptExecutor: ObservableObject {
         executionControls[taskId]?.requestStop(.cancelled)
 
         if let identity = adoptedProcesses[taskId] {
-            identity.signalGroup(SIGTERM)
-            Task { @MainActor in
+            guard adoptedStopTasks[taskId] == nil else { return }
+            let group = identity.captureGroup()
+            adoptedStopGroups[taskId] = group
+            group?.signal(SIGTERM)
+            adoptedStopTasks[taskId] = Task { @MainActor in
                 try? await Task.sleep(for: .seconds(3))
-                guard self.adoptedProcesses[taskId] == identity else { return }
-                identity.signalGroup(SIGKILL)
-                self.finalizeAdoptedLog(taskId: taskId, pid: identity.pid,
-                    reason: "[TaskTick] Adopted process \(identity.pid) was stopped by user.")
+                guard !Task.isCancelled, self.adoptedProcesses[taskId] == identity else { return }
+                group?.signal(SIGKILL)
+                if let context = self.adoptedContexts.removeValue(forKey: taskId) {
+                    self.finalizeAdoptedLog(taskId: taskId,
+                        reason: "[TaskTick] Adopted process \(identity.pid) was stopped by user.", in: context)
+                    try? context.save()
+                }
                 self.adoptedProcesses.removeValue(forKey: taskId)
+                self.adoptedStopTasks.removeValue(forKey: taskId)
+                self.adoptedStopGroups.removeValue(forKey: taskId)
                 TaskScheduler.shared.runningTaskIDs.remove(taskId)
             }
         }
     }
 
+    /// Adopted runs have no waiting worker. Polling supplies their completion
+    /// path, including supervision; explicit Stop retains ownership until KILL.
+    func pollAdoptedProcesses(in context: ModelContext) -> Set<UUID> {
+        var exited: Set<UUID> = []
+        let snapshot = adoptedProcesses
+        for (taskId, identity) in snapshot {
+            guard adoptedStopTasks[taskId] == nil, !identity.isCurrent else { continue }
+            adoptedProcesses.removeValue(forKey: taskId)
+            let owningContext = adoptedContexts.removeValue(forKey: taskId) ?? context
+            TaskScheduler.shared.runningTaskIDs.remove(taskId)
+            finalizeAdoptedLog(taskId: taskId,
+                reason: "[TaskTick] Adopted process \(identity.pid) exited externally.", in: owningContext)
+            do { try owningContext.save() }
+            catch { NSLog("⚠️ Adopted process finalization failed: \(error)") }
+            // No waitpid relationship survives app restart, so the exit code
+            // is unknown. Treat it as an abnormal exit for onFailure/always.
+            scheduleServiceRestartIfNeeded(taskId: taskId, lastStatus: .cancelled, context: owningContext)
+            exited.insert(taskId)
+        }
+        return exited
+    }
+
     /// Walk the most-recent `.running` log for `taskId` to a `.cancelled`
     /// terminal state. Used after we signal an adopted process — we don't
     /// have a `Process.waitUntilExit` to flush the log row for us.
-    private func finalizeAdoptedLog(taskId: UUID, pid: Int32, reason: String) {
-        let ctx = TaskTickApp._sharedModelContainer.mainContext
+    private func finalizeAdoptedLog(taskId: UUID, reason: String, in ctx: ModelContext) {
         let runningRaw = ExecutionStatus.running.rawValue
-        let descriptor = FetchDescriptor<ExecutionLog>(
-            predicate: #Predicate { $0.statusRaw == runningRaw && $0.task?.id == taskId }
+        var descriptor = FetchDescriptor<ExecutionLog>(
+            predicate: #Predicate { $0.statusRaw == runningRaw && $0.task?.id == taskId },
+            sortBy: [SortDescriptor(\ExecutionLog.startedAt, order: .reverse)]
         )
+        descriptor.fetchLimit = 1
         guard let log = try? ctx.fetch(descriptor).first else { return }
         let now = Date()
         log.status = .cancelled
@@ -410,7 +532,6 @@ final class ScriptExecutor: ObservableObject {
         if (log.stderr ?? "").isEmpty {
             log.stderr = reason
         }
-        try? ctx.save()
     }
 
     /// Quiesce execution before replacing the store's task records. Keep the
@@ -451,7 +572,14 @@ final class ScriptExecutor: ObservableObject {
         for restartTask in serviceRestartTasks.values { restartTask.cancel() }
         serviceRestartTasks.removeAll()
         let processSnapshot = Array(runningProcesses.values)
-        let adoptedSnapshot = Array(adoptedProcesses.values)
+        // Reuse an in-flight Stop's group proof if its leader already exited.
+        let adoptedSnapshot = adoptedProcesses.compactMap { taskId, identity in
+            adoptedStopGroups[taskId] ?? identity.captureGroup()
+        }
+        for stopTask in adoptedStopTasks.values { stopTask.cancel() }
+        adoptedStopTasks.removeAll()
+        adoptedStopGroups.removeAll()
+        adoptedContexts.removeAll()
         runningProcesses.removeAll()
         adoptedProcesses.removeAll()
 
@@ -462,8 +590,8 @@ final class ScriptExecutor: ObservableObject {
             kill(-pid, SIGTERM)
             process.terminate()
         }
-        for identity in adoptedSnapshot {
-            identity.signalGroup(SIGTERM)
+        for group in adoptedSnapshot {
+            group.signal(SIGTERM)
         }
 
         Thread.sleep(forTimeInterval: graceful)
@@ -473,8 +601,8 @@ final class ScriptExecutor: ObservableObject {
             kill(-pid, SIGKILL)
             if process.isRunning { kill(pid, SIGKILL) }
         }
-        for identity in adoptedSnapshot {
-            identity.signalGroup(SIGKILL)
+        for group in adoptedSnapshot {
+            group.signal(SIGKILL)
         }
     }
 
