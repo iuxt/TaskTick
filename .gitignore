@@ -13,3 +13,6 @@ docs/script-editor-roadmap.md
 .release-test/
 .worktrees/
 status-cache.json
+website/public/
+website/resources/
+website/.hugo_build.lock

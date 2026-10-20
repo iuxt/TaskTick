@@ -4,6 +4,14 @@ on:
   push:
     branches:
       - main
+    paths-ignore:
+      - 'website/**'
+      - 'scripts/check-website.py'
+      - 'docs/**'
+      - 'README*.md'
+      - '.gitignore'
+      - '.github/workflows/pages.yml'
+      - '.github/workflows/release-on-push.yml'
 
 # The release script creates a tag and uploads assets with `gh`.
 permissions:

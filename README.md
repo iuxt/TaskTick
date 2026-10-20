@@ -23,6 +23,8 @@
 </p>
 
 <p align="center">
+  <a href="https://iuxt.github.io/TaskTick/">Website</a> ·
+  <a href="https://iuxt.github.io/TaskTick/guide/">Documentation</a> ·
   <a href="README_zh.md">中文文档</a>
 </p>
 
@@ -93,6 +95,12 @@ cd TaskTick
 swift build -c release
 swift run
 ```
+
+## Website development
+
+The official website uses Hugo and deploys automatically to GitHub Pages.
+See [website development and deployment](docs/WEBSITE.md) for local preview,
+content editing, and build instructions.
 
 ## License
 

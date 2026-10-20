@@ -23,6 +23,8 @@
 </p>
 
 <p align="center">
+  <a href="https://iuxt.github.io/TaskTick/">官网</a> ·
+  <a href="https://iuxt.github.io/TaskTick/guide/">使用文档</a> ·
   <a href="README.md">English</a>
 </p>
 
@@ -93,6 +95,11 @@ cd TaskTick
 swift build -c release
 swift run
 ```
+
+## 官网开发
+
+官网使用 Hugo 渲染，通过 GitHub Actions 自动部署到 GitHub Pages。
+本地预览、文案修改和部署方式见[官网开发文档](docs/WEBSITE.md)。
 
 ## 开源协议
 

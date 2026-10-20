@@ -1,0 +1,75 @@
+name: Deploy Hugo website to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'website/**'
+      - 'scripts/check-website.py'
+      - 'docs/guide/**'
+      - 'docs/icon.png'
+      - '.github/workflows/pages.yml'
+  pull_request:
+    paths:
+      - 'website/**'
+      - 'scripts/check-website.py'
+      - 'docs/guide/**'
+      - 'docs/icon.png'
+      - '.github/workflows/pages.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages-${{ github.event.pull_request.number || 'production' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  HUGO_VERSION: '0.168.0'
+  TZ: Asia/Shanghai
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+      - name: Install Hugo
+        run: |
+          set -euo pipefail
+          archive="hugo_${HUGO_VERSION}_linux-amd64.tar.gz"
+          release="https://github.com/gohugoio/hugo/releases/download/v${HUGO_VERSION}"
+          curl --fail --location --retry 3 "${release}/${archive}" -o "${RUNNER_TEMP}/${archive}"
+          curl --fail --location --retry 3 "${release}/hugo_${HUGO_VERSION}_checksums.txt" -o "${RUNNER_TEMP}/hugo-checksums.txt"
+          cd "${RUNNER_TEMP}"
+          awk -v file="${archive}" '$2 == file { print; found = 1 } END { if (!found) exit 1 }' hugo-checksums.txt | sha256sum --check --strict
+          mkdir -p "${RUNNER_TEMP}/hugo-bin"
+          tar -xzf "${archive}" -C "${RUNNER_TEMP}/hugo-bin" hugo
+          echo "${RUNNER_TEMP}/hugo-bin" >> "${GITHUB_PATH}"
+      - name: Build website
+        run: hugo --source website --gc --minify --panicOnWarning
+      - name: Check generated website
+        run: python3 scripts/check-website.py
+      - name: Upload GitHub Pages artifact
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: website/public
+
+  deploy:
+    if: github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

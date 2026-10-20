@@ -1,0 +1,33 @@
+{{ define "main" }}
+{{ $c := index hugo.Data site.Language.Lang }}
+<section class="hero wrap">
+  <div class="eyebrow"><span class="status-dot"></span>{{ $c.hero.eyebrow }}<span class="eyebrow-divider">/</span> MACOS 14+</div>
+  <h1>{{ $c.hero.title }}<br><span>{{ $c.hero.accent }}</span></h1>
+  <p class="hero-description">{{ $c.hero.description }}</p>
+  <div class="hero-actions"><a class="button" href="{{ site.Params.download }}">{{ partial "icon.html" "download" }}{{ $c.hero.download }}</a><a class="text-link" href="#how-it-works">{{ $c.hero.explore }} {{ partial "icon.html" "arrow" }}</a></div>
+  <p class="hero-note">{{ $c.hero.note }}</p>
+  <div class="product-stage">
+    <div class="stage-note">{{ partial "icon.html" "clock" }}<span>{{ $c.demo.note }}</span><span class="note-line"></span></div>
+    <div class="app-window" role="img" aria-label="{{ $c.demo.alt }}">
+      <div class="app-toolbar"><div class="traffic-lights"><i></i><i></i><i></i></div><span>TaskTick</span><span class="toolbar-symbol">◫</span></div>
+      <div class="app-body"><aside class="app-sidebar"><div class="sidebar-label">{{ $c.demo.workspace }}</div><div class="sidebar-active">{{ partial "icon.html" "menu" }}{{ $c.demo.all }}<span>4</span></div><div class="sidebar-item">{{ partial "icon.html" "clock" }}{{ $c.demo.scheduled }}<span>3</span></div><div class="sidebar-item">{{ partial "icon.html" "activity" }}{{ $c.demo.background }}<span>1</span></div><div class="sidebar-bottom"><span class="status-dot"></span>{{ $c.demo.ready }}</div></aside>
+      <div class="app-content"><div class="app-heading"><div><span class="app-overline">{{ $c.demo.today }}</span><h2>{{ $c.demo.all }}</h2></div><span class="new-task">＋ {{ $c.demo.new }}</span></div>
+      <div class="task-table-head"><span>{{ $c.demo.task }}</span><span>{{ $c.demo.plan }}</span><span>{{ $c.demo.status }}</span></div>
+      {{ range $c.demo.tasks }}<div class="task-row"><div class="task-name"><span class="task-icon {{ .color }}">{{ partial "icon.html" .icon }}</span><div><strong>{{ .name }}</strong><small>{{ .file }}</small></div></div><span class="task-plan">{{ .plan }}</span><span class="task-status {{ .color }}"><i></i>{{ .status }}</span></div>{{ end }}
+      <div class="app-log"><span><i class="status-dot"></i>{{ $c.demo.log }}</span><code>exit 0 <span>·</span> 1.24s</code></div></div></div>
+    </div>
+    <div class="floating-note">{{ partial "icon.html" "check" }}<div><strong>{{ $c.demo.notification }}</strong><span>{{ $c.demo.notificationDetail }}</span></div><small>TaskTick</small></div>
+  </div>
+  <p class="demo-caption">{{ $c.demo.caption }}</p>
+  <div class="compatibility"><span>{{ $c.compatibility.label }}</span><span>SwiftUI</span><i></i><span>Apple Silicon & Intel</span><i></i><span>{{ $c.compatibility.open }}</span></div>
+</section>
+<section class="section wrap" id="features"><div class="section-heading"><div><p class="eyebrow">01 / {{ $c.features.eyebrow }}</p><h2>{{ $c.features.title }}<br>{{ $c.features.subtitle }}</h2></div><p>{{ $c.features.description }}</p></div>
+  <div class="feature-grid">{{ range $i, $feature := $c.features.items }}<article class="feature"><div class="feature-top"><span class="feature-icon">{{ partial "icon.html" .icon }}</span><span class="feature-number">0{{ add $i 1 }}</span></div><h3>{{ .title }}</h3><p>{{ .description }}</p><span class="feature-tag">{{ .tag }}</span></article>{{ end }}</div>
+</section>
+<section class="workflow-section" id="how-it-works"><div class="wrap workflow"><div class="workflow-copy"><p class="eyebrow">02 / {{ $c.workflow.eyebrow }}</p><h2>{{ $c.workflow.title }}<br><span>{{ $c.workflow.accent }}</span></h2><p>{{ $c.workflow.description }}</p><a class="text-link" href="{{ "guide/" | relURL }}">{{ $c.workflow.docs }} {{ partial "icon.html" "arrow" }}</a></div><ol class="steps">{{ range $i, $step := $c.workflow.steps }}<li><span class="step-number">0{{ add $i 1 }}</span><div><h3>{{ .title }}</h3><p>{{ .description }}</p>{{ with .code }}<code>{{ . }}</code>{{ end }}</div></li>{{ end }}</ol></div></section>
+<section class="section wrap use-cases"><div class="section-heading"><div><p class="eyebrow">03 / {{ $c.usecases.eyebrow }}</p><h2>{{ $c.usecases.title }}</h2></div><p>{{ $c.usecases.description }}</p></div><div class="use-case-grid">{{ range $c.usecases.items }}<article><span class="use-case-time">{{ .time }}</span><h3>{{ .title }}</h3><p>{{ .description }}</p><code>{{ .code }}</code></article>{{ end }}</div></section>
+<section class="wrap install-section" id="install"><div class="install-copy"><p class="eyebrow">04 / {{ $c.install.eyebrow }}</p><h2>{{ $c.install.title }}</h2><p>{{ $c.install.description }}</p><a class="button" href="{{ site.Params.download }}">{{ partial "icon.html" "download" }}{{ $c.install.download }}</a><p class="install-requirement">macOS 14+ · Apple Silicon & Intel</p></div><div class="terminal"><div class="terminal-title"><span>⌘ &nbsp; {{ $c.install.homebrew }}</span><button class="copy-button" type="button" data-copy="brew tap iuxt/tap&#10;brew install --cask task-tick" data-copied="{{ $c.install.copied }}" data-failed="{{ $c.install.copyFailed }}">{{ $c.install.copy }}</button></div><pre><code><span class="terminal-comment"># {{ $c.install.commandLabel }}</span>
+<span class="terminal-prompt">$</span> brew tap iuxt/tap
+<span class="terminal-prompt">$</span> brew install --cask task-tick</code></pre><div class="terminal-footer"><span class="status-dot"></span>{{ $c.install.terminalNote }}</div><p class="copy-status" role="status" aria-live="polite"></p></div></section>
+<section class="wrap faq-section"><h2>{{ $c.faq.title }}</h2><div>{{ range $c.faq.items }}<details><summary>{{ .question }}<span>＋</span></summary><p>{{ .answer }}</p></details>{{ end }}</div></section>
+{{ end }}
