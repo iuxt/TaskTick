@@ -51,6 +51,8 @@
 "task.detail.recent_logs" = "최근 실행";
 "task.detail.no_logs" = "실행 기록이 없습니다";
 "task.detail.view_logs" = "로그 보기";
+"task.detail.live_output" = "실시간 로그";
+"task.detail.live_output.waiting" = "실행 중 — 출력 대기 중";
 "task.detail.last_output" = "마지막 출력";
 "task.detail.last_output.running" = "실행 중입니다. 완료되면 출력이 표시됩니다";
 "task.detail.last_output.empty" = "이번 실행에는 출력이 없습니다";
@@ -501,7 +503,9 @@
 "schedule.background_service" = "Background Program";
 "tasklist.section.background" = "BACKGROUND PROGRAMS";
 "service.lifecycle" = "Lifecycle";
-"service.auto_start" = "Start with TaskTick";
+"service.auto_start" = "로그인 시 자동 시작";
+"service.auto_start.help" = "TaskTick의 로그인 항목을 활성화하여 로그인 시 이 프로세스를 시작합니다. 끄더라도 현재 프로세스는 중지되지 않습니다.";
+"service.stopped" = "중지됨";
 "service.restart_policy" = "Restart Policy";
 "service.restart.never" = "Never";
 "service.restart.on_failure" = "On Failure";

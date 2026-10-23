@@ -41,7 +41,14 @@ struct TaskDetailView: View {
 
                     VStack(spacing: 16) {
                         recentLogsCard
-                        lastOutputCard
+                        if task.isBackgroundService {
+                            ServiceLiveOutputCard(task: task) { logID in
+                                selectedLogIdForSheet = logID
+                                showingTaskLogs = true
+                            }
+                        } else {
+                            lastOutputCard
+                        }
                     }
                     .frame(width: 300, alignment: .top)
                 }
@@ -132,9 +139,11 @@ struct TaskDetailView: View {
                     HStack(spacing: 12) {
                         HStack(spacing: 4) {
                             Circle()
-                                .fill(task.isEnabled ? .green : .gray.opacity(0.4))
+                                .fill((task.isBackgroundService ? isRunning : task.isEnabled) ? .green : .gray.opacity(0.4))
                                 .frame(width: 8, height: 8)
-                            Text(task.isEnabled ? L10n.tr("task.status.enabled") : L10n.tr("task.status.disabled"))
+                            Text(task.isBackgroundService
+                                 ? L10n.tr(isRunning ? "status.running" : "service.stopped")
+                                 : L10n.tr(task.isEnabled ? "task.status.enabled" : "task.status.disabled"))
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
                         }
@@ -150,16 +159,20 @@ struct TaskDetailView: View {
 
                         // Action buttons
                         HStack(spacing: 8) {
-                            Button {
-                                toggleTaskEnabled(task, context: modelContext)
-                            } label: {
-                                Label(
-                                    task.isEnabled ? L10n.tr("task.detail.disable") : L10n.tr("task.detail.enable"),
-                                    systemImage: task.isEnabled ? "pause.circle" : "play.circle"
-                                )
+                            if task.isBackgroundService {
+                                ServiceAutoStartToggle(task: task)
+                            } else {
+                                Button {
+                                    toggleTaskEnabled(task, context: modelContext)
+                                } label: {
+                                    Label(
+                                        task.isEnabled ? L10n.tr("task.detail.disable") : L10n.tr("task.detail.enable"),
+                                        systemImage: task.isEnabled ? "pause.circle" : "play.circle"
+                                    )
+                                }
+                                .tint(task.isEnabled ? .orange : .green)
+                                .pointerCursor()
                             }
-                            .tint(task.isEnabled ? .orange : .green)
-                            .pointerCursor()
 
                             if isRunning {
                                 Button {
@@ -242,10 +255,6 @@ struct TaskDetailView: View {
 
                     if task.isBackgroundService {
                         detailRow(L10n.tr("schedule.trigger_section"), value: L10n.tr("schedule.background_service"))
-                        detailRow(
-                            L10n.tr("service.auto_start"),
-                            value: task.serviceAutoStart ? L10n.tr("common.yes") : L10n.tr("common.no")
-                        )
                         detailRow(L10n.tr("service.restart_policy"), value: task.serviceRestartPolicy.displayName)
                         if task.serviceRestartPolicy != .never {
                             detailRow(

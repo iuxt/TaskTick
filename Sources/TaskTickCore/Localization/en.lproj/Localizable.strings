@@ -51,6 +51,8 @@
 "task.detail.recent_logs" = "Recent Runs";
 "task.detail.no_logs" = "No execution logs yet";
 "task.detail.view_logs" = "View Logs";
+"task.detail.live_output" = "Live Logs";
+"task.detail.live_output.waiting" = "Running — waiting for output";
 "task.detail.last_output" = "Last Output";
 "task.detail.last_output.running" = "Running — output appears when it finishes";
 "task.detail.last_output.empty" = "This run produced no output";
@@ -501,7 +503,9 @@
 "schedule.background_service" = "Background Program";
 "tasklist.section.background" = "BACKGROUND PROGRAMS";
 "service.lifecycle" = "Lifecycle";
-"service.auto_start" = "Start with TaskTick";
+"service.auto_start" = "Start at Login";
+"service.auto_start.help" = "Start this process when you log in by enabling TaskTick’s login item. Turning this off leaves the current process running.";
+"service.stopped" = "Stopped";
 "service.restart_policy" = "Restart Policy";
 "service.restart.never" = "Never";
 "service.restart.on_failure" = "On Failure";

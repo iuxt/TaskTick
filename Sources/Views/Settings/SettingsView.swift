@@ -1,11 +1,10 @@
 import SwiftUI
 import SwiftData
-import ServiceManagement
 import TaskTickCore
 
 struct SettingsView: View {
     // General
-    @State private var launchAtLogin = false
+    @ObservedObject private var launchAtLogin = LaunchAtLogin.shared
     @AppStorage("defaultShell") private var defaultShell = "/bin/zsh"
     @AppStorage("defaultTimeout") private var defaultTimeout = 300
     @AppStorage("appearanceMode") private var appearanceMode = "system"
@@ -83,9 +82,9 @@ struct SettingsView: View {
         .onExitCommand {
             NSApp.keyWindow?.close()
         }
-        .onAppear { syncLaunchAtLoginStatus() }
+        .onAppear { launchAtLogin.refresh() }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
-            syncLaunchAtLoginStatus()
+            launchAtLogin.refresh()
         }
     }
 
@@ -150,8 +149,8 @@ struct SettingsView: View {
                 Toggle(
                     L10n.tr("settings.general.launch_at_login"),
                     isOn: Binding(
-                        get: { launchAtLogin },
-                        set: { toggleLaunchAtLogin($0) }
+                        get: { launchAtLogin.isEnabled },
+                        set: { launchAtLogin.setEnabled($0) }
                     )
                 )
 
@@ -643,36 +642,4 @@ struct SettingsView: View {
         }
     }
 
-    private func toggleLaunchAtLogin(_ enabled: Bool) {
-        do {
-            if enabled {
-                try SMAppService.mainApp.register()
-            } else {
-                try SMAppService.mainApp.unregister()
-            }
-            syncLaunchAtLoginStatus()
-            if enabled && !launchAtLogin {
-                if SMAppService.mainApp.status == .requiresApproval {
-                    SMAppService.openSystemSettingsLoginItems()
-                }
-                showLaunchAtLoginError(L10n.tr("settings.general.launch_at_login.approval"))
-            }
-        } catch {
-            syncLaunchAtLoginStatus()
-            showLaunchAtLoginError(error.localizedDescription)
-        }
-    }
-
-    private func syncLaunchAtLoginStatus() {
-        launchAtLogin = SMAppService.mainApp.status == .enabled
-    }
-
-    private func showLaunchAtLoginError(_ message: String) {
-        let alert = NSAlert()
-        alert.messageText = L10n.tr("settings.general.launch_at_login.failed")
-        alert.informativeText = message
-        alert.alertStyle = .warning
-        alert.addButton(withTitle: "OK")
-        alert.runModal()
-    }
 }

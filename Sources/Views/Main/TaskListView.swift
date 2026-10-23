@@ -216,9 +216,13 @@ struct TaskListView: View {
                     ActionToast.notify(.started(taskName: task.name), wantsBanner: task.notifyOnAction)
                 }
             }
-            Button(task.isEnabled ? L10n.tr("task.detail.disable") : L10n.tr("task.detail.enable"),
+            if task.isBackgroundService {
+                ServiceAutoStartToggle(task: task)
+            } else {
+                Button(task.isEnabled ? L10n.tr("task.detail.disable") : L10n.tr("task.detail.enable"),
                    systemImage: task.isEnabled ? "pause.circle" : "play.circle") {
-                toggleTaskEnabled(task, context: modelContext)
+                    toggleTaskEnabled(task, context: modelContext)
+                }
             }
             Divider()
             Button(L10n.tr("task.duplicate"), systemImage: "doc.on.doc") {
@@ -329,6 +333,7 @@ struct TaskListRow: View {
     /// last execution's outcome / enabled-but-never-run.
     private var statusHelpText: String {
         if isRunning { return ExecutionStatus.running.displayName }
+        if task.isBackgroundService { return L10n.tr("service.stopped") }
         if !task.isEnabled { return L10n.tr("task.status.disabled") }
         if let status = latestExecutionStatus {
             return L10n.tr("task.status.last_run", status.displayName)
@@ -354,13 +359,13 @@ struct TaskListRow: View {
             // disabled rows be picked out at a glance. A disabled task can
             // still be run manually, so `isRunning` wins over both.
             ZStack {
-                if let status = isRunning ? .running : (task.isEnabled ? latestExecutionStatus : nil) {
+                if let status = isRunning ? .running : (task.isEnabled && !task.isBackgroundService ? latestExecutionStatus : nil) {
                     Image(systemName: status.iconName)
                         .font(.system(size: 13))
                         .scaleEffect(status.iconScale)
                         .foregroundStyle(status.color)
-                } else if !task.isEnabled {
-                    Image(systemName: "pause.circle.fill")
+                } else if task.isBackgroundService || !task.isEnabled {
+                    Image(systemName: task.isBackgroundService ? "stop.circle.fill" : "pause.circle.fill")
                         .font(.system(size: 13))
                         .foregroundStyle(.gray)
                 } else {
@@ -384,7 +389,7 @@ struct TaskListRow: View {
             VStack(alignment: .leading, spacing: 3) {
                 Text(task.name)
                     .font(.system(.body, weight: .medium))
-                    .foregroundStyle(task.isEnabled ? .primary : .secondary)
+                    .foregroundStyle(task.isBackgroundService || task.isEnabled ? .primary : .secondary)
                     .lineLimit(1)
 
                 HStack(spacing: 4) {

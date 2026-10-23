@@ -51,6 +51,8 @@
 "task.detail.recent_logs" = "Последние запуски";
 "task.detail.no_logs" = "Журнал выполнения пуст";
 "task.detail.view_logs" = "Просмотр журнала";
+"task.detail.live_output" = "Журнал в реальном времени";
+"task.detail.live_output.waiting" = "Выполняется — ожидание вывода";
 "task.detail.last_output" = "Последний вывод";
 "task.detail.last_output.running" = "Выполняется — вывод появится после завершения";
 "task.detail.last_output.empty" = "Этот запуск не дал вывода";
@@ -501,7 +503,9 @@
 "schedule.background_service" = "Background Program";
 "tasklist.section.background" = "BACKGROUND PROGRAMS";
 "service.lifecycle" = "Lifecycle";
-"service.auto_start" = "Start with TaskTick";
+"service.auto_start" = "Запускать при входе";
+"service.auto_start.help" = "Включает запуск TaskTick при входе в систему для запуска этого процесса. Отключение не останавливает текущий процесс.";
+"service.stopped" = "Остановлен";
 "service.restart_policy" = "Restart Policy";
 "service.restart.never" = "Never";
 "service.restart.on_failure" = "On Failure";

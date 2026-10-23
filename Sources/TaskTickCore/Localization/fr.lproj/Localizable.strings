@@ -47,6 +47,8 @@
 "task.detail.recent_logs" = "Exécutions récentes";
 "task.detail.no_logs" = "Aucun journal d'exécution";
 "task.detail.view_logs" = "Voir les journaux";
+"task.detail.live_output" = "Journaux en direct";
+"task.detail.live_output.waiting" = "En cours — en attente de sortie";
 "task.detail.last_output" = "Dernière sortie";
 "task.detail.last_output.running" = "En cours — la sortie s'affichera à la fin";
 "task.detail.last_output.empty" = "Cette exécution n'a produit aucune sortie";
@@ -455,7 +457,9 @@
 "schedule.background_service" = "Background Program";
 "tasklist.section.background" = "BACKGROUND PROGRAMS";
 "service.lifecycle" = "Lifecycle";
-"service.auto_start" = "Start with TaskTick";
+"service.auto_start" = "Démarrer à l’ouverture de session";
+"service.auto_start.help" = "Active le lancement de TaskTick à l’ouverture de session pour démarrer ce processus. La désactivation laisse le processus actuel en cours.";
+"service.stopped" = "Arrêté";
 "service.restart_policy" = "Restart Policy";
 "service.restart.never" = "Never";
 "service.restart.on_failure" = "On Failure";

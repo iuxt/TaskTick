@@ -2,6 +2,40 @@ import SwiftUI
 import SwiftData
 import TaskTickCore
 
+/// Changes future automatic launches without starting or stopping the process.
+/// Keep the legacy enabled flag on so manually started services retain their
+/// restart supervision even when auto-start is off.
+@MainActor
+@discardableResult
+func setServiceAutoStart(
+    _ enabled: Bool,
+    task: ScheduledTask,
+    context: ModelContext,
+    enableLaunchAtLogin: () -> Bool = { LaunchAtLogin.shared.setEnabled(true) }
+) -> Bool {
+    guard task.isBackgroundService else { return false }
+    if enabled && !enableLaunchAtLogin() { return false }
+
+    let previousEnabled = task.isEnabled
+    let previousAutoStart = task.serviceAutoStart
+    let previousUpdatedAt = task.updatedAt
+    task.isEnabled = true
+    task.serviceAutoStart = enabled
+    task.updatedAt = Date()
+    do {
+        try context.save()
+        return true
+    } catch {
+        task.isEnabled = previousEnabled
+        task.serviceAutoStart = previousAutoStart
+        task.updatedAt = previousUpdatedAt
+        presentErrorAlert(titleKey: "error.save_failed.title",
+                          messageKey: "error.save_failed.message",
+                          error: error)
+        return false
+    }
+}
+
 /// Flips a task's enabled flag, recomputes its next fire date and rebuilds the
 /// master timer.
 ///

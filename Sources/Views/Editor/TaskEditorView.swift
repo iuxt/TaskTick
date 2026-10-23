@@ -238,7 +238,13 @@ struct TaskEditorView: View {
 
             Section(L10n.tr("editor.section.basic")) {
                 TextField(L10n.tr("editor.name"), text: $name, prompt: Text(L10n.tr("editor.name.placeholder")))
-                Toggle(L10n.tr("editor.enabled"), isOn: $isEnabled)
+                if isBackgroundService {
+                    Toggle(L10n.tr("service.auto_start"), isOn: $serviceAutoStart)
+                        .toggleStyle(.switch)
+                        .help(L10n.tr("service.auto_start.help"))
+                } else {
+                    Toggle(L10n.tr("editor.enabled"), isOn: $isEnabled)
+                }
             }
 
         }
@@ -608,7 +614,6 @@ struct TaskEditorView: View {
 
             if isBackgroundService {
                 Section(L10n.tr("service.lifecycle")) {
-                    Toggle(L10n.tr("service.auto_start"), isOn: $serviceAutoStart)
                     Picker(L10n.tr("service.restart_policy"), selection: $serviceRestartPolicy) {
                         ForEach(ServiceRestartPolicy.allCases, id: \.self) { policy in
                             Text(policy.displayName).tag(policy)
@@ -996,7 +1001,8 @@ struct TaskEditorView: View {
         runOnLaunch = task.runOnLaunch
         isManualOnly = task.isManualOnly
         isBackgroundService = task.isBackgroundService
-        serviceAutoStart = task.serviceAutoStart
+        LaunchAtLogin.shared.refresh()
+        serviceAutoStart = task.isEnabled && task.serviceAutoStart && LaunchAtLogin.shared.isEnabled
         serviceRestartPolicy = task.serviceRestartPolicy
         serviceRestartDelaySeconds = task.serviceRestartDelaySeconds
         serviceLogEnabled = task.serviceLogEnabled
@@ -1040,6 +1046,9 @@ struct TaskEditorView: View {
     }
 
     private func save() {
+        if isBackgroundService && serviceAutoStart && !LaunchAtLogin.shared.setEnabled(true) {
+            return
+        }
         let target = task ?? ScheduledTask()
         let wasBackgroundService = target.isBackgroundService
 
@@ -1056,7 +1065,7 @@ struct TaskEditorView: View {
         target.notificationTemplate = notificationTemplate.trimmingCharacters(in: .whitespacesAndNewlines)
         target.strongReminder = strongReminder
         target.ignoreExitCode = ignoreExitCode
-        target.isEnabled = isEnabled
+        target.isEnabled = isBackgroundService || isEnabled
         target.updatedAt = Date()
 
         target.isManualOnly = isManualOnly
@@ -1138,7 +1147,7 @@ struct TaskEditorView: View {
             target.scriptBody = scriptBody
         }
 
-        if isEnabled {
+        if target.isEnabled {
             target.nextRunAt = TaskScheduler.shared.computeNextRunDate(for: target)
         } else {
             target.nextRunAt = nil
@@ -1162,11 +1171,7 @@ struct TaskEditorView: View {
         }
         TaskScheduler.shared.rebuildSchedule()
         let isRunning = TaskScheduler.shared.runningTaskIDs.contains(target.id)
-        if target.isBackgroundService && target.isEnabled && target.serviceAutoStart && !isRunning {
-            Task {
-                _ = await ScriptExecutor.shared.execute(task: target, modelContext: modelContext)
-            }
-        } else if isRunning && (!target.isEnabled || (wasBackgroundService && !target.isBackgroundService)) {
+        if isRunning && (!target.isEnabled || (wasBackgroundService && !target.isBackgroundService)) {
             ScriptExecutor.shared.cancel(taskId: target.id)
         }
         EditorState.shared.lastSavedTask = target

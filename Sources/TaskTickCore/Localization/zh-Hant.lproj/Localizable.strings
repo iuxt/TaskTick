@@ -51,6 +51,8 @@
 "task.detail.recent_logs" = "最近執行";
 "task.detail.no_logs" = "暫無執行紀錄";
 "task.detail.view_logs" = "檢視日誌";
+"task.detail.live_output" = "即時日誌";
+"task.detail.live_output.waiting" = "執行中，等待日誌輸出";
 "task.detail.last_output" = "最後一次輸出";
 "task.detail.last_output.running" = "執行中，完成後顯示輸出";
 "task.detail.last_output.empty" = "本次執行沒有輸出";
@@ -501,7 +503,9 @@
 "schedule.background_service" = "背景程序";
 "tasklist.section.background" = "背景程序";
 "service.lifecycle" = "生命週期";
-"service.auto_start" = "隨 TaskTick 啟動";
+"service.auto_start" = "開機自啟動";
+"service.auto_start.help" = "開啟後會同時啟用 TaskTick 的開機啟動，登入系統時自動執行此程序。關閉不會停止目前的程序。";
+"service.stopped" = "已停止";
 "service.restart_policy" = "重啟策略";
 "service.restart.never" = "永不";
 "service.restart.on_failure" = "失敗時";

@@ -51,6 +51,8 @@
 "task.detail.recent_logs" = "Eksekusi Terakhir";
 "task.detail.no_logs" = "Belum ada log eksekusi";
 "task.detail.view_logs" = "Lihat Log";
+"task.detail.live_output" = "Log Langsung";
+"task.detail.live_output.waiting" = "Berjalan — menunggu keluaran";
 "task.detail.last_output" = "Keluaran Terakhir";
 "task.detail.last_output.running" = "Sedang berjalan — keluaran muncul setelah selesai";
 "task.detail.last_output.empty" = "Eksekusi ini tidak menghasilkan keluaran";
@@ -501,7 +503,9 @@
 "schedule.background_service" = "Background Program";
 "tasklist.section.background" = "BACKGROUND PROGRAMS";
 "service.lifecycle" = "Lifecycle";
-"service.auto_start" = "Start with TaskTick";
+"service.auto_start" = "Mulai saat login";
+"service.auto_start.help" = "Mengaktifkan TaskTick saat login untuk menjalankan proses ini. Menonaktifkannya tidak menghentikan proses yang sedang berjalan.";
+"service.stopped" = "Dihentikan";
 "service.restart_policy" = "Restart Policy";
 "service.restart.never" = "Never";
 "service.restart.on_failure" = "On Failure";
