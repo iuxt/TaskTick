@@ -77,7 +77,7 @@ struct ServiceAutoStartTests {
 
             #expect(setServiceAutoStart(false, task: task, context: context))
             #expect(process.isRunning, "Disabling auto-start must not stop the current run")
-            try await waitUntil { task.executionLogs.count >= 2 }
+            try await waitUntil { executor.runningProcesses[task.id].map { $0 !== process } == true }
             #expect(!task.serviceAutoStart)
             #expect(task.isEnabled)
         } catch {

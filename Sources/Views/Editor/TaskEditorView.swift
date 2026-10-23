@@ -1157,6 +1157,14 @@ struct TaskEditorView: View {
             modelContext.insert(target)
         }
 
+        for log in target.executionLogs {
+            do {
+                try TaskLogFiles.materializeHistoryFile(for: log)
+            } catch {
+                NSLog("⚠️ History log file update failed: \(error)")
+            }
+        }
+
         do {
             try modelContext.save()
         } catch {

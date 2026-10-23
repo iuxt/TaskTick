@@ -174,19 +174,25 @@ struct ReviewRegressionTests {
         #expect(first.status == .failure)
         #expect(first.stderr?.contains(file.path) == true)
         #expect(first.finishedAt != nil)
-        #expect(task.lastRunAt != nil)
-        #expect(task.executionCount == 1)
+        #expect(task.lastRunAt == nil)
+        #expect(task.executionCount == 0)
+        #expect(task.executionLogs.isEmpty)
+        #expect(LiveOutputManager.shared.stderr(for: task.id)?.contains(file.path) == true)
         #expect(!LiveOutputManager.shared.isTracking(task.id))
         #expect(!TaskScheduler.shared.runningTaskIDs.contains(task.id))
         try "#!/bin/sh\necho recovered\n".write(to: file, atomically: true, encoding: .utf8)
         let deadline = Date().addingTimeInterval(5)
-        while !task.executionLogs.contains(where: { $0.status == .success }), Date() < deadline {
+        while LiveOutputManager.shared.stdout(for: task.id) != "recovered", Date() < deadline {
             try await Task.sleep(for: .milliseconds(25))
         }
-        #expect(task.executionCount == 2)
-        #expect(task.executionLogs.contains(where: { $0.stdout == "recovered" && $0.status == .success }))
+        #expect(LiveOutputManager.shared.stdout(for: task.id) == "recovered")
+        #expect(task.executionCount == 0)
+        #expect(task.executionLogs.isEmpty)
+        let tick = LiveOutputManager.shared.tick[task.id]
         try await Task.sleep(for: .milliseconds(1200))
-        #expect(task.executionCount == 2)
+        #expect(LiveOutputManager.shared.tick[task.id] == tick)
+        #expect(task.executionLogs.isEmpty)
+        LiveOutputManager.shared.stopTracking(taskId: task.id)
     }
 
     @Test("Same-name manual tasks have isolated file logs and matching deletion paths")

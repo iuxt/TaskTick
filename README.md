@@ -54,6 +54,12 @@ After creating a background process, configure its restart policy, log path, max
 
 Use **Start at Login** in the detail view or context menu to launch a background process when you log in. Enabling it also enables TaskTick’s login item. Turning it off leaves the current process running; use Run and Stop to control it. The editor’s Basic tab has the same auto-start setting.
 
+### Log files
+
+Each scheduled execution creates a separate `.log` file under `~/Library/Logs/TaskTick/com.iuxt.TaskTick/<task name>/`, matching its Recent Runs entry. Open the log folder from the task detail view or reveal an individual execution's file in Finder. Characters that cannot be used in folder names are replaced with `-`.
+
+**Clear Logs** deletes completed scheduled executions' `.log` files and clears the displayed output, preserving execution records and execution counts. A running execution's file is emptied in place so it can continue writing new output. Manual tasks and background processes empty their files in place, including rotation archives. Deleting execution records or cleaning up expired history also removes their files.
+
 - macOS 14 (Sonoma) or later
 - Apple Silicon or Intel Mac
 
@@ -94,9 +100,10 @@ xattr -cr /Applications/TaskTick.app
 ```bash
 git clone https://github.com/iuxt/TaskTick.git
 cd TaskTick
-swift build -c release
-swift run
+./build.sh
 ```
+
+The script quits TaskTick, builds a Release app for this Mac, installs it to `/Applications/TaskTick.app`, removes temporary files, and launches the app. Xcode or Xcode Command Line Tools is required. It requests an administrator password if the installation directory is not writable.
 
 ## Website development
 

@@ -84,6 +84,9 @@ struct LogDetailView: View {
                                 infoRow(L10n.tr("log.detail.finished"),
                                         value: finished.formatted(date: .abbreviated, time: .standard))
                             }
+                            if let path = log.outputFilePath {
+                                LogFileLocationView(path: path)
+                            }
                         }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)

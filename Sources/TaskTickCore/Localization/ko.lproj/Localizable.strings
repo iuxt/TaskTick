@@ -418,7 +418,8 @@
 
 /* Clear Logs Confirmation */
 "clear_logs.title" = "로그 지우기";
-"clear_logs.message" = "\"%@\"의 모든 실행 로그를 지우시겠습니까? 실행 횟수가 초기화됩니다. 이 작업은 되돌릴 수 없습니다.";
+"clear_logs.message" = "「%@」의 모든 로그 파일 내용을 비우시겠습니까? 파일, 실행 기록, 실행 횟수는 유지됩니다. 실행 중인 작업은 새 로그를 계속 기록합니다. 이 작업은 취소할 수 없습니다.";
+"clear_logs.scheduled.message" = "「%@」의 완료된 실행 로그 파일을 삭제하고 출력을 지우시겠습니까? 실행 기록과 횟수는 유지됩니다. 실행 중인 로그 파일은 비워진 뒤 새 출력을 계속 기록합니다. 이 작업은 취소할 수 없습니다.";
 "clear_logs.cancel" = "취소";
 "clear_logs.confirm" = "지우기";
 

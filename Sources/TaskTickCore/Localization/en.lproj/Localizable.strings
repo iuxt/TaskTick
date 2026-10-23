@@ -418,7 +418,8 @@
 
 /* Clear Logs Confirmation */
 "clear_logs.title" = "Clear Logs";
-"clear_logs.message" = "Are you sure you want to clear all execution logs for \"%@\"? The execution count will be reset. This action cannot be undone.";
+"clear_logs.message" = "Clear the contents of all log files for \"%@\"? Files, execution records and execution counts will be kept. Running tasks will continue writing new output. This action cannot be undone.";
+"clear_logs.scheduled.message" = "Delete completed runs’ log files and clear the output for \"%@\"? Execution records and counts will be kept. An active execution’s file will be emptied and continue receiving new output. This action cannot be undone.";
 "clear_logs.cancel" = "Cancel";
 "clear_logs.confirm" = "Clear";
 
@@ -522,3 +523,7 @@
 "common.no" = "No";
 
 "time.just_now" = "just now";
+
+"clear_logs.failed.title" = "Could Not Clear Logs";
+"clear_logs.failed.message" = "Could not clear the log files: %@";
+"task.detail.log_directory" = "Log Folder";

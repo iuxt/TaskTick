@@ -43,6 +43,7 @@ enum LogDeletion {
         let live = logs.filter { $0.modelContext != nil }
         guard !live.isEmpty else { return }
 
+        let fileURLs = live.compactMap { $0.outputFilePath }.map { URL(fileURLWithPath: $0) }
         // Capture owners before deleting — `log.task` is nil afterwards.
         var affected: [ScheduledTask] = []
         for log in live {
@@ -60,6 +61,8 @@ enum LogDeletion {
             NSLog("⚠️ delete logs save failed: \(error)")
             return
         }
+
+        for url in fileURLs { try? FileManager.default.removeItem(at: url) }
 
         for task in affected where task.modelContext != nil {
             task.executionCount = task.executionLogs.filter { $0.modelContext != nil }.count

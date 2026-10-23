@@ -90,7 +90,7 @@ struct AdoptedProcessLifecycleTests {
         let task = serviceTask()
         task.serviceRestartPolicy = .always
         context.insert(task)
-        let log = try runningLog(for: task, process: process, in: context)
+        _ = try runningLog(for: task, process: process, in: context)
         executor.reconcileRunningLogs(in: context)
 
         if action == "shutdown" {
@@ -107,12 +107,12 @@ struct AdoptedProcessLifecycleTests {
         try await waitUntil { !ProcessReconciler.isAlive(pid: childPID) }
         try await waitUntil { executor.adoptedProcesses[task.id] == nil }
         if action == "stop" {
-            #expect(log.status == .cancelled)
-            #expect(log.finishedAt != nil)
-            #expect(log.stderr?.contains("stopped by user") == true)
+            #expect(task.executionLogs.isEmpty)
+            #expect(try context.fetchCount(FetchDescriptor<ExecutionLog>()) == 0)
         }
         try await Task.sleep(for: .milliseconds(1200))
-        #expect(task.executionLogs.count == 1, "Explicit Stop/shutdown must suppress service restart")
+        #expect(executor.runningProcesses.isEmpty, "Explicit Stop/shutdown must suppress service restart")
+        if action == "stop" { #expect(task.executionLogs.isEmpty) }
     }
 
     @Test("Adopted service exits follow their restart policy",
@@ -129,7 +129,7 @@ struct AdoptedProcessLifecycleTests {
         context.insert(task)
         let process = try sleepingProcess()
         defer { stop(process) }
-        let log = try runningLog(for: task, process: process, in: context)
+        let logID = try runningLog(for: task, process: process, in: context).id
         scheduler.configure(modelContext: context)
         scheduler.start()
         process.terminate()
@@ -139,19 +139,19 @@ struct AdoptedProcessLifecycleTests {
         scheduler.pollAdoptedProcesses()
         #expect(executor.adoptedProcesses[task.id] == nil)
         #expect(!scheduler.runningTaskIDs.contains(task.id))
-        #expect(log.status == .cancelled)
-        #expect(log.finishedAt != nil)
-        #expect(log.stderr?.contains("exited externally") == true)
+        #expect(task.executionLogs.isEmpty)
+        #expect(try context.fetchCount(FetchDescriptor<ExecutionLog>()) == 0)
         if policy == .never {
             try await Task.sleep(for: .milliseconds(1200))
-            #expect(task.executionLogs.count == 1)
+            #expect(task.executionLogs.isEmpty)
         } else {
             try await waitUntil { executor.runningProcesses[task.id] != nil }
-            #expect(task.executionLogs.count == 2)
-            #expect(task.executionLogs.first(where: { $0.id != log.id })?.triggeredBy == .launch)
+            #expect(task.executionLogs.count == 1)
+            #expect(task.executionLogs.first?.id != logID)
+            #expect(task.executionLogs.first?.triggeredBy == .launch)
         }
         await executor.suspendAndDrainForRestore()
-        #expect(task.executionLogs.allSatisfy { $0.status != .running })
+        #expect(task.executionLogs.isEmpty)
     }
 
     @Test("Stop, disable and restore suppress a pending adopted-service restart",
@@ -178,7 +178,7 @@ struct AdoptedProcessLifecycleTests {
         default: await executor.suspendAndDrainForRestore()
         }
         try await Task.sleep(for: .milliseconds(1200))
-        #expect(task.executionLogs.count == 1)
+        #expect(task.executionLogs.isEmpty)
         #expect(executor.runningProcesses.isEmpty)
     }
 

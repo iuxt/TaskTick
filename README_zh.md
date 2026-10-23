@@ -54,6 +54,12 @@
 
 详情页和右键菜单中的“开机自启动”开关控制登录系统后是否自动运行该进程；开启时会同时启用 TaskTick 的开机启动。关闭开关不会停止当前进程，运行和停止由对应按钮单独控制。编辑器的“基本”页提供相同的自启动设置。
 
+### 日志文件
+
+定时任务每次执行都会在 `~/Library/Logs/TaskTick/com.iuxt.TaskTick/<任务名>/` 下生成一个独立的 `.log` 文件，与“最近执行”中的记录对应。详情页可打开日志文件夹，单条执行记录可在 Finder 中显示对应文件。任务名中不能用于文件夹名称的字符会替换为 `-`。
+
+定时任务的“清空日志”会删除已结束执行的 `.log` 文件，并清空界面中的输出；保留执行记录和执行次数。正在执行的日志文件会原地清空，之后继续写入新输出。手动任务和后台进程会原地清空日志文件内容（包含轮转文件）。删除执行记录或清理过期日志时，对应文件也会删除。
+
 - macOS 14 (Sonoma) 或更高版本
 - Apple Silicon 或 Intel Mac
 
@@ -94,9 +100,10 @@ xattr -cr /Applications/TaskTick.app
 ```bash
 git clone https://github.com/iuxt/TaskTick.git
 cd TaskTick
-swift build -c release
-swift run
+./build.sh
 ```
+
+脚本会先退出正在运行的 TaskTick，构建本机架构的 Release 版本，安装到 `/Applications/TaskTick.app`，清理临时文件并自动启动。首次构建需要安装 Xcode 或 Xcode Command Line Tools；安装目录不可写时会请求管理员密码。
 
 ## 官网开发
 

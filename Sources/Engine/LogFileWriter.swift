@@ -1,4 +1,5 @@
 import Foundation
+import Darwin
 import TaskTickCore
 
 /// Streams a single running script's stdout/stderr to a plain-text log file
@@ -160,6 +161,34 @@ final class LogFileWriter: @unchecked Sendable {
         URL(fileURLWithPath: fileURL.path + ".\(index)")
     }
 
+    /// Truncate in place so a running process keeps writing to the same file.
+    /// Serializing with append/rotation also resets the current byte count.
+    func clear(includingArchives: Bool = false) throws {
+        try queue.sync {
+            if includingArchives {
+                for url in Self.filesIncludingArchives(at: fileURL) where url != fileURL {
+                    try Self.truncate(url)
+                }
+            }
+            if let handle {
+                try handle.truncate(atOffset: 0)
+                try handle.seek(toOffset: 0)
+            } else {
+                try Self.truncate(fileURL)
+            }
+            currentBytes = 0
+            stdoutDecoder = ProcessOutputDecoder()
+            stderrDecoder = ProcessOutputDecoder()
+        }
+    }
+
+    static func truncate(_ url: URL) throws {
+        guard FileManager.default.fileExists(atPath: url.path) else { return }
+        let handle = try FileHandle(forWritingTo: url)
+        defer { try? handle.close() }
+        try handle.truncate(atOffset: 0)
+    }
+
     /// Idempotent — closes the underlying handle. Subsequent appends are
     /// no-ops. The on-disk file is left in place for the user to inspect.
     func close() {
@@ -215,7 +244,7 @@ final class LogFileWriter: @unchecked Sendable {
             result.unicodeScalars.append(forbidden.contains(scalar) ? "-" : scalar)
         }
         let trimmed = result.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? "task" : trimmed
+        return trimmed.isEmpty || trimmed == "." || trimmed == ".." ? "task" : trimmed
     }
 
     /// URL of a task's log file (without checking existence). Used by views
@@ -226,14 +255,48 @@ final class LogFileWriter: @unchecked Sendable {
         return dir.appendingPathComponent("\(slug(for: taskName))\(suffix).log")
     }
 
-    /// Best-effort cleanup when a task is deleted. Logs leftover from
-    /// renames remain — those are handled by a separate periodic sweep
-    /// (not yet implemented; orphans cost only a few MB).
+    /// The folder uses the visible task name; each execution has its own file.
+    static func executionDirectory(for taskName: String) -> URL? {
+        logsDirectory()?.appendingPathComponent(slug(for: taskName), isDirectory: true)
+    }
+
+    static func legacyExecutionDirectory(for taskId: UUID) -> URL? {
+        logsDirectory()?.appendingPathComponent(taskId.uuidString.lowercased(), isDirectory: true)
+    }
+
+    static func executionFileURL(taskName: String, logId: UUID, startedAt: Date) -> URL? {
+        let stamp = ISO8601DateFormatter().string(from: startedAt).replacingOccurrences(of: ":", with: "-")
+        return executionDirectory(for: taskName)?
+            .appendingPathComponent("\(stamp)-\(logId.uuidString.lowercased()).log")
+    }
+
+    /// Never recursively remove a name-based folder: another task can share it.
+    static func removeEmptyDirectory(_ url: URL) {
+        _ = url.withUnsafeFileSystemRepresentation { path in
+            path.map { Darwin.rmdir($0) } ?? -1
+        }
+    }
+
+    /// Includes all numeric rotation archives, even after the configured count
+    /// is reduced. Never includes unrelated files beside a custom log path.
+    static func filesIncludingArchives(at url: URL) -> [URL] {
+        let siblings = (try? FileManager.default.contentsOfDirectory(
+            at: url.deletingLastPathComponent(), includingPropertiesForKeys: nil
+        )) ?? []
+        let prefix = url.lastPathComponent + "."
+        return [url] + siblings.filter {
+            let name = $0.lastPathComponent
+            return name.hasPrefix(prefix) && Int(name.dropFirst(prefix.count)).map { $0 > 0 } == true
+        }
+    }
+
+    /// Best-effort cleanup of only the deleted task's execution and stream files.
     static func deleteFile(
         for taskName: String,
         taskId: UUID? = nil,
         path: String? = nil,
-        rotationCount: Int = 0
+        rotationCount: Int = 0,
+        executionFilePaths: [String] = []
     ) {
         let url: URL?
         if let path, !path.isEmpty {
@@ -242,6 +305,14 @@ final class LogFileWriter: @unchecked Sendable {
             url = fileURL(for: taskName, taskId: taskId)
         }
         guard let url else { return }
+        for path in executionFilePaths {
+            let file = URL(fileURLWithPath: path)
+            try? FileManager.default.removeItem(at: file)
+            removeEmptyDirectory(file.deletingLastPathComponent())
+        }
+        if let taskId, let directory = legacyExecutionDirectory(for: taskId) {
+            removeEmptyDirectory(directory)
+        }
         try? FileManager.default.removeItem(at: url)
         if rotationCount > 0 {
             for index in 1...rotationCount {

@@ -33,20 +33,17 @@ struct TaskDetailView: View {
                     VStack(spacing: 16) {
                         scheduleCard
                         scriptCard
-                        if task.isManualOnly && (task.isBackgroundService ? task.serviceLogEnabled : streamManualToFile) {
+                        if !task.isManualOnly || (task.isBackgroundService ? task.serviceLogEnabled : streamManualToFile) {
                             liveLogFileCard
                         }
                     }
                     .frame(maxWidth: .infinity)
 
                     VStack(spacing: 16) {
-                        recentLogsCard
                         if task.isBackgroundService {
-                            ServiceLiveOutputCard(task: task) { logID in
-                                selectedLogIdForSheet = logID
-                                showingTaskLogs = true
-                            }
+                            ServiceLiveOutputCard(task: task)
                         } else {
+                            recentLogsCard
                             lastOutputCard
                         }
                     }
@@ -74,19 +71,16 @@ struct TaskDetailView: View {
         .alert(L10n.tr("clear_logs.title"), isPresented: $showingClearLogsAlert) {
             Button(L10n.tr("clear_logs.cancel"), role: .cancel) {}
             Button(L10n.tr("clear_logs.confirm"), role: .destructive) {
-                for log in Array(task.executionLogs) {
-                    modelContext.delete(log)
+                do {
+                    try ScriptExecutor.shared.clearLogs(for: task, in: modelContext)
+                } catch {
+                    presentErrorAlert(titleKey: "clear_logs.failed.title",
+                                      messageKey: "clear_logs.failed.message", error: error)
                 }
-                // Persist the cleared relationship before explicitly resetting
-                // the user-visible run history and schedule.
-                do { try modelContext.save() } catch { NSLog("⚠️ clear logs save failed: \(error)") }
-                task.executionCount = 0
-                task.nextRunAt = TaskScheduler.shared.computeNextRunDate(for: task)
-                do { try modelContext.save() } catch { NSLog("⚠️ clear logs post-save failed: \(error)") }
-                TaskScheduler.shared.rebuildSchedule()
             }
         } message: {
-            Text(L10n.tr("clear_logs.message", task.name))
+            Text(L10n.tr(task.isManualOnly || task.isBackgroundService
+                         ? "clear_logs.message" : "clear_logs.scheduled.message", task.name))
         }
         .alert(L10n.tr("delete.title"), isPresented: $showingDeleteAlert) {
             Button(L10n.tr("delete.cancel"), role: .cancel) {}
@@ -95,6 +89,7 @@ struct TaskDetailView: View {
                 let deletedTaskID = task.id
                 let deletedLogPath = task.serviceLogPath
                 let deletedRotationCount = task.serviceLogRotationCount
+                let deletedExecutionFilePaths = task.executionLogs.compactMap(\.outputFilePath)
                 ScriptExecutor.shared.cancel(taskId: task.id)
                 modelContext.delete(task)
                 do {
@@ -103,7 +98,8 @@ struct TaskDetailView: View {
                         for: deletedName,
                         taskId: deletedTaskID,
                         path: deletedLogPath,
-                        rotationCount: deletedRotationCount
+                        rotationCount: deletedRotationCount,
+                        executionFilePaths: deletedExecutionFilePaths
                     )
                 } catch {
                     presentErrorAlert(titleKey: "error.delete_failed.title",
@@ -161,6 +157,7 @@ struct TaskDetailView: View {
                         HStack(spacing: 8) {
                             if task.isBackgroundService {
                                 ServiceAutoStartToggle(task: task)
+                                    .controlSize(.small)
                             } else {
                                 Button {
                                     toggleTaskEnabled(task, context: modelContext)
@@ -208,7 +205,6 @@ struct TaskDetailView: View {
                             } label: {
                                 Label(L10n.tr("clear_logs.title"), systemImage: "trash.circle")
                             }
-                            .disabled(task.executionLogs.filter { $0.modelContext != nil }.isEmpty)
                             .pointerCursor()
 
                             Button(role: .destructive) {
@@ -314,7 +310,7 @@ struct TaskDetailView: View {
                     detailRow(L10n.tr("task.detail.next_run"), value: task.nextRunAt?.formatted(date: .abbreviated, time: .standard) ?? "-")
                     } // end !isManualOnly
 
-                    if let lastRun = task.lastRunAt {
+                    if !task.isBackgroundService, let lastRun = task.lastRunAt {
                         detailRow(L10n.tr("task.detail.last_run"), value: lastRun.formatted(date: .abbreviated, time: .standard))
                     }
 
@@ -423,7 +419,9 @@ struct TaskDetailView: View {
     // MARK: - Live Log File Card
 
     private var liveLogFileCard: some View {
+        let isDirectory = !task.isManualOnly && !task.isBackgroundService
         let fileURL: URL? = {
+            if isDirectory { return LogFileWriter.executionDirectory(for: task.name) }
             if task.isBackgroundService,
                let path = task.serviceLogPath,
                !path.isEmpty {
@@ -436,7 +434,7 @@ struct TaskDetailView: View {
         }()
         let fileExists = fileURL.map { FileManager.default.fileExists(atPath: $0.path) } ?? false
         let fileSize: String = {
-            guard let url = fileURL,
+            guard !isDirectory, let url = fileURL,
                   fileExists,
                   let attrs = try? FileManager.default.attributesOfItem(atPath: url.path),
                   let bytes = attrs[.size] as? Int else { return "" }
@@ -445,7 +443,8 @@ struct TaskDetailView: View {
 
         return GlassCard {
             VStack(alignment: .leading, spacing: 12) {
-                Label(L10n.tr("task.detail.live_log_file"), systemImage: "doc.text.below.ecg")
+                Label(L10n.tr(isDirectory ? "task.detail.log_directory" : "task.detail.live_log_file"),
+                      systemImage: isDirectory ? "folder" : "doc.text.below.ecg")
                     .font(.headline)
 
                 if let fileURL {
@@ -486,13 +485,15 @@ struct TaskDetailView: View {
                         .pointerCursor()
                         .disabled(!fileExists)
 
-                        Button {
-                            openInConsole(fileURL)
-                        } label: {
-                            Label(L10n.tr("task.detail.live_log.console"), systemImage: "terminal")
+                        if !isDirectory {
+                            Button {
+                                openInConsole(fileURL)
+                            } label: {
+                                Label(L10n.tr("task.detail.live_log.console"), systemImage: "terminal")
+                            }
+                            .pointerCursor()
+                            .disabled(!fileExists)
                         }
-                        .pointerCursor()
-                        .disabled(!fileExists)
 
                         Button {
                             NSPasteboard.general.clearContents()

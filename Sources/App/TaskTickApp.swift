@@ -348,6 +348,7 @@ struct TaskTickApp: App {
         let id = task.id
         let logPath = task.serviceLogPath
         let rotations = task.serviceLogRotationCount
+        let executionFilePaths = task.executionLogs.compactMap(\.outputFilePath)
         ScriptExecutor.shared.cancel(taskId: id)
         taskSelection.selectedTask = nil
         let context = sharedModelContainer.mainContext
@@ -358,7 +359,8 @@ struct TaskTickApp: App {
                 for: name,
                 taskId: id,
                 path: logPath,
-                rotationCount: rotations
+                rotationCount: rotations,
+                executionFilePaths: executionFilePaths
             )
             scheduler.rebuildSchedule()
         } catch {

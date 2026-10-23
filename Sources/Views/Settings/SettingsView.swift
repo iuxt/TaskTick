@@ -575,10 +575,11 @@ struct SettingsView: View {
             let deleted = await Task.detached(priority: .userInitiated) {
                 let ctx = ModelContext(container)
                 let descriptor = FetchDescriptor<ExecutionLog>(
-                    predicate: #Predicate { $0.startedAt < cutoff }
+                    predicate: #Predicate { $0.startedAt < cutoff && $0.statusRaw != "running" }
                 )
                 guard let logs = try? ctx.fetch(descriptor), !logs.isEmpty else { return 0 }
                 let count = logs.count
+                let fileURLs = logs.compactMap { $0.outputFilePath }.map { URL(fileURLWithPath: $0) }
                 for log in logs { ctx.delete(log) }
 
                 // Keep each task's stored `executionCount` aligned with its remaining
@@ -590,6 +591,7 @@ struct SettingsView: View {
                     }
                 }
                 do { try ctx.save() } catch { return 0 }
+                for url in fileURLs { try? FileManager.default.removeItem(at: url) }
                 return count
             }.value
 

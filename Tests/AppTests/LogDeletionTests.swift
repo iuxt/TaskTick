@@ -10,6 +10,26 @@ import TaskTickCore
 @Suite("Log deletion selection")
 @MainActor
 struct LogDeletionTests {
+    @Test("Deleting an execution row removes only its linked file")
+    func deletionRemovesLinkedFile() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let (container, logs) = try makeLogs(2)
+        let first = directory.appendingPathComponent("first.log")
+        let second = directory.appendingPathComponent("second.log")
+        for (log, url) in zip(logs, [first, second]) {
+            log.outputFilePath = url.path
+            try Data("output".utf8).write(to: url)
+        }
+        try container.mainContext.save()
+
+        LogDeletion.delete([logs[0]], in: container.mainContext)
+
+        #expect(!FileManager.default.fileExists(atPath: first.path))
+        #expect(try String(contentsOf: second, encoding: .utf8) == "output")
+        #expect(try container.mainContext.fetchCount(FetchDescriptor<ExecutionLog>()) == 1)
+    }
 
     /// Builds `count` logs held by an in-memory container, ordered as the
     /// lists display them. They must stay context-backed for the whole test —

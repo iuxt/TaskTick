@@ -381,7 +381,8 @@
 "command.github_home" = "Dépôt GitHub";
 "command.report_issue" = "Signaler un problème";
 "clear_logs.title" = "Effacer les journaux";
-"clear_logs.message" = "Êtes-vous sûr de vouloir effacer tous les journaux d'exécution de \"%@\" ? Le compteur d'exécutions sera réinitialisé. Cette action est irréversible.";
+"clear_logs.message" = "Effacer le contenu de tous les fichiers journaux de \"%@\" ? Les fichiers, l’historique et le compteur d’exécutions seront conservés. Les tâches en cours continueront à écrire de nouveaux journaux. Cette action est irréversible.";
+"clear_logs.scheduled.message" = "Supprimer les fichiers journaux des exécutions terminées de \"%@\" et effacer la sortie ? L’historique et le compteur seront conservés. Le fichier d’une exécution en cours sera vidé et continuera à recevoir de nouvelles sorties. Cette action est irréversible.";
 "clear_logs.cancel" = "Annuler";
 "clear_logs.confirm" = "Effacer";
 "delete.title" = "Confirmer la suppression";

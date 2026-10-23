@@ -132,6 +132,7 @@ final class LiveOutputManager: ObservableObject {
     /// the tick matters as a re-render trigger.
     @Published private(set) var tick: [UUID: Int] = [:]
 
+    private var trackingIDs: Set<UUID> = []
     private var buffers: [UUID: TaskBuffer] = [:]
     private var pendingFlush: Set<UUID> = []
     private var throttleWorkItem: DispatchWorkItem?
@@ -142,17 +143,31 @@ final class LiveOutputManager: ObservableObject {
 
     func startTracking(taskId: UUID) {
         buffers[taskId] = TaskBuffer()
-        tick[taskId] = 0
+        trackingIDs.insert(taskId)
+        tick[taskId, default: 0] += 1
     }
 
-    func stopTracking(taskId: UUID) {
+    func stopTracking(taskId: UUID, preservingOutput: Bool = false) {
         flushNow()
-        buffers.removeValue(forKey: taskId)
-        tick.removeValue(forKey: taskId)
+        trackingIDs.remove(taskId)
+        if preservingOutput {
+            // Services keep only the current session's bounded live buffer.
+            tick[taskId, default: 0] += 1
+        } else {
+            buffers.removeValue(forKey: taskId)
+            tick.removeValue(forKey: taskId)
+        }
         pendingFlush.remove(taskId)
     }
 
     // MARK: - Append
+
+    func clear(taskId: UUID) {
+        guard buffers[taskId] != nil else { return }
+        buffers[taskId] = TaskBuffer()
+        pendingFlush.remove(taskId)
+        tick[taskId, default: 0] += 1
+    }
 
     func appendStdout(taskId: UUID, data: Data) {
         guard var buffer = buffers[taskId] else { return }
@@ -189,7 +204,7 @@ final class LiveOutputManager: ObservableObject {
     }
 
     func isTracking(_ taskId: UUID) -> Bool {
-        buffers[taskId] != nil
+        trackingIDs.contains(taskId)
     }
 
     // MARK: - Throttled flush

@@ -8,6 +8,9 @@ import TaskTickCore
 struct LogRetentionManagerTests {
     @Test("Expired finished logs are removed without resetting execution count")
     func removesOnlyExpiredFinishedLogs() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
         let schema = Schema([ScheduledTask.self, ExecutionLog.self])
         let container = try ModelContainer(
             for: schema,
@@ -27,6 +30,13 @@ struct LogRetentionManagerTests {
         let recentFinished = ExecutionLog(task: task)
         recentFinished.startedAt = Date(timeIntervalSince1970: 300)
         recentFinished.status = .success
+        let oldURL = directory.appendingPathComponent("old.log")
+        let runningURL = directory.appendingPathComponent("running.log")
+        let recentURL = directory.appendingPathComponent("recent.log")
+        for (log, url) in [(oldFinished, oldURL), (oldRunning, runningURL), (recentFinished, recentURL)] {
+            log.outputFilePath = url.path
+            try Data("output".utf8).write(to: url)
+        }
         context.insert(oldFinished)
         context.insert(oldRunning)
         context.insert(recentFinished)
@@ -43,5 +53,8 @@ struct LogRetentionManagerTests {
         #expect(Set(remaining.map(\.id)) == Set([oldRunning.id, recentFinished.id]))
         let savedTask = try #require(verification.fetch(FetchDescriptor<ScheduledTask>()).first)
         #expect(savedTask.executionCount == 42)
+        #expect(!FileManager.default.fileExists(atPath: oldURL.path))
+        #expect(try String(contentsOf: runningURL, encoding: .utf8) == "output")
+        #expect(try String(contentsOf: recentURL, encoding: .utf8) == "output")
     }
 }

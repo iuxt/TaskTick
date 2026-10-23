@@ -418,7 +418,8 @@
 
 /* Clear Logs Confirmation */
 "clear_logs.title" = "清空日志";
-"clear_logs.message" = "确定要清空「%@」的所有执行日志吗？执行次数将重置。此操作不可撤销。";
+"clear_logs.message" = "确定要清空「%@」的所有日志文件内容吗？文件、执行记录和执行次数将保留，运行中的任务会继续写入新日志。此操作不可撤销。";
+"clear_logs.scheduled.message" = "确定要删除「%@」已结束执行的日志文件并清空输出吗？执行记录和执行次数将保留，正在执行的日志文件会清空后继续写入新输出。此操作不可撤销。";
 "clear_logs.cancel" = "取消";
 "clear_logs.confirm" = "清空";
 
@@ -522,3 +523,7 @@
 "common.no" = "否";
 
 "time.just_now" = "刚刚";
+
+"clear_logs.failed.title" = "清空日志失败";
+"clear_logs.failed.message" = "无法清空日志文件：%@";
+"task.detail.log_directory" = "日志文件夹";

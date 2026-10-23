@@ -70,6 +70,10 @@ public final class ExecutionLog {
     public var stderr: String?
     public var durationMs: Int?
     public var triggeredByRaw: String = TriggerType.manual.rawValue
+    /// Plain-text output file for this run. Nil for legacy or cleared files.
+    public var outputFilePath: String? = nil
+    /// A user cleared this run's file. History backfill must not recreate it.
+    public var outputFileDeleted: Bool = false
 
     /// PID of the process group leader managed by ScriptExecutor.
     /// Nil for logs from before this feature shipped, and for runs whose

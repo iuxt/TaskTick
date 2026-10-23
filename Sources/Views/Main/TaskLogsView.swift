@@ -228,6 +228,9 @@ private struct LogDetailContent: View {
                         if let finished = log.finishedAt {
                             row(L10n.tr("log.detail.finished"), value: finished.formatted(date: .abbreviated, time: .standard))
                         }
+                        if let path = log.outputFilePath {
+                            LogFileLocationView(path: path)
+                        }
                     }
                 }
 

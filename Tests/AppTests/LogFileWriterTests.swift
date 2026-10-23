@@ -4,6 +4,39 @@ import Testing
 
 @Suite("Rotating file output")
 struct LogFileWriterTests {
+    @Test("Task folders preserve names and sanitize unsafe path components",
+          arguments: [("每日备份", "每日备份"), ("backup/job:daily\\run", "backup-job-daily-run"),
+                      ("..", "task"), (".", "task"), ("  ", "task")])
+    func taskFolderNames(_ names: (String, String)) throws {
+        let root = try #require(LogFileWriter.logsDirectory())
+        let folder = try #require(LogFileWriter.executionDirectory(for: names.0))
+        #expect(folder.deletingLastPathComponent() == root)
+        #expect(folder.lastPathComponent == names.1)
+        let start = Date()
+        let first = try #require(LogFileWriter.executionFileURL(taskName: names.0, logId: UUID(), startedAt: start))
+        let second = try #require(LogFileWriter.executionFileURL(taskName: names.0, logId: UUID(), startedAt: start))
+        #expect(first != second)
+        #expect(first.deletingLastPathComponent() == folder)
+        #expect(first.pathExtension == "log")
+    }
+
+    @Test("Clearing an open writer preserves the file and resets its offset and rotation size")
+    func clearOpenWriter() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let url = directory.appendingPathComponent("service.log")
+        let writer = try #require(LogFileWriter(taskName: "service", path: url.path,
+                                               maximumBytes: 10, rotationCount: 1))
+        writer.append(Data("123456789".utf8))
+        try writer.clear()
+        #expect(try Data(contentsOf: url).isEmpty)
+        writer.append(Data("after".utf8))
+        writer.close()
+        #expect(try String(contentsOf: url, encoding: .utf8) == "after")
+        #expect(!FileManager.default.fileExists(atPath: url.path + ".1"))
+    }
+
     @Test("Rotates at the byte limit and retains configured archives")
     func rotatesAndRetainsArchives() throws {
         let directory = FileManager.default.temporaryDirectory

@@ -418,7 +418,8 @@
 
 /* Clear Logs Confirmation */
 "clear_logs.title" = "Protokolle löschen";
-"clear_logs.message" = "Möchtest du wirklich alle Ausführungsprotokolle für \"%@\" löschen? Der Ausführungszähler wird zurückgesetzt. Diese Aktion kann nicht rückgängig gemacht werden.";
+"clear_logs.message" = "Inhalt aller Protokolldateien für \"%@\" leeren? Dateien, Ausführungsverlauf und Zähler bleiben erhalten. Laufende Aufgaben schreiben weiterhin neue Ausgaben. Dies kann nicht rückgängig gemacht werden.";
+"clear_logs.scheduled.message" = "Protokolldateien abgeschlossener Ausführungen von \"%@\" löschen und die Ausgabe leeren? Verlauf und Ausführungszähler bleiben erhalten. Die Datei einer laufenden Ausführung wird geleert und weiter beschrieben. Dies kann nicht rückgängig gemacht werden.";
 "clear_logs.cancel" = "Abbrechen";
 "clear_logs.confirm" = "Löschen";
 

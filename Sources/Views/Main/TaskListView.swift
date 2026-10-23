@@ -105,20 +105,18 @@ struct TaskListView: View {
                     Button(L10n.tr("clear_logs.cancel"), role: .cancel) {}
                     Button(L10n.tr("clear_logs.confirm"), role: .destructive) {
                         if let task = taskToClearLogs {
-                            for log in Array(task.executionLogs) {
-                                modelContext.delete(log)
+                            do {
+                                try ScriptExecutor.shared.clearLogs(for: task, in: modelContext)
+                            } catch {
+                                presentErrorAlert(titleKey: "clear_logs.failed.title",
+                                                  messageKey: "clear_logs.failed.message", error: error)
                             }
-                            // Persist the cleared relationship before explicitly
-                            // resetting the user-visible run history and schedule.
-                            do { try modelContext.save() } catch { NSLog("⚠️ clear logs save failed: \(error)") }
-                            task.executionCount = 0
-                            task.nextRunAt = TaskScheduler.shared.computeNextRunDate(for: task)
-                            do { try modelContext.save() } catch { NSLog("⚠️ clear logs post-save failed: \(error)") }
-                            TaskScheduler.shared.rebuildSchedule()
                         }
                     }
                 } message: {
-                    Text(L10n.tr("clear_logs.message", taskToClearLogs?.name ?? ""))
+                    Text(L10n.tr(taskToClearLogs.map { !$0.isManualOnly && !$0.isBackgroundService } == true
+                                 ? "clear_logs.scheduled.message" : "clear_logs.message",
+                                 taskToClearLogs?.name ?? ""))
                 }
                 .alert(L10n.tr("delete.title"), isPresented: $showingDeleteAlert) {
                     Button(L10n.tr("delete.cancel"), role: .cancel) {}
@@ -128,6 +126,7 @@ struct TaskListView: View {
                             let deletedTaskID = task.id
                             let deletedLogPath = task.serviceLogPath
                             let deletedRotationCount = task.serviceLogRotationCount
+                            let deletedExecutionFilePaths = task.executionLogs.compactMap(\.outputFilePath)
                             if selectedTask == task { selectedTask = nil }
                             ScriptExecutor.shared.cancel(taskId: task.id)
                             modelContext.delete(task)
@@ -137,7 +136,8 @@ struct TaskListView: View {
                                     for: deletedName,
                                     taskId: deletedTaskID,
                                     path: deletedLogPath,
-                                    rotationCount: deletedRotationCount
+                                    rotationCount: deletedRotationCount,
+                                    executionFilePaths: deletedExecutionFilePaths
                                 )
                             } catch {
                                 presentErrorAlert(titleKey: "error.delete_failed.title",
@@ -239,7 +239,6 @@ struct TaskListView: View {
                 taskToClearLogs = task
                 showingClearLogsAlert = true
             }
-            .disabled(task.executionLogs.filter { $0.modelContext != nil }.isEmpty)
             Button(L10n.tr("task.detail.delete"), systemImage: "trash", role: .destructive) {
                 taskToDelete = task
                 showingDeleteAlert = true

@@ -39,6 +39,15 @@ final class IOBatcher: @unchecked Sendable {
         if shouldSchedule { scheduleFlush() }
     }
 
+    /// Called on the main actor when the user clears logs. A scheduled flush
+    /// may still run, but it can only deliver bytes appended after this reset.
+    func clear() {
+        lock.lock()
+        pendingStdout.removeAll(keepingCapacity: true)
+        pendingStderr.removeAll(keepingCapacity: true)
+        lock.unlock()
+    }
+
     /// Force-flush pending data through the main queue immediately. Called
     /// at process exit so the last frame lands before tracking is torn down.
     @MainActor

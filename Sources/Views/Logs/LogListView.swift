@@ -15,6 +15,7 @@ struct LogListView: View {
     /// detail view; this screen is the recent cross-task activity feed.
     init() {
         var descriptor = FetchDescriptor<ExecutionLog>(
+            predicate: #Predicate { $0.task?.isBackgroundService != true },
             sortBy: [SortDescriptor(\ExecutionLog.startedAt, order: .reverse)]
         )
         descriptor.fetchLimit = 2_000

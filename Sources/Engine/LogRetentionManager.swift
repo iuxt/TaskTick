@@ -39,6 +39,7 @@ final class LogRetentionManager {
             if deleted > 0 {
                 NSLog("Log retention removed \(deleted) expired execution log(s)")
             }
+            await TaskLogFiles.backfillHistory(in: container)
         }
     }
 
@@ -55,9 +56,11 @@ final class LogRetentionManager {
                 predicate: #Predicate { $0.startedAt < cutoff && $0.statusRaw != runningRaw }
             )
             guard let logs = try? context.fetch(descriptor), !logs.isEmpty else { return 0 }
+            let fileURLs = logs.compactMap { $0.outputFilePath }.map { URL(fileURLWithPath: $0) }
             for log in logs { context.delete(log) }
             do {
                 try context.save()
+                for url in fileURLs { try? FileManager.default.removeItem(at: url) }
                 return logs.count
             } catch {
                 NSLog("⚠️ Automatic log cleanup failed: \(error.localizedDescription)")

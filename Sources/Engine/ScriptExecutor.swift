@@ -61,6 +61,7 @@ final class ScriptExecutor: ObservableObject {
     private var adoptedStopGroups: [UUID: ProcessReconciler.GroupIdentity] = [:]
 
     private var activeLogs: [UUID: ExecutionLog] = [:]
+    private var executionOutputs: [UUID: PipeOutputBuffer] = [:]
     private var executionContexts: [UUID: ModelContext] = [:]
     private var executionControls: [UUID: ExecutionControl] = [:]
     private(set) var isSuspendedForRestore = false
@@ -88,6 +89,11 @@ final class ScriptExecutor: ObservableObject {
         var cancelled = 0
 
         for log in logs {
+            defer {
+                if log.task?.isBackgroundService == true, log.status != .running {
+                    context.delete(log)
+                }
+            }
             if let taskID = log.task?.id, activeLogs[taskID] != nil || adoptedProcesses[taskID] != nil { continue }
             guard let pid = log.pid, let recordedStart = log.processStartTime else {
                 // Case 1: legacy entry
@@ -186,12 +192,14 @@ final class ScriptExecutor: ObservableObject {
         // exact same start instant for this launch. This is reset for each
         // supervised service restart because every restart creates a new log.
         log.startedAt = startTime
+        let executionLogID = log.id
         activeLogs[executionTaskID] = log
-        executionContexts[log.id] = modelContext
+        executionContexts[executionLogID] = modelContext
         executionControls[executionTaskID] = ExecutionControl()
         defer {
             activeLogs.removeValue(forKey: executionTaskID)
-            executionContexts.removeValue(forKey: log.id)
+            executionOutputs.removeValue(forKey: executionTaskID)
+            executionContexts.removeValue(forKey: executionLogID)
             executionControls.removeValue(forKey: executionTaskID)
             runningProcesses.removeValue(forKey: executionTaskID)
             TaskScheduler.shared.runningTaskIDs.remove(executionTaskID)
@@ -200,7 +208,9 @@ final class ScriptExecutor: ObservableObject {
         // This is a durable execution counter, not a mirror of retained logs.
         // Automatic retention can safely prune history without changing an
         // `afterCount` schedule's already-consumed occurrences.
-        task.executionCount += 1
+        if !task.isBackgroundService {
+            task.executionCount += 1
+        }
         // Bump the manual-run recency NOW (not at end) so long-running scripts
         // — dev servers, watchers, anything that runs for hours — surface to
         // the top of the lists immediately when the user hits play, instead
@@ -220,6 +230,7 @@ final class ScriptExecutor: ObservableObject {
         let ignoreExitCode = task.ignoreExitCode
         let taskName = task.name
         let isBackgroundService = task.isBackgroundService
+        let isManualOnly = task.isManualOnly
         let serviceLogEnabled = task.serviceLogEnabled
         let serviceLogPath = task.serviceLogPath
         let serviceLogMaxBytes = Int64(max(1, task.serviceLogMaxSizeMB)) * 1_048_576
@@ -278,31 +289,51 @@ final class ScriptExecutor: ObservableObject {
 
         LiveOutputManager.shared.startTracking(taskId: taskId)
 
-        // Manual scripts (dev servers, on-demand jobs) optionally tee their
-        // output to ~/Library/Logs/TaskTick/<slug>.log so the user can
-        // `tail -f` from a terminal or drop the file into Console.app.
-        // Scheduled jobs are excluded — short bursty runs would just churn
-        // the file and the database log already covers their needs.
-        let logFileWriter: LogFileWriter? = {
-            guard task.isManualOnly, preparationError == nil else { return nil }
+        // Scheduled jobs always get a distinct file matching their recent-run
+        // row. Manual scripts and background services retain their log settings.
+        let logFileWriter = await Task.detached(priority: .utility) { () -> LogFileWriter? in
             if isBackgroundService {
                 guard serviceLogEnabled else { return nil }
                 return LogFileWriter(
-                    taskName: taskName,
-                    taskId: taskId,
-                    path: serviceLogPath,
-                    append: true,
-                    maximumBytes: serviceLogMaxBytes,
+                    taskName: taskName, taskId: taskId, path: serviceLogPath,
+                    append: true, maximumBytes: serviceLogMaxBytes,
                     rotationCount: serviceLogRotationCount
                 )
+            }
+            if !isManualOnly {
+                guard let url = LogFileWriter.executionFileURL(
+                    taskName: taskName, logId: logId, startedAt: startTime
+                ) else { return nil }
+                let writer = LogFileWriter(taskName: taskName, path: url.path)
+                let header = "Task: \(taskName)\nStarted: \(ISO8601DateFormatter().string(from: startTime))\nTrigger: \(triggeredBy.rawValue)\n\n"
+                writer?.append(Data(header.utf8))
+                return writer
             }
             let enabled = UserDefaults.standard.object(forKey: "logs.streamManualToFile") as? Bool ?? true
             guard enabled else { return nil }
             return LogFileWriter(taskName: taskName, taskId: taskId)
-        }()
+        }.value
+        // File creation yields the main actor. A task may be deleted while its
+        // writer is being opened; do not resurrect it or leave an orphan file.
+        guard task.modelContext != nil else {
+            logFileWriter?.close()
+            if let url = logFileWriter?.fileURL { try? FileManager.default.removeItem(at: url) }
+            LiveOutputManager.shared.stopTracking(taskId: taskId)
+            let cancelled = ExecutionLog(triggeredBy: triggeredBy)
+            cancelled.status = .cancelled
+            cancelled.finishedAt = Date()
+            return cancelled
+        }
+        if !isBackgroundService, !isManualOnly, let logFileWriter {
+            log.outputFilePath = logFileWriter.fileURL.path
+            do { try modelContext.save() } catch { NSLog("⚠️ Log path save failed: \(error)") }
+        }
 
-        let result: ProcessResult
+        var result: ProcessResult
         if let preparationError {
+            LiveOutputManager.shared.appendStderr(taskId: taskId, data: Data(preparationError.utf8))
+            logFileWriter?.append(Data(preparationError.utf8), stream: .stderr)
+            logFileWriter?.close()
             result = ProcessResult(stdout: "", stderr: preparationError, exitCode: nil, status: .failure)
         } else {
             result = await runProcess(
@@ -319,6 +350,12 @@ final class ScriptExecutor: ObservableObject {
             )
         }
 
+        // A Clear may arrive after the worker captured its final result but
+        // before this continuation resumes. Do not restore pre-clear output.
+        if let output = executionOutputs[taskId], result.outputGeneration != output.generation {
+            result = ProcessResult(stdout: "", stderr: "", exitCode: result.exitCode, status: result.status)
+        }
+
         let endTime = Date()
         let durationMs = Int(endTime.timeIntervalSince(startTime) * 1000)
 
@@ -329,24 +366,39 @@ final class ScriptExecutor: ObservableObject {
         let fetchedLog = try? modelContext.fetch(logDescriptor).first
         let fetchedTask = try? modelContext.fetch(taskDescriptor).first
 
-        if let fetchedLog {
-            fetchedLog.stdout = ExecutionLog.truncateOutput(result.stdout)
-            fetchedLog.stderr = ExecutionLog.truncateOutput(result.stderr)
-            fetchedLog.exitCode = result.exitCode
-            fetchedLog.status = result.status
-            fetchedLog.finishedAt = endTime
-            fetchedLog.durationMs = durationMs
+        // Services persist only the running process identity for crash recovery.
+        // Their completed output stays in the live buffer, without run history.
+        let completedLog = isBackgroundService ? ExecutionLog(triggeredBy: triggeredBy) : fetchedLog
+        if let completedLog {
+            completedLog.id = logId
+            completedLog.startedAt = startTime
+            completedLog.stdout = ExecutionLog.truncateOutput(result.stdout)
+            completedLog.stderr = ExecutionLog.truncateOutput(result.stderr)
+            completedLog.exitCode = result.exitCode
+            completedLog.status = result.status
+            completedLog.finishedAt = endTime
+            completedLog.durationMs = durationMs
+            do {
+                try TaskLogFiles.materializeHistoryFile(for: completedLog)
+            } catch {
+                NSLog("⚠️ History log file update failed: \(error)")
+            }
+        }
+        if isBackgroundService, let fetchedLog {
+            modelContext.delete(fetchedLog)
         }
 
         if let fetchedTask {
-            fetchedTask.lastRunAt = endTime
+            if !isBackgroundService {
+                fetchedTask.lastRunAt = endTime
+            }
             // Note: lastManualRunAt is set at task START (above) so running
             // scripts surface immediately. No need to update it again here.
             fetchedTask.updatedAt = endTime
         }
 
         do { try modelContext.save() } catch { NSLog("⚠️ ScriptExecutor save failed: \(error)") }
-        LiveOutputManager.shared.stopTracking(taskId: taskId)
+        LiveOutputManager.shared.stopTracking(taskId: taskId, preservingOutput: isBackgroundService && fetchedTask != nil)
 
         // Send notification using pre-captured properties (safe even if task was deleted)
         let globalNotificationsEnabled = UserDefaults.standard.object(forKey: "notificationsEnabled") as? Bool ?? true
@@ -416,7 +468,41 @@ final class ScriptExecutor: ObservableObject {
             scheduleServiceRestartIfNeeded(taskId: taskId, lastStatus: result.status, context: modelContext)
         }
 
-        return log
+        return completedLog ?? log
+    }
+
+    /// Remove completed scheduled-run files while preserving history/counters.
+    /// Active runs and streaming tasks truncate in place so writing continues.
+    /// The active sink also drops pending UI batches before clearing its file.
+    func clearLogs(for task: ScheduledTask, in context: ModelContext) throws {
+        let isScheduled = !task.isManualOnly && !task.isBackgroundService
+        let activeOutput = executionOutputs[task.id]
+        let activeURL = activeOutput?.fileWriter?.fileURL
+        let activeFiles = Set(activeURL.map { LogFileWriter.filesIncludingArchives(at: $0) } ?? [])
+        let runningFiles = Set(task.executionLogs.compactMap { log -> URL? in
+            guard log.status == .running, let path = log.outputFilePath else { return nil }
+            return URL(fileURLWithPath: path)
+        })
+        for url in TaskLogFiles.urls(for: task) where !activeFiles.contains(url) {
+            if isScheduled && !runningFiles.contains(url) {
+                if FileManager.default.fileExists(atPath: url.path) {
+                    try FileManager.default.removeItem(at: url)
+                }
+            } else {
+                try LogFileWriter.truncate(url)
+            }
+        }
+        try activeOutput?.clear()
+        LiveOutputManager.shared.clear(taskId: task.id)
+        for log in task.executionLogs where log.modelContext != nil {
+            log.stdout = nil
+            log.stderr = nil
+            if isScheduled && log.status != .running {
+                log.outputFilePath = nil
+                log.outputFileDeleted = true
+            }
+        }
+        try context.save()
     }
 
     /// Re-launch a managed background command after its configured delay.
@@ -523,6 +609,10 @@ final class ScriptExecutor: ObservableObject {
         )
         descriptor.fetchLimit = 1
         guard let log = try? ctx.fetch(descriptor).first else { return }
+        if log.task?.isBackgroundService == true {
+            ctx.delete(log)
+            return
+        }
         let now = Date()
         log.status = .cancelled
         log.finishedAt = now
@@ -627,20 +717,45 @@ final class ScriptExecutor: ObservableObject {
         private let _stdout = MutableDataBox()
         private let _stderr = MutableDataBox()
         private let maximumBytes: Int?
+        let fileWriter: LogFileWriter?
+        private let batcher: IOBatcher
+        private var outputGeneration = 0
 
-        init(maximumBytes: Int? = nil) {
+        init(maximumBytes: Int?, taskId: UUID, fileWriter: LogFileWriter?) {
             self.maximumBytes = maximumBytes
+            self.fileWriter = fileWriter
+            self.batcher = IOBatcher(taskId: taskId)
         }
+
+        var generation: Int {
+            lock.lock(); defer { lock.unlock() }
+            return outputGeneration
+        }
+
+        func clear() throws {
+            lock.lock(); defer { lock.unlock() }
+            try fileWriter?.clear(includingArchives: true)
+            _stdout.data.removeAll(keepingCapacity: true)
+            _stderr.data.removeAll(keepingCapacity: true)
+            batcher.clear()
+            outputGeneration += 1
+        }
+
+        @MainActor func flushNow() { batcher.flushNow() }
 
         func appendStdout(_ data: Data) {
             lock.lock()
             append(data, to: _stdout)
+            fileWriter?.append(data)
+            batcher.appendStdout(data)
             lock.unlock()
         }
 
         func appendStderr(_ data: Data) {
             lock.lock()
             append(data, to: _stderr)
+            fileWriter?.append(data, stream: .stderr)
+            batcher.appendStderr(data)
             lock.unlock()
         }
 
@@ -651,9 +766,9 @@ final class ScriptExecutor: ObservableObject {
             }
         }
 
-        func read() -> (stdout: Data, stderr: Data) {
+        func read() -> (stdout: Data, stderr: Data, generation: Int) {
             lock.lock()
-            let result = (_stdout.data, _stderr.data)
+            let result = (_stdout.data, _stderr.data, outputGeneration)
             lock.unlock()
             return result
         }
@@ -810,6 +925,7 @@ final class ScriptExecutor: ObservableObject {
         let stderr: String
         let exitCode: Int?
         let status: ExecutionStatus
+        var outputGeneration: Int = 0
     }
 
     private func runProcess(
@@ -862,8 +978,14 @@ final class ScriptExecutor: ObservableObject {
         let isUnlimited = timeoutSeconds <= 0
         let control = executionControls[taskId] ?? ExecutionControl()
         let semaphore = executionSemaphore
+        let outputBuffer = PipeOutputBuffer(
+            maximumBytes: captureLimitBytes ?? ExecutionLog.maxOutputSize,
+            taskId: taskId, fileWriter: logFileWriter
+        )
+        executionOutputs[taskId] = outputBuffer
         return await withCheckedContinuation { continuation in
             DispatchQueue.global(qos: .userInitiated).async {
+                defer { logFileWriter?.close() }
                 // Wait off the main actor, with a cancellable queueing period.
                 if !isUnlimited {
                     while semaphore.wait(timeout: .now() + .milliseconds(50)) == .timedOut {
@@ -894,8 +1016,6 @@ final class ScriptExecutor: ObservableObject {
                 if let envVars = environmentVariables {
                     process.environment = ProcessInfo.processInfo.environment.merging(envVars) { _, new in new }
                 }
-                let outputBuffer = PipeOutputBuffer(maximumBytes: captureLimitBytes ?? ExecutionLog.maxOutputSize)
-                let batcher = IOBatcher(taskId: taskId)
                 let scanner = NotificationDirectiveScanner()
                 let gate = DirectiveNotificationGate()
                 let fireDirective: @Sendable (NotificationDirective) -> Void = { directive in
@@ -911,20 +1031,24 @@ final class ScriptExecutor: ObservableObject {
                         let (bytes, directives) = scanner.feed(data)
                         directives.forEach(fireDirective)
                         outputBuffer.appendStdout(bytes)
-                        logFileWriter?.append(bytes)
-                        batcher.appendStdout(bytes)
                     } else {
                         outputBuffer.appendStderr(data)
-                        logFileWriter?.append(data, stream: .stderr)
-                        batcher.appendStderr(data)
                     }
                 }
 
                 do { try process.run() } catch {
+                    let message = "Failed to start process: \(error.localizedDescription)"
+                    outputBuffer.appendStderr(Data(message.utf8))
                     logFileWriter?.close()
-                    continuation.resume(returning: ProcessResult(
-                        stdout: "", stderr: "Failed to start process: \(error.localizedDescription)",
-                        exitCode: nil, status: control.stopReason ?? .failure))
+                    let snapshot = outputBuffer.read()
+                    let result = ProcessResult(
+                        stdout: "", stderr: message, exitCode: nil,
+                        status: control.stopReason ?? .failure, outputGeneration: snapshot.generation
+                    )
+                    Task { @MainActor in
+                        outputBuffer.flushNow()
+                        continuation.resume(returning: result)
+                    }
                     return
                 }
                 // Foundation creates the child in its own group on macOS.
@@ -999,20 +1123,18 @@ final class ScriptExecutor: ObservableObject {
                 let (tail, directives) = scanner.flush()
                 directives.forEach(fireDirective)
                 outputBuffer.appendStdout(tail)
-                logFileWriter?.append(tail)
-                batcher.appendStdout(tail)
                 logFileWriter?.close()
-                let (stdoutData, stderrData) = outputBuffer.read()
+                let snapshot = outputBuffer.read()
                 let exitCode = Int(process.terminationStatus)
                 let status = control.stopReason ?? (
                     process.terminationReason == .exit && (exitCode == 0 || ignoreExitCode)
                         ? ExecutionStatus.success : .failure)
                 let result = ProcessResult(
-                    stdout: cleanTerminalOutput(decodeProcessOutput(stdoutData)),
-                    stderr: cleanTerminalOutput(decodeProcessOutput(stderrData)),
-                    exitCode: exitCode, status: status)
+                    stdout: cleanTerminalOutput(decodeProcessOutput(snapshot.stdout)),
+                    stderr: cleanTerminalOutput(decodeProcessOutput(snapshot.stderr)),
+                    exitCode: exitCode, status: status, outputGeneration: snapshot.generation)
                 Task { @MainActor in
-                    batcher.flushNow()
+                    outputBuffer.flushNow()
                     continuation.resume(returning: result)
                 }
             }
