@@ -84,8 +84,11 @@ Grab the latest `.dmg` from [Releases](https://github.com/iuxt/TaskTick/releases
 
 | File | Architecture |
 |------|-------------|
-| `TaskTick-x.x.x-arm64.dmg` | Apple Silicon (M1/M2/M3/M4) |
-| `TaskTick-x.x.x-x86_64.dmg` | Intel Mac |
+| `TaskTick-3-arm64.dmg` | Apple Silicon (M1/M2/M3/M4) |
+| `TaskTick-3-x86_64.dmg` | Intel Mac |
+
+Starting with `3`, release tags use integers (`3`, `4`, `5`, …), without a `v`
+prefix or decimal points. The filenames above use release `3` as an example.
 
 When a release is marked **Signed & Notarized**, drag TaskTick to Applications
 and open it normally. Ad-hoc releases built without an Apple Developer

@@ -60,7 +60,7 @@ jobs:
             exit 1
           fi
 
-      - name: Choose next patch version
+      - name: Choose next integer version
         id: version
         shell: bash
         run: |
@@ -68,33 +68,31 @@ jobs:
 
           # Honor an explicit release tag on this commit.
           while IFS= read -r tag; do
-            if [[ "$tag" =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
-              version="${BASH_REMATCH[1]}.${BASH_REMATCH[2]}.${BASH_REMATCH[3]}"
+            if [[ "$tag" =~ ^[1-9][0-9]*$ ]]; then
+              version="$tag"
               echo "version=$version" >> "$GITHUB_OUTPUT"
-              echo "Publishing v$version"
+              echo "Publishing $version"
               exit 0
             fi
-          done < <(git tag --points-at HEAD --list 'v*' --sort=-version:refname)
+          done < <(git tag --points-at HEAD --list '[0-9]*' --sort=-version:refname)
 
           latest_version=""
           while IFS= read -r tag; do
-            if [[ "$tag" =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
-              latest_version="${BASH_REMATCH[1]}.${BASH_REMATCH[2]}.${BASH_REMATCH[3]}"
+            if [[ "$tag" =~ ^[1-9][0-9]*$ ]]; then
+              latest_version="$tag"
               break
             fi
-          done < <(git tag --list 'v*' --sort=-version:refname)
+          done < <(git tag --list '[0-9]*' --sort=-version:refname)
 
-          # Start the stable release line at 1.0.0, then increment patches.
-          version="1.0.0"
-          if [[ -n "$latest_version" ]]; then
-            IFS=. read -r major minor patch <<< "$latest_version"
-            if (( major >= 1 )); then
-              version="${major}.${minor}.$((patch + 1))"
-            fi
+          # Start integer releases at 3, then increment by one. Historical
+          # v-prefixed semantic versions do not participate in this sequence.
+          version="3"
+          if [[ -n "$latest_version" ]] && (( latest_version >= 3 )); then
+            version="$((latest_version + 1))"
           fi
 
           echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "Publishing v$version"
+          echo "Publishing $version"
 
       - name: Select signing mode
         shell: bash

@@ -5,7 +5,7 @@ set -euo pipefail
 # TaskTick Release Script
 # Builds arm64 + x86_64 DMGs and uploads to GitHub Release
 # Usage: ./scripts/release.sh <version> [--yes] [--ad-hoc]
-#   e.g. ./scripts/release.sh 1.2.0
+#   e.g. ./scripts/release.sh 3
 # Developer ID releases require DEVELOPER_ID_APPLICATION plus either
 # APPLE_NOTARY_KEYCHAIN_PROFILE or APPLE_ID/APPLE_TEAM_ID/APPLE_APP_PASSWORD.
 # ─────────────────────────────────────────────
@@ -44,12 +44,16 @@ done
 
 if [ -z "$VERSION" ]; then
   echo "Usage: $0 <version> [--yes] [--ad-hoc]"
-  echo "  e.g. $0 1.2.0"
+  echo "  e.g. $0 3"
   echo "  --yes  skip the upload prompt (required when stdin is not a TTY)"
   echo "  --ad-hoc  use ad-hoc signing and skip notarization"
   exit 1
 fi
-TAG="v${VERSION}"
+if [[ ! "$VERSION" =~ ^[1-9][0-9]*$ ]]; then
+  echo "ERROR: Version must be a positive integer such as 3 (no v prefix or decimal points)." >&2
+  exit 1
+fi
+TAG="${VERSION}"
 BUILD_NUMBER=$(date +%Y%m%d%H%M)
 
 PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"

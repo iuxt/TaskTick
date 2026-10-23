@@ -84,8 +84,10 @@ brew upgrade --cask task-tick
 
 | 文件 | 架构 |
 |------|------|
-| `TaskTick-x.x.x-arm64.dmg` | Apple Silicon (M1/M2/M3/M4) |
-| `TaskTick-x.x.x-x86_64.dmg` | Intel Mac |
+| `TaskTick-3-arm64.dmg` | Apple Silicon (M1/M2/M3/M4) |
+| `TaskTick-3-x86_64.dmg` | Intel Mac |
+
+从 `3` 开始，发布标签依次使用整数（`3`、`4`、`5`……），不带 `v` 前缀或小数点。上表以版本 `3` 的文件名为例。
 
 标记为 **Signed & Notarized** 的 Release 使用 Developer ID 签名并经过 Apple 公证，
 拖入“应用程序”后可直接打开。没有 Apple Developer 证书的 ad-hoc 版本首次打开时可能需要
