@@ -471,7 +471,8 @@ final class ScriptExecutor: ObservableObject {
         return completedLog ?? log
     }
 
-    /// Remove completed scheduled-run files while preserving history/counters.
+    /// Remove completed scheduled-run files and history, preserving the durable
+    /// execution count so clearing diagnostics cannot re-arm a limited schedule.
     /// Active runs and streaming tasks truncate in place so writing continues.
     /// The active sink also drops pending UI batches before clearing its file.
     func clearLogs(for task: ScheduledTask, in context: ModelContext) throws {
@@ -495,11 +496,11 @@ final class ScriptExecutor: ObservableObject {
         try activeOutput?.clear()
         LiveOutputManager.shared.clear(taskId: task.id)
         for log in task.executionLogs where log.modelContext != nil {
-            log.stdout = nil
-            log.stderr = nil
             if isScheduled && log.status != .running {
-                log.outputFilePath = nil
-                log.outputFileDeleted = true
+                context.delete(log)
+            } else {
+                log.stdout = nil
+                log.stderr = nil
             }
         }
         try context.save()

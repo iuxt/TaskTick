@@ -382,7 +382,7 @@
 "command.report_issue" = "Signaler un problème";
 "clear_logs.title" = "Effacer les journaux";
 "clear_logs.message" = "Effacer le contenu de tous les fichiers journaux de \"%@\" ? Les fichiers, l’historique et le compteur d’exécutions seront conservés. Les tâches en cours continueront à écrire de nouveaux journaux. Cette action est irréversible.";
-"clear_logs.scheduled.message" = "Supprimer les fichiers journaux des exécutions terminées de \"%@\" et effacer la sortie ? L’historique et le compteur seront conservés. Le fichier d’une exécution en cours sera vidé et continuera à recevoir de nouvelles sorties. Cette action est irréversible.";
+"clear_logs.scheduled.message" = "Supprimer les fichiers journaux et l’historique des exécutions terminées de \"%@\" ? Le compteur cumulé sera conservé. Les exécutions en cours conserveront leurs entrées et continueront à écrire après le vidage de leurs fichiers. Cette action est irréversible.";
 "clear_logs.cancel" = "Annuler";
 "clear_logs.confirm" = "Effacer";
 "delete.title" = "Confirmer la suppression";

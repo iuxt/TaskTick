@@ -419,7 +419,7 @@
 /* Clear Logs Confirmation */
 "clear_logs.title" = "Limpiar registros";
 "clear_logs.message" = "¿Vaciar el contenido de todos los archivos de registro de \"%@\"? Se conservarán los archivos, el historial y el contador de ejecuciones. Las tareas en curso seguirán escribiendo nuevos registros. Esta acción no se puede deshacer.";
-"clear_logs.scheduled.message" = "¿Eliminar los archivos de registro de las ejecuciones finalizadas de \"%@\" y borrar la salida? Se conservarán el historial y el contador. El archivo de una ejecución en curso se vaciará y seguirá recibiendo nueva salida. Esta acción no se puede deshacer.";
+"clear_logs.scheduled.message" = "¿Eliminar los archivos de registro y el historial de ejecuciones finalizadas de \"%@\"? Se conservará el contador acumulado. Las ejecuciones en curso conservarán sus registros y seguirán escribiendo después de vaciar sus archivos. Esta acción no se puede deshacer.";
 "clear_logs.cancel" = "Cancelar";
 "clear_logs.confirm" = "Limpiar";
 

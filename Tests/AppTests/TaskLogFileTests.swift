@@ -29,20 +29,17 @@ struct TaskLogFileTests {
         context.insert(pending)
         task.executionCount = 7
         try context.save()
+        let pendingURL = try #require(LogFileWriter.executionFileURL(
+            taskName: task.name, logId: pending.id, startedAt: pending.startedAt))
 
         try ScriptExecutor().clearLogs(for: task, in: context)
         await TaskLogFiles.backfillHistory(in: container)
 
-        #expect(task.executionLogs.count == 2)
+        #expect(task.executionLogs.isEmpty)
         #expect(task.executionCount == 7)
         #expect(!FileManager.default.fileExists(atPath: firstURL.path))
-        for log in task.executionLogs {
-            #expect(log.outputFilePath == nil)
-            #expect(log.outputFileDeleted)
-            #expect(log.stdout == nil && log.stderr == nil)
-        }
-        #expect(!FileManager.default.fileExists(atPath: try #require(LogFileWriter.executionFileURL(
-            taskName: task.name, logId: pending.id, startedAt: pending.startedAt)).path))
+        #expect(!FileManager.default.fileExists(atPath: pendingURL.path))
+        #expect(try ModelContext(container).fetch(FetchDescriptor<ExecutionLog>()).isEmpty)
     }
 
     @Test("A stopped background service can clear its retained live buffer and file")
@@ -65,6 +62,7 @@ struct TaskLogFileTests {
         #expect(LiveOutputManager.shared.stdout(for: task.id) == "stopped-output")
 
         try executor.clearLogs(for: task, in: context)
+        #expect(task.executionLogs.isEmpty)
 
         #expect(try Data(contentsOf: root.appendingPathComponent("service.log")).isEmpty)
         #expect(LiveOutputManager.shared.stdout(for: task.id) == nil)
@@ -159,6 +157,8 @@ struct TaskLogFileTests {
         #expect(firstURL != secondURL)
         #expect(firstURL.deletingLastPathComponent() == secondURL.deletingLastPathComponent())
         try executor.clearLogs(for: task, in: context)
+        #expect(task.executionLogs.isEmpty)
+        #expect(other.executionLogs.count == 1)
         #expect(!FileManager.default.fileExists(atPath: firstURL.path))
         #expect(try String(contentsOf: secondURL, encoding: .utf8).contains("second"))
 
@@ -215,8 +215,8 @@ struct TaskLogFileTests {
         }
     }
 
-    @Test("Clear deletes completed run files while preserving history and other tasks")
-    func clearDeletesFilesAndPreservesHistory() async throws {
+    @Test("Clear deletes completed files and history while preserving counters, scheduling and other tasks")
+    func clearDeletesFilesAndHistory() async throws {
         let container = try memoryContainer()
         let context = container.mainContext
         let task = makeTask(script: "echo before")
@@ -233,20 +233,19 @@ struct TaskLogFileTests {
         let files = task.executionLogs.compactMap(\.outputFilePath).map { URL(fileURLWithPath: $0) }
         try executor.clearLogs(for: task, in: context)
 
-        #expect(Set(task.executionLogs.map(\.id)) == ids)
+        #expect(task.executionLogs.isEmpty)
         #expect(task.executionCount == 2)
         #expect(task.nextRunAt == nextScheduledRun)
-        #expect(task.executionLogs.allSatisfy { $0.stdout == nil && $0.stderr == nil && $0.status == .success })
         for url in files {
             #expect(!FileManager.default.fileExists(atPath: url.path))
         }
         let saved = try ModelContext(container).fetch(FetchDescriptor<ExecutionLog>())
-        #expect(saved.filter { ids.contains($0.id) }.allSatisfy {
-            $0.stdout == nil && $0.stderr == nil && $0.outputFilePath == nil && $0.outputFileDeleted
-        })
+        #expect(saved.allSatisfy { !ids.contains($0.id) })
+        #expect(saved.count == 1)
+        #expect(other.executionLogs.count == 1)
         task.name = "renamed-after-clear-\(task.id)"
         await TaskLogFiles.backfillHistory(in: container)
-        #expect(task.executionLogs.allSatisfy { $0.outputFilePath == nil })
+        #expect(task.executionLogs.isEmpty)
         #expect(!FileManager.default.fileExists(atPath: try #require(LogFileWriter.executionDirectory(for: task.name)).path))
         let otherURL = URL(fileURLWithPath: try #require(unrelated.outputFilePath))
         #expect(try String(contentsOf: otherURL, encoding: .utf8).contains("unrelated"))
@@ -257,9 +256,37 @@ struct TaskLogFileTests {
         #expect(!nextRun.outputFileDeleted)
         #expect(try String(contentsOf: nextURL, encoding: .utf8).contains("before"))
         #expect(task.executionCount == 3)
+        #expect(task.executionLogs.count == 1)
         try executor.clearLogs(for: task, in: context)
         try executor.clearLogs(for: task, in: context)
         #expect(!FileManager.default.fileExists(atPath: nextURL.path))
+        #expect(task.executionLogs.isEmpty)
+    }
+
+    @Test("Clearing history cannot re-arm a task that reached its run-count limit")
+    func clearPreservesRunCountLimit() async throws {
+        let container = try memoryContainer()
+        let context = container.mainContext
+        let task = makeTask(script: "")
+        task.repeatType = .everyMinute
+        task.scheduledDate = Date().addingTimeInterval(-60)
+        task.endRepeatType = .afterCount
+        task.endRepeatCount = 3
+        task.executionCount = 3
+        context.insert(task)
+        let log = ExecutionLog(task: task)
+        log.status = .success
+        log.outputFileDeleted = true
+        context.insert(log)
+        try context.save()
+
+        try ScriptExecutor().clearLogs(for: task, in: context)
+        await TaskLogFiles.backfillHistory(in: container)
+
+        #expect(task.executionLogs.isEmpty)
+        #expect(task.executionCount == 3)
+        #expect(TaskScheduler.shared.computeNextRunDate(for: task) == nil)
+        #expect(try ModelContext(container).fetch(FetchDescriptor<ExecutionLog>()).isEmpty)
     }
 
     @Test("Clear during a run removes old output and allows only new output to continue",
@@ -323,6 +350,7 @@ struct TaskLogFileTests {
             #expect(LiveOutputManager.shared.stdout(for: task.id) == nil)
             #expect(LiveOutputManager.shared.stderr(for: task.id) == nil)
             #expect(task.executionLogs.contains { $0.status == .running })
+            #expect(task.executionLogs.count == 1)
             if let previousFile { #expect(!FileManager.default.fileExists(atPath: previousFile.path)) }
             for file in [url] + archives { #expect(try Data(contentsOf: file).isEmpty) }
             #expect(try String(contentsOf: unrelated, encoding: .utf8) == "keep")
@@ -338,7 +366,8 @@ struct TaskLogFileTests {
                 #expect(LiveOutputManager.shared.stdout(for: task.id) == "after")
                 #expect(LiveOutputManager.shared.stderr(for: task.id) == "error-after")
             } else {
-                let completed = try #require(task.executionLogs.first { !$0.outputFileDeleted })
+                #expect(task.executionLogs.count == 1)
+                let completed = try #require(task.executionLogs.first)
                 #expect(completed.stdout == "after")
                 #expect(completed.stderr == "error-after")
                 #expect(task.executionCount == 2)

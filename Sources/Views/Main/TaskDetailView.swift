@@ -532,12 +532,13 @@ struct TaskDetailView: View {
     // MARK: - Recent Logs Card
 
     private var recentLogsCard: some View {
-        GlassCard {
+        let allLogs = task.executionLogs.filter { $0.modelContext != nil }
+        return GlassCard {
             VStack(alignment: .leading, spacing: 10) {
                 HStack {
                     Label(L10n.tr("task.detail.recent_logs"), systemImage: "list.bullet.rectangle")
                         .font(.headline)
-                    Text("\(task.executionCount)")
+                    Text("\(allLogs.count)")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .padding(.horizontal, 6)
@@ -553,7 +554,6 @@ struct TaskDetailView: View {
                     .pointerCursor()
                 }
 
-                let allLogs = task.executionLogs.filter { $0.modelContext != nil }
                 let logs = allLogs
                     .sorted { $0.startedAt > $1.startedAt }
                     .prefix(10)

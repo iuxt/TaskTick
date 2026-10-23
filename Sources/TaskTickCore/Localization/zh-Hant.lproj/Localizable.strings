@@ -419,7 +419,7 @@
 /* Clear Logs Confirmation */
 "clear_logs.title" = "清空日誌";
 "clear_logs.message" = "確定要清空「%@」的所有日誌檔案內容嗎？檔案、執行記錄和執行次數將保留，執行中的任務會繼續寫入新日誌。此操作無法復原。";
-"clear_logs.scheduled.message" = "確定要刪除「%@」已結束執行的日誌檔案並清空輸出嗎？執行記錄和執行次數將保留，執行中的日誌檔案會清空後繼續寫入新輸出。此操作無法復原。";
+"clear_logs.scheduled.message" = "確定要刪除「%@」已結束執行的日誌檔案和最近執行記錄嗎？累計執行次數保持不變。執行中的記錄會保留，其日誌檔案清空後繼續寫入新輸出。此操作無法復原。";
 "clear_logs.cancel" = "取消";
 "clear_logs.confirm" = "清空";
 

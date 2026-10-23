@@ -58,7 +58,7 @@ Use **Start at Login** in the detail view or context menu to launch a background
 
 Each scheduled execution creates a separate `.log` file under `~/Library/Logs/TaskTick/com.iuxt.TaskTick/<task name>/`, matching its Recent Runs entry. Open the log folder from the task detail view or reveal an individual execution's file in Finder. Characters that cannot be used in folder names are replaced with `-`.
 
-**Clear Logs** deletes completed scheduled executions' `.log` files and clears the displayed output, preserving execution records and execution counts. A running execution's file is emptied in place so it can continue writing new output. Manual tasks and background processes empty their files in place, including rotation archives. Deleting execution records or cleaning up expired history also removes their files.
+**Clear Logs** deletes completed scheduled executions' `.log` files and Recent Runs records, and clears the displayed output. The execution count used by scheduling is preserved. An active execution keeps its current record and its file is emptied in place so it can continue writing new output. Manual tasks and background processes empty their files in place, including rotation archives. Deleting execution records or cleaning up expired history also removes their files.
 
 - macOS 14 (Sonoma) or later
 - Apple Silicon or Intel Mac

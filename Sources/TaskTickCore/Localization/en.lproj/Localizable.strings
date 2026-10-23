@@ -419,7 +419,7 @@
 /* Clear Logs Confirmation */
 "clear_logs.title" = "Clear Logs";
 "clear_logs.message" = "Clear the contents of all log files for \"%@\"? Files, execution records and execution counts will be kept. Running tasks will continue writing new output. This action cannot be undone.";
-"clear_logs.scheduled.message" = "Delete completed runs’ log files and clear the output for \"%@\"? Execution records and counts will be kept. An active execution’s file will be emptied and continue receiving new output. This action cannot be undone.";
+"clear_logs.scheduled.message" = "Delete completed log files and Recent Runs records for \"%@\"? The cumulative execution count will be kept. Active runs keep their records and continue writing after their files are emptied. This action cannot be undone.";
 "clear_logs.cancel" = "Cancel";
 "clear_logs.confirm" = "Clear";
 

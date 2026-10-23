@@ -4,9 +4,9 @@ import TaskTickCore
 
 /// Shared delete path for execution logs removed from the log lists.
 ///
-/// User-initiated log deletion also resets the task's visible run history:
+/// Deleting selected history rows also resets the task's visible run history:
 /// `executionCount` is resynced to the surviving rows and the schedule is
-/// recalculated. Automatic retention intentionally uses a separate path and
+/// recalculated. Clear Logs and automatic retention use separate paths and
 /// leaves the durable counter alone, so routine housekeeping cannot re-arm an
 /// `afterCount` task.
 enum LogDeletion {

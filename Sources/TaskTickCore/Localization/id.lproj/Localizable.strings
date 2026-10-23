@@ -419,7 +419,7 @@
 /* Clear Logs Confirmation */
 "clear_logs.title" = "Hapus Log";
 "clear_logs.message" = "Kosongkan isi semua file log untuk \"%@\"? File, riwayat, dan jumlah eksekusi akan dipertahankan. Tugas yang berjalan akan terus menulis log baru. Tindakan ini tidak dapat dibatalkan.";
-"clear_logs.scheduled.message" = "Hapus file log eksekusi yang telah selesai dan kosongkan keluaran untuk \"%@\"? Riwayat dan jumlah eksekusi akan dipertahankan. File eksekusi yang berjalan akan dikosongkan dan terus menerima keluaran baru. Tindakan ini tidak dapat dibatalkan.";
+"clear_logs.scheduled.message" = "Hapus file log dan riwayat eksekusi yang telah selesai untuk \"%@\"? Jumlah eksekusi kumulatif akan dipertahankan. Eksekusi yang berjalan tetap memiliki catatan dan terus menulis setelah file dikosongkan. Tindakan ini tidak dapat dibatalkan.";
 "clear_logs.cancel" = "Batal";
 "clear_logs.confirm" = "Hapus";
 

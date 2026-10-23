@@ -419,7 +419,7 @@
 /* Clear Logs Confirmation */
 "clear_logs.title" = "Cancella registri";
 "clear_logs.message" = "Svuotare il contenuto di tutti i file di registro di \"%@\"? I file, la cronologia e il conteggio delle esecuzioni verranno mantenuti. Le attività in corso continueranno a scrivere nuovi registri. Questa azione è irreversibile.";
-"clear_logs.scheduled.message" = "Eliminare i file di registro delle esecuzioni completate di \"%@\" e cancellare l’output? La cronologia e il conteggio saranno mantenuti. Il file di un’esecuzione in corso verrà svuotato e continuerà a ricevere nuovo output. Questa azione è irreversibile.";
+"clear_logs.scheduled.message" = "Eliminare i file di registro e la cronologia delle esecuzioni completate di \"%@\"? Il conteggio cumulativo sarà mantenuto. Le esecuzioni in corso conserveranno le proprie voci e continueranno a scrivere dopo lo svuotamento dei file. Questa azione è irreversibile.";
 "clear_logs.cancel" = "Annulla";
 "clear_logs.confirm" = "Cancella";
 
