@@ -287,6 +287,17 @@ final class TaskScheduler: ObservableObject {
         let taskId = task.id
         guard !runningTaskIDs.contains(taskId), let modelContext else { return }
 
+        // A manual run can consume the last allowance while nextRunAt still
+        // points to a pending automatic occurrence. Recheck before dispatch.
+        if task.endRepeatType == .afterCount,
+           let maxCount = task.endRepeatCount,
+           task.executionCount >= maxCount {
+            task.nextRunAt = nil
+            task.isEnabled = false
+            do { try modelContext.save() } catch { NSLog("⚠️ TaskScheduler save failed: \(error)") }
+            return
+        }
+
         runningTaskIDs.insert(taskId)
 
         // Check end repeat count directly before computing next date

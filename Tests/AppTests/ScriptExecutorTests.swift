@@ -364,7 +364,7 @@ struct ScriptExecutorTests {
             uiShell: "/bin/zsh"
         )
         #expect(resolved.shell == "/bin/zsh")
-        #expect(resolved.body == "exec 'python3' '/tmp/a b.py'")
+        #expect(resolved.body == "exec '/usr/bin/env' 'python3' '/tmp/a b.py'")
     }
 
     @Test("Shebang arguments are preserved when executing a script file")
@@ -375,7 +375,7 @@ struct ScriptExecutorTests {
             filePath: "/tmp/a.py",
             uiShell: "/bin/zsh"
         )
-        #expect(envResolved.body == "exec 'python3' '-u' '/tmp/a.py'")
+        #expect(envResolved.body == "exec '/usr/bin/env' '-S' 'python3 -u' '/tmp/a.py'")
 
         let shellResolved = ScriptExecutor.resolveFileExecution(
             fileContent: "#!/bin/bash -e\nfalse\necho unreachable",
@@ -396,7 +396,7 @@ struct ScriptExecutorTests {
             filePath: "/tmp/it's; rm -rf ~/.py",
             uiShell: "/bin/zsh"
         )
-        #expect(resolved.body == "exec 'python3' '/tmp/it'\\''s; rm -rf ~/.py'")
+        #expect(resolved.body == "exec '/usr/bin/env' 'python3' '/tmp/it'\\''s; rm -rf ~/.py'")
     }
 
     @Test("An absolute non-shell interpreter also gets the exec path")

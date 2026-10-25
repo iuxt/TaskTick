@@ -105,9 +105,7 @@ enum ScriptValidator {
                 .map(ScriptExecutor.singleQuoted)
                 .joined(separator: " ")
             process.executableURL = URL(fileURLWithPath: uiShell)
-            process.arguments = [
-                "-l", "-c", ScriptExecutor.environmentPrelude(for: uiShell) + command
-            ]
+            process.arguments = ScriptExecutor.shellArguments(for: uiShell, command: command)
         }
 
         let inputPipe = Pipe()

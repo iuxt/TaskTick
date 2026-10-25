@@ -91,6 +91,7 @@ struct TaskEditorView: View {
 
     @State private var selectedTab = 0
     @State private var loadedTrigger = -1
+    @State private var newTaskID = UUID()
 
     // Script validation
     @State private var isValidating = false
@@ -856,23 +857,30 @@ struct TaskEditorView: View {
         NSApp.keyWindow?.close()
     }
 
+    private var scheduleConfiguration: TaskScheduleConfiguration {
+        TaskScheduleConfiguration(
+            isManualOnly: isManualOnly,
+            hasDate: hasDate,
+            hasTime: hasTime,
+            scheduledDate: scheduledDate,
+            repeatType: repeatType,
+            customIntervalValue: customIntervalValue,
+            customIntervalUnit: customIntervalUnit,
+            useCron: useCron,
+            cronExpression: cronExpression,
+            additionalTimes: additionalTimes.map { editorCalendar.dateComponents([.hour, .minute], from: $0) },
+            endRepeatType: endRepeatType,
+            endRepeatDate: endRepeatDate,
+            endRepeatCount: endRepeatCount,
+            jitterSeconds: jitterSeconds,
+            timeZoneID: timeZoneID,
+            runMissedExecution: runMissedExecution,
+            runOnLaunch: runOnLaunch
+        )
+    }
+
     private func previewNextRun() -> Date? {
-        guard hasDate || hasTime else { return nil }
-        let tempTask = ScheduledTask()
-        tempTask.scheduledDate = scheduledDate
-        tempTask.repeatType = repeatType
-        tempTask.endRepeatType = endRepeatType
-        tempTask.endRepeatDate = endRepeatDate
-        tempTask.endRepeatCount = endRepeatCount
-        tempTask.timeZoneIdentifier = timeZoneID
-        tempTask.scheduleAnchorTimeZoneIdentifier = editorTimeZone.identifier
-        if hasTime {
-            let cal = editorCalendar
-            tempTask.additionalTimes = additionalTimes.map {
-                cal.dateComponents([.hour, .minute], from: $0)
-            }
-        }
-        return TaskScheduler.shared.computeNextRunDate(for: tempTask)
+        scheduleConfiguration.nextRun(taskID: task?.id ?? newTaskID, executionCount: task?.executionCount ?? 0)
     }
 
     /// Cleans up a hand-entered path so the common paste shapes just work:
@@ -927,6 +935,7 @@ struct TaskEditorView: View {
         let trigger = editorState.openTrigger
         guard trigger != loadedTrigger else { return }
         loadedTrigger = trigger
+        newTaskID = UUID()
 
         // Reset to defaults for new task
         name = ""
@@ -1050,6 +1059,7 @@ struct TaskEditorView: View {
             return
         }
         let target = task ?? ScheduledTask()
+        if task == nil { target.id = newTaskID }
         let wasBackgroundService = target.isBackgroundService
 
         target.name = name.trimmingCharacters(in: .whitespaces)
@@ -1068,7 +1078,6 @@ struct TaskEditorView: View {
         target.isEnabled = isBackgroundService || isEnabled
         target.updatedAt = Date()
 
-        target.isManualOnly = isManualOnly
         target.isBackgroundService = isBackgroundService
         target.serviceAutoStart = serviceAutoStart
         target.serviceRestartPolicy = serviceRestartPolicy
@@ -1079,63 +1088,7 @@ struct TaskEditorView: View {
         target.serviceLogMaxSizeMB = max(1, serviceLogMaxSizeMB)
         target.serviceLogRotationCount = max(0, serviceLogRotationCount)
         if isBackgroundService { target.timeoutSeconds = -1 }
-        target.hasDate = useCron ? false : hasDate
-        target.hasTime = useCron ? false : hasTime
-        // When both toggles are off, drop the anchor so the scheduler falls back
-        // to "now" as base (TaskScheduler handles scheduledDate == nil). Cron
-        // mode derives everything from the expression, so no anchor either.
-        target.scheduledDate = (!useCron && (hasDate || hasTime)) ? scheduledDate : nil
-        target.repeatType = repeatType
-
-        // Persist additional times whenever the user has any entered, so
-        // toggling repeat type back and forth doesn't silently discard the
-        // values. The scheduler ignores them for non-day-aligned repeats —
-        // the footer text tells the user this.
-        if !useCron && hasTime && !additionalTimes.isEmpty {
-            let cal = editorCalendar
-            let mainHM = cal.dateComponents([.hour, .minute], from: scheduledDate)
-            var seen = Set<Int>()
-            if let h = mainHM.hour, let m = mainHM.minute {
-                seen.insert(h * 60 + m)
-            }
-            var unique: [DateComponents] = []
-            for date in additionalTimes {
-                let hm = cal.dateComponents([.hour, .minute], from: date)
-                guard let h = hm.hour, let m = hm.minute else { continue }
-                let key = h * 60 + m
-                if seen.insert(key).inserted {
-                    unique.append(DateComponents(hour: h, minute: m))
-                }
-            }
-            target.additionalTimes = unique
-        } else {
-            target.additionalTimes = []
-        }
-        target.endRepeatType = (useCron || repeatType != .never) ? endRepeatType : .never
-        target.endRepeatDate = endRepeatType == .onDate ? endRepeatDate : nil
-        target.endRepeatCount = endRepeatType == .afterCount ? endRepeatCount : nil
-        target.customIntervalValue = customIntervalValue
-        target.customIntervalUnit = customIntervalUnit
-        target.runMissedExecution = runMissedExecution
-        // Manual-only tasks have no automatic triggers — drop runOnLaunch even
-        // if the user had toggled it before flipping to manual.
-        target.runOnLaunch = isManualOnly ? false : runOnLaunch
-
-        target.jitterSeconds = max(0, jitterSeconds)
-        target.timeZoneIdentifier = timeZoneID
-        target.scheduleAnchorTimeZoneIdentifier = editorTimeZone.identifier
-
-        // Cron mode rides the legacy schedule channel — TaskScheduler prefers
-        // it whenever schedule == .cron (issue #38). Non-cron saves reset the
-        // channel so switching away from cron actually leaves it.
-        if useCron {
-            target.schedule = .cron
-            target.cronExpression = cronExpression.trimmingCharacters(in: .whitespaces)
-        } else {
-            target.schedule = .interval
-            target.cronExpression = nil
-        }
-        target.intervalSeconds = nil
+        scheduleConfiguration.apply(to: target)
 
         switch scriptSource {
         case .file:

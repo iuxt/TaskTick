@@ -54,6 +54,33 @@ struct LineBufferTests {
         #expect(buf.materialize() == "Line1\nLine2")
     }
 
+    @Test("CRLF and progress output survive every chunk boundary", arguments: [
+        ("hello\r\nworld\r\n", "hello\nworld"),
+        ("你好\r\nnext\rreplace\r\nlast", "你好\nreplace\nlast"),
+        ("hello\r\r\nworld", "hello\nworld")
+    ])
+    func arbitraryCRLFBoundaries(_ input: String, _ expected: String) {
+        for index in input.unicodeScalars.indices {
+            var buf = LineBuffer()
+            buf.append(String(input[..<index]))
+            buf.append("")
+            buf.append(String(input[index...]))
+            #expect(buf.materialize() == expected)
+        }
+        var buf = LineBuffer()
+        for scalar in input.unicodeScalars { buf.append(String(scalar)) }
+        #expect(buf.materialize() == expected)
+    }
+
+    @Test("Trailing CR preserves visible text until replacement arrives")
+    func pendingCRPreservesVisibleText() {
+        var buf = LineBuffer()
+        buf.append("hello\r")
+        #expect(buf.materialize() == "hello")
+        buf.append("replacement")
+        #expect(buf.materialize() == "replacement")
+    }
+
     @Test("CR-only in pending (progress bar, no newline yet)")
     func crProgressBarNoNewline() {
         var buf = LineBuffer()

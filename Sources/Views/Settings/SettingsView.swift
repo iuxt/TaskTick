@@ -568,32 +568,9 @@ struct SettingsView: View {
 
         isCleaningLogs = true
         Task {
-            // Heavy work on a background ModelContext so the setting window stays
-            // responsive even when the user has accumulated tens of thousands of
-            // execution logs. The background save propagates through the shared
-            // container; main-context @Query subscribers refresh automatically.
-            let deleted = await Task.detached(priority: .userInitiated) {
-                let ctx = ModelContext(container)
-                let descriptor = FetchDescriptor<ExecutionLog>(
-                    predicate: #Predicate { $0.startedAt < cutoff && $0.statusRaw != "running" }
-                )
-                guard let logs = try? ctx.fetch(descriptor), !logs.isEmpty else { return 0 }
-                let count = logs.count
-                let fileURLs = logs.compactMap { $0.outputFilePath }.map { URL(fileURLWithPath: $0) }
-                for log in logs { ctx.delete(log) }
-
-                // Keep each task's stored `executionCount` aligned with its remaining
-                // logs — other UI (detail view badge, end-after-count end condition)
-                // reads from this field and would otherwise show stale totals.
-                if let tasks = try? ctx.fetch(FetchDescriptor<ScheduledTask>()) {
-                    for t in tasks {
-                        t.executionCount = t.executionLogs.filter { $0.modelContext != nil }.count
-                    }
-                }
-                do { try ctx.save() } catch { return 0 }
-                for url in fileURLs { try? FileManager.default.removeItem(at: url) }
-                return count
-            }.value
+            // Manual and automatic retention share file cleanup and preserve
+            // the durable counter used by count-limited schedules.
+            let deleted = await LogRetentionManager.deleteExpiredLogs(in: container, before: cutoff)
 
             isCleaningLogs = false
             cleanupDeletedCount = deleted

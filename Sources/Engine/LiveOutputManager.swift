@@ -28,6 +28,7 @@ public struct LineBuffer: Sendable {
 
     private(set) var lines: [String] = []
     private(set) var pending: String = ""
+    private var pendingCarriageReturn = false
 
     public init(maxLines: Int = 5000, trimChunk: Int = 1000, maxPendingBytes: Int = 8 * 1024) {
         self.maxLines = maxLines
@@ -38,45 +39,25 @@ public struct LineBuffer: Sendable {
     /// Append a chunk. The chunk may contain zero or more newlines.
     public mutating func append(_ chunk: String) {
         guard !chunk.isEmpty else { return }
-        // Normalize CRLF → LF. Swift String treats "\r\n" as a SINGLE
-        // grapheme cluster, which means `firstIndex(of: "\n")` on a chunk
-        // like "Line1\r\nLine2" returns nil — the LF inside the CRLF pair
-        // is invisible to Character-level search. Without this normalization
-        // Windows-style line endings would never split into lines.
-        let normalized: String = chunk.contains("\r\n")
-            ? chunk.replacingOccurrences(of: "\r\n", with: "\n")
-            : chunk
-        var remaining = Substring(normalized)
-        while let newlineIdx = remaining.firstIndex(of: "\n") {
-            let segment = remaining[..<newlineIdx]
-            var line = pending + segment
-            // CRLF is normalized away above. Any remaining trailing "\r" is
-            // a real CR — but if it's the entire suffix with nothing after,
-            // drop it (defensive — a chunk ending in just "\r\n" already got
-            // normalized, but a bare "\r" followed by EOL has no useful
-            // content to emit).
-            if line.hasSuffix("\r") {
-                line = String(line.dropLast())
+        // Scan scalar boundaries so CRLF is handled identically whether its
+        // bytes arrive together or separately. A CR moves the write position;
+        // it does not erase the visible line until replacement text arrives.
+        var segmentStart = chunk.startIndex
+        for index in chunk.unicodeScalars.indices {
+            let scalar = chunk.unicodeScalars[index]
+            guard scalar == "\r" || scalar == "\n" else { continue }
+            appendSegment(chunk[segmentStart..<index])
+            if scalar == "\n" {
+                lines.append(pending)
+                pending = ""
+                pendingCarriageReturn = false
+            } else {
+                pendingCarriageReturn = true
             }
-            if line.contains("\r") {
-                // CR semantics: everything after the last CR overwrites the
-                // current line. e.g. "abc\rxy" → "xy". This matches what
-                // a real terminal would display.
-                if let lastCR = line.lastIndex(of: "\r") {
-                    line = String(line[line.index(after: lastCR)...])
-                }
-            }
-            lines.append(line)
-            pending = ""
-            remaining = remaining[remaining.index(after: newlineIdx)...]
+            segmentStart = chunk.unicodeScalars.index(after: index)
         }
-        // Whatever's left after the last \n is incomplete — keep it in pending.
-        var p = pending + remaining
-        if p.contains("\r") {
-            if let lastCR = p.lastIndex(of: "\r") {
-                p = String(p[p.index(after: lastCR)...])
-            }
-        }
+        appendSegment(chunk[segmentStart...])
+        var p = pending
         if p.utf8.count > maxPendingBytes {
             // Pending overflows — promote the suffix as a "line" so it shows
             // in materialize() and reset pending. Otherwise an output without
@@ -92,6 +73,15 @@ public struct LineBuffer: Sendable {
         if lines.count > maxLines + trimChunk {
             lines.removeFirst(lines.count - maxLines)
         }
+    }
+
+    private mutating func appendSegment(_ segment: Substring) {
+        guard !segment.isEmpty else { return }
+        if pendingCarriageReturn {
+            pending = ""
+            pendingCarriageReturn = false
+        }
+        pending.append(contentsOf: segment)
     }
 
     /// Build a single string for display. O(N) but called only from UI

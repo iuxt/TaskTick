@@ -7,6 +7,7 @@ import TaskTickCore
 @Suite("Automatic log retention")
 struct LogRetentionManagerTests {
     @Test("Expired finished logs are removed without resetting execution count")
+    @MainActor
     func removesOnlyExpiredFinishedLogs() async throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
@@ -20,6 +21,11 @@ struct LogRetentionManagerTests {
         let task = ScheduledTask(name: "retention")
         task.executionCount = 42
         context.insert(task)
+        let unrelated = ScheduledTask(name: "unrelated limited task")
+        unrelated.executionCount = 20
+        unrelated.endRepeatType = .afterCount
+        unrelated.endRepeatCount = 20
+        context.insert(unrelated)
 
         let oldFinished = ExecutionLog(task: task)
         oldFinished.startedAt = Date(timeIntervalSince1970: 100)
@@ -51,8 +57,13 @@ struct LogRetentionManagerTests {
         let verification = ModelContext(container)
         let remaining = try verification.fetch(FetchDescriptor<ExecutionLog>())
         #expect(Set(remaining.map(\.id)) == Set([oldRunning.id, recentFinished.id]))
-        let savedTask = try #require(verification.fetch(FetchDescriptor<ScheduledTask>()).first)
+        let savedTasks = try verification.fetch(FetchDescriptor<ScheduledTask>())
+        let savedTask = try #require(savedTasks.first(where: { $0.id == task.id }))
         #expect(savedTask.executionCount == 42)
+        let untouched = try #require(savedTasks.first(where: { $0.id == unrelated.id }))
+        #expect(untouched.executionCount == 20)
+        let nextRun = TaskScheduler.shared.computeNextRunDate(for: untouched)
+        #expect(nextRun == nil)
         #expect(!FileManager.default.fileExists(atPath: oldURL.path))
         #expect(try String(contentsOf: runningURL, encoding: .utf8) == "output")
         #expect(try String(contentsOf: recentURL, encoding: .utf8) == "output")

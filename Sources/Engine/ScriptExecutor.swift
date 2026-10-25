@@ -805,19 +805,17 @@ final class ScriptExecutor: ObservableObject {
             parts.removeFirst()
             if parts.first == "-S" {
                 parts.removeFirst()
-            } else {
-                // Handle common env options and NAME=value assignments before
-                // the command. Once the command is found, all remaining tokens
-                // are interpreter arguments and must be preserved.
-                while let token = parts.first {
-                    if token == "-u" || token == "--unset" {
-                        guard parts.count >= 2 else { return nil }
-                        parts.removeFirst(2)
-                    } else if token.hasPrefix("-") || token.contains("=") {
-                        parts.removeFirst()
-                    } else {
-                        break
-                    }
+            }
+            // Identify the language for validation. Execution preserves the
+            // entire env invocation below instead of discarding these options.
+            while let token = parts.first {
+                if token == "-u" || token == "--unset" {
+                    guard parts.count >= 2 else { return nil }
+                    parts.removeFirst(2)
+                } else if token.hasPrefix("-") || token.contains("=") {
+                    parts.removeFirst()
+                } else {
+                    break
                 }
             }
             guard let executable = parts.first, !executable.isEmpty else { return nil }
@@ -845,11 +843,16 @@ final class ScriptExecutor: ObservableObject {
     /// an inline python3 hit a syntax feature newer than 3.9.
     nonisolated static func environmentPrelude(for shell: String) -> String {
         let fm = FileManager.default
+        let isCShell = ["csh", "tcsh"].contains((shell as NSString).lastPathComponent)
         let brewPrefix: String
         if fm.isExecutableFile(atPath: "/opt/homebrew/bin/brew") {
-            brewPrefix = "eval \"$(/opt/homebrew/bin/brew shellenv 2>/dev/null)\"; "
+            brewPrefix = isCShell
+                ? "eval `/opt/homebrew/bin/brew shellenv csh`; "
+                : "eval \"$(/opt/homebrew/bin/brew shellenv 2>/dev/null)\"; "
         } else if fm.isExecutableFile(atPath: "/usr/local/bin/brew") {
-            brewPrefix = "eval \"$(/usr/local/bin/brew shellenv 2>/dev/null)\"; "
+            brewPrefix = isCShell
+                ? "eval `/usr/local/bin/brew shellenv csh`; "
+                : "eval \"$(/usr/local/bin/brew shellenv 2>/dev/null)\"; "
         } else {
             brewPrefix = ""
         }
@@ -862,8 +865,14 @@ final class ScriptExecutor: ObservableObject {
         return brewPrefix
     }
 
-    /// Whether an interpreter speaks the `-l -c "<script text>"` calling convention
-    /// that `runProcess` uses. Only shells do; python/ruby/node reject `-l` outright.
+    /// csh/tcsh accept -l only as their sole option; noninteractive commands
+    /// use -c and still read the shell's normal rc files.
+    nonisolated static func shellArguments(for shell: String, command: String) -> [String] {
+        let isCShell = ["csh", "tcsh"].contains((shell as NSString).lastPathComponent)
+        return (isCShell ? ["-c"] : ["-l", "-c"]) + [environmentPrelude(for: shell) + command]
+    }
+
+    /// Whether an interpreter is a shell rather than a language runtime.
     ///
     /// The list comes from `/etc/shells` at run time rather than a hardcoded set of
     /// names, so a user's non-standard login shell is recognized too. Compared by
@@ -882,7 +891,7 @@ final class ScriptExecutor: ObservableObject {
     /// task backed by a script file or a staged inline script.
     ///
     /// The distinction that matters: a shebang names an **interpreter**, which is not
-    /// necessarily a **shell**. `runProcess` always invokes `<shell> -l -c "<text>"`, so
+    /// necessarily a **shell**. `runProcess` invokes a wrapping shell, so
     /// we keep the user's shell as the wrapper, preserving rc files,
     /// preRunCommand, environment and cwd, and `exec` the named interpreter
     /// against the file on disk.
@@ -898,6 +907,26 @@ final class ScriptExecutor: ObservableObject {
         filePath: String,
         uiShell: String
     ) -> (shell: String, body: String) {
+        if let firstLine = fileContent.components(separatedBy: .newlines).first,
+           firstLine.hasPrefix("#!") {
+            let words = firstLine.dropFirst(2).split(maxSplits: 1, whereSeparator: { $0.isWhitespace })
+            if words.count == 2, words[0] == "/usr/bin/env" {
+                // Preserve env itself so assignments and -u/-i take effect.
+                // -S owns the remaining string, including its quotes. Do not
+                // split it twice or a quoted value containing spaces is lost.
+                let remainder = String(words[1])
+                let arguments: [String]
+                if let split = remainder.range(of: #"(?:^|\s)-S\s+"#, options: .regularExpression) {
+                    arguments = remainder[..<split.lowerBound].split(whereSeparator: { $0.isWhitespace }).map(String.init)
+                        + ["-S", String(remainder[split.upperBound...])]
+                } else {
+                    arguments = remainder.split(whereSeparator: { $0.isWhitespace }).map(String.init)
+                }
+                let command = (["/usr/bin/env"] + arguments + [filePath])
+                    .map(singleQuoted).joined(separator: " ")
+                return (uiShell, "exec \(command)")
+            }
+        }
         guard let invocation = parseShebangInvocation(from: fileContent) else {
             // No usable shebang: fall back to the shell picked in the UI, as before.
             return (uiShell, fileContent)
@@ -945,11 +974,9 @@ final class ScriptExecutor: ObservableObject {
         // for user environment variables without full interactive mode
         // (which would load oh-my-zsh etc. and slow down execution).
         //
-        let rcFile = ScriptExecutor.environmentPrelude(for: shell)
-
         return await runProcessCore(
             executableURL: URL(fileURLWithPath: shell),
-            arguments: ["-l", "-c", rcFile + script],
+            arguments: Self.shellArguments(for: shell, command: script),
             workingDirectory: workingDirectory,
             environmentVariables: environmentVariables,
             timeoutSeconds: timeoutSeconds,
