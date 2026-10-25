@@ -26,9 +26,17 @@ final class TaskScheduler: ObservableObject {
     static let shared = TaskScheduler()
 
     private let executor: ScriptExecutor
+    private let isLaunchAtLoginEnabled: () -> Bool
 
-    init(executor: ScriptExecutor = .shared) {
+    init(
+        executor: ScriptExecutor = .shared,
+        isLaunchAtLoginEnabled: @escaping () -> Bool = {
+            LaunchAtLogin.shared.refresh()
+            return LaunchAtLogin.shared.isEnabled
+        }
+    ) {
         self.executor = executor
+        self.isLaunchAtLoginEnabled = isLaunchAtLoginEnabled
     }
 
     func configure(modelContext: ModelContext) {
@@ -244,11 +252,14 @@ final class TaskScheduler: ObservableObject {
         }
     }
 
-    /// Start enabled service-style tasks once TaskTick has completed launch.
+    /// Start services whose Start at Login switch is on once TaskTick launches.
+    /// Match the UI: both the service setting and TaskTick's login item must be
+    /// enabled, including when TaskTick was opened manually.
     /// They remain outside the time scheduler (`isManualOnly == true`) and are
     /// subsequently supervised by ScriptExecutor's restart policy.
     private func startBackgroundServices() {
-        guard isRunning, !isPausedForRestore, let modelContext else { return }
+        guard isRunning, !isPausedForRestore, let modelContext,
+              isLaunchAtLoginEnabled() else { return }
         let descriptor = FetchDescriptor<ScheduledTask>(
             predicate: #Predicate {
                 $0.isEnabled && $0.isBackgroundService && $0.serviceAutoStart
@@ -259,12 +270,15 @@ final class TaskScheduler: ObservableObject {
             let serviceID = service.id
             runningTaskIDs.insert(serviceID)
             Task { @MainActor in
+                defer { runningTaskIDs.remove(serviceID) }
+                guard isRunning, !isPausedForRestore, isLaunchAtLoginEnabled(),
+                      service.isEnabled, service.isBackgroundService,
+                      service.serviceAutoStart else { return }
                 await executor.execute(
                     task: service,
                     triggeredBy: .launch,
                     modelContext: modelContext
                 )
-                runningTaskIDs.remove(serviceID)
             }
         }
     }

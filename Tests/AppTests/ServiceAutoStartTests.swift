@@ -7,6 +7,70 @@ import TaskTickCore
 @Suite("Background Service Auto-Start Tests")
 @MainActor
 struct ServiceAutoStartTests {
+    @Test("Opening TaskTick starts services only when both auto-start settings are enabled",
+          arguments: [true, false], [true, false])
+    func startupRespectsAutoStart(_ loginEnabled: Bool, _ serviceEnabled: Bool) async throws {
+        let container = try memoryContainer()
+        let context = container.mainContext
+        let task = ScheduledTask(
+            name: "startup service", scriptBody: "exec /bin/sleep 30", shell: "/bin/sh",
+            notifyOnSuccess: false, notifyOnFailure: false
+        )
+        task.isBackgroundService = true
+        task.isManualOnly = true
+        task.serviceRestartPolicy = .never
+        context.insert(task)
+        try context.save()
+        #expect(setServiceAutoStart(serviceEnabled, task: task, context: context,
+                                    enableLaunchAtLogin: { true }))
+        let executor = ScriptExecutor()
+        let scheduler = TaskScheduler(executor: executor, isLaunchAtLoginEnabled: { loginEnabled })
+        defer { scheduler.stop(); executor.cancelAll() }
+        scheduler.configure(modelContext: context)
+        scheduler.start()
+
+        // Exercise the actual delayed app-launch sweep, including the case
+        // where the UI shows off solely because TaskTick's login item is off.
+        try await Task.sleep(for: .milliseconds(3500))
+        if loginEnabled && serviceEnabled {
+            try await waitUntil { executor.runningProcesses[task.id] != nil }
+            #expect(task.executionLogs.first?.triggeredBy == .launch)
+        } else {
+            #expect(executor.runningProcesses.isEmpty)
+            #expect(task.executionLogs.isEmpty)
+            #expect(!scheduler.runningTaskIDs.contains(task.id))
+        }
+        await executor.suspendAndDrainForRestore()
+    }
+
+    @Test("Disabling the login item during startup prevents the delayed service launch")
+    func loginItemDisabledDuringStartup() async throws {
+        let container = try memoryContainer()
+        let context = container.mainContext
+        let task = ScheduledTask(
+            name: "disabled during startup", scriptBody: "exec /bin/sleep 30", shell: "/bin/sh",
+            notifyOnSuccess: false, notifyOnFailure: false
+        )
+        task.isBackgroundService = true
+        task.isManualOnly = true
+        task.serviceRestartPolicy = .never
+        context.insert(task)
+        try context.save()
+        var loginEnabled = true
+        let executor = ScriptExecutor()
+        let scheduler = TaskScheduler(executor: executor, isLaunchAtLoginEnabled: { loginEnabled })
+        defer { scheduler.stop(); executor.cancelAll() }
+        scheduler.configure(modelContext: context)
+        scheduler.start()
+        loginEnabled = false
+
+        try await Task.sleep(for: .milliseconds(3500))
+        #expect(executor.runningProcesses.isEmpty)
+        #expect(task.executionLogs.isEmpty)
+        #expect(!scheduler.runningTaskIDs.contains(task.id))
+        await executor.suspendAndDrainForRestore()
+    }
+
     @Test("Auto-start persists without running the process or disabling supervision",
           arguments: [true, false])
     func persistsAutoStart(_ enabled: Bool) throws {

@@ -52,7 +52,7 @@
 
 After creating a background process, configure its restart policy, log path, maximum file size, and retained files under the editor’s Settings tab.
 
-Use **Start at Login** in the detail view or context menu to launch a background process when you log in. Enabling it also enables TaskTick’s login item. Turning it off leaves the current process running; use Run and Stop to control it. The editor’s Basic tab has the same auto-start setting.
+Use **Start at Login** in the detail view or context menu to launch a background process when you log in. Enabling it also enables TaskTick’s login item. Turning off either the process setting or TaskTick’s login item prevents the process from starting automatically, even when you open TaskTick manually. Turning it off leaves the current process running; use Run and Stop to control it. The editor’s Basic tab has the same auto-start setting.
 
 ### Log files
 
