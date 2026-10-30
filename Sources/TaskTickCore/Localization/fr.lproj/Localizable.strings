@@ -461,6 +461,7 @@
 "service.auto_start" = "Démarrer à l’ouverture de session";
 "service.auto_start.help" = "Active le lancement de TaskTick à l’ouverture de session pour démarrer ce processus. La désactivation laisse le processus actuel en cours.";
 "service.stopped" = "Arrêté";
+"service.waiting_restart" = "En attente de redémarrage";
 "service.restart_policy" = "Restart Policy";
 "service.restart.never" = "Never";
 "service.restart.on_failure" = "On Failure";

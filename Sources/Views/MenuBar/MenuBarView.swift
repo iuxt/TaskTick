@@ -218,15 +218,20 @@ extension MenuBarFooterButton where Trailing == EmptyView {
 
 struct MenuBarTaskRow: View {
     @Environment(\.modelContext) private var modelContext
+    @ObservedObject private var executor = ScriptExecutor.shared
     let task: ScheduledTask
     let isRunning: Bool
     @State private var isHovering = false
+
+    private var isWaitingForRestart: Bool {
+        task.isBackgroundService && executor.serviceRestartDates[task.id] != nil
+    }
 
     var body: some View {
         HStack(spacing: 10) {
             Circle()
                 .fill(
-                    isRunning
+                    isWaitingForRestart ? .orange : isRunning
                         ? .blue
                         : (task.isBackgroundService || !task.isEnabled ? .gray.opacity(0.4) : .green)
                 )
@@ -238,7 +243,7 @@ struct MenuBarTaskRow: View {
 
             Spacer()
 
-            if isRunning {
+            if isRunning || isWaitingForRestart {
                 if isHovering {
                     Button {
                         ScriptExecutor.shared.cancel(taskId: task.id)
@@ -252,6 +257,10 @@ struct MenuBarTaskRow: View {
                     .buttonStyle(.plain)
                     .pointerCursor()
                     .help(L10n.tr("task.detail.stop"))
+                } else if isWaitingForRestart {
+                    Text(L10n.tr("service.waiting_restart"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 } else if task.isBackgroundService {
                     TimelineView(.periodic(from: .now, by: 1)) { context in
                         // Resolve the start on every tick instead of capturing
@@ -311,7 +320,7 @@ struct MenuBarTaskRow: View {
             isHovering = hovering
         }
         .onTapGesture {
-            if isRunning {
+            if isRunning || isWaitingForRestart {
                 ScriptExecutor.shared.cancel(taskId: task.id)
                 ActionToast.notify(.stopped(taskName: task.name), wantsBanner: task.notifyOnAction)
                 ToastCenter.shared.stopped(L10n.tr("toast.task.stopped", task.name))

@@ -507,6 +507,7 @@
 "service.auto_start" = "Mulai saat login";
 "service.auto_start.help" = "Mengaktifkan TaskTick saat login untuk menjalankan proses ini. Menonaktifkannya tidak menghentikan proses yang sedang berjalan.";
 "service.stopped" = "Dihentikan";
+"service.waiting_restart" = "Menunggu mulai ulang";
 "service.restart_policy" = "Restart Policy";
 "service.restart.never" = "Never";
 "service.restart.on_failure" = "On Failure";

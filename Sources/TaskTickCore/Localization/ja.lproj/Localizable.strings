@@ -507,6 +507,7 @@
 "service.auto_start" = "ログイン時に自動起動";
 "service.auto_start.help" = "TaskTick のログイン項目を有効にして、ログイン時にこのプロセスを起動します。オフにしても現在のプロセスは停止しません。";
 "service.stopped" = "停止中";
+"service.waiting_restart" = "再起動を待機中";
 "service.restart_policy" = "Restart Policy";
 "service.restart.never" = "Never";
 "service.restart.on_failure" = "On Failure";

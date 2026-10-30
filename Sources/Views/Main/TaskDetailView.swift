@@ -15,10 +15,15 @@ struct TaskDetailView: View {
     @State private var fileWatcher: FileWatcher?
     @State private var hoveredLogID: UUID?
     @StateObject private var scheduler = TaskScheduler.shared
+    @ObservedObject private var executor = ScriptExecutor.shared
     @AppStorage("logs.streamManualToFile") private var streamManualToFile = true
 
     var isRunning: Bool {
         scheduler.runningTaskIDs.contains(task.id)
+    }
+
+    private var isWaitingForRestart: Bool {
+        task.isBackgroundService && executor.serviceRestartDates[task.id] != nil
     }
 
     var body: some View {
@@ -135,10 +140,10 @@ struct TaskDetailView: View {
                     HStack(spacing: 12) {
                         HStack(spacing: 4) {
                             Circle()
-                                .fill((task.isBackgroundService ? isRunning : task.isEnabled) ? .green : .gray.opacity(0.4))
+                                .fill(isWaitingForRestart ? .orange : ((task.isBackgroundService ? isRunning : task.isEnabled) ? .green : .gray.opacity(0.4)))
                                 .frame(width: 8, height: 8)
                             Text(task.isBackgroundService
-                                 ? L10n.tr(isRunning ? "status.running" : "service.stopped")
+                                 ? L10n.tr(isWaitingForRestart ? "service.waiting_restart" : (isRunning ? "status.running" : "service.stopped"))
                                  : L10n.tr(task.isEnabled ? "task.status.enabled" : "task.status.disabled"))
                                 .font(.subheadline)
                                 .foregroundStyle(.secondary)
@@ -171,7 +176,7 @@ struct TaskDetailView: View {
                                 .pointerCursor()
                             }
 
-                            if isRunning {
+                            if isRunning || isWaitingForRestart {
                                 Button {
                                     ScriptExecutor.shared.cancel(taskId: task.id)
                                     ActionToast.notify(.stopped(taskName: task.name), wantsBanner: task.notifyOnAction)

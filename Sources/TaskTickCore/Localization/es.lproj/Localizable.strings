@@ -507,6 +507,7 @@
 "service.auto_start" = "Iniciar al iniciar sesión";
 "service.auto_start.help" = "Activa el inicio de TaskTick al iniciar sesión para ejecutar este proceso. Al desactivarlo, el proceso actual sigue ejecutándose.";
 "service.stopped" = "Detenido";
+"service.waiting_restart" = "Esperando reinicio";
 "service.restart_policy" = "Restart Policy";
 "service.restart.never" = "Never";
 "service.restart.on_failure" = "On Failure";

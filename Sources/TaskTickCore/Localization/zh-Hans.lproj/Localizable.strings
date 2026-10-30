@@ -507,6 +507,7 @@
 "service.auto_start" = "开机自启动";
 "service.auto_start.help" = "开启后会同时启用 TaskTick 的开机启动，登录系统时自动运行此进程。关闭不会停止当前进程。";
 "service.stopped" = "已停止";
+"service.waiting_restart" = "等待重启";
 "service.restart_policy" = "重启策略";
 "service.restart.never" = "从不";
 "service.restart.on_failure" = "失败时";

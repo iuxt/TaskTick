@@ -507,6 +507,7 @@
 "service.auto_start" = "Запускать при входе";
 "service.auto_start.help" = "Включает запуск TaskTick при входе в систему для запуска этого процесса. Отключение не останавливает текущий процесс.";
 "service.stopped" = "Остановлен";
+"service.waiting_restart" = "Ожидание перезапуска";
 "service.restart_policy" = "Restart Policy";
 "service.restart.never" = "Never";
 "service.restart.on_failure" = "On Failure";

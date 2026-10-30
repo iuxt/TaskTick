@@ -6,6 +6,7 @@ import TaskTickCore
 struct TaskTickApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @StateObject private var scheduler = TaskScheduler.shared
+    @StateObject private var executor = ScriptExecutor.shared
     @StateObject private var taskSelection = TaskSelectionState.shared
     @Environment(\.openWindow) private var openWindow
     @Environment(\.openSettings) private var openSettings
@@ -264,12 +265,12 @@ struct TaskTickApp: App {
                 runSelectedTask()
             }
             .keyboardShortcut("r", modifiers: .command)
-            .disabled(taskSelection.selectedTask == nil || selectedTaskIsRunning)
+            .disabled(taskSelection.selectedTask == nil || selectedTaskCanStop)
 
             Button(L10n.tr("command.stop_task")) {
                 stopSelectedTask()
             }
-            .disabled(taskSelection.selectedTask == nil || !selectedTaskIsRunning)
+            .disabled(taskSelection.selectedTask == nil || !selectedTaskCanStop)
 
             Divider()
 
@@ -311,13 +312,13 @@ struct TaskTickApp: App {
         }
     }
 
-    private var selectedTaskIsRunning: Bool {
+    private var selectedTaskCanStop: Bool {
         guard let id = taskSelection.selectedTask?.id else { return false }
-        return scheduler.runningTaskIDs.contains(id)
+        return scheduler.runningTaskIDs.contains(id) || executor.serviceRestartDates[id] != nil
     }
 
     private func runSelectedTask() {
-        guard let task = taskSelection.selectedTask, !selectedTaskIsRunning else { return }
+        guard let task = taskSelection.selectedTask, !selectedTaskCanStop else { return }
         Task {
             _ = await ScriptExecutor.shared.execute(
                 task: task,
@@ -328,7 +329,7 @@ struct TaskTickApp: App {
     }
 
     private func stopSelectedTask() {
-        guard let task = taskSelection.selectedTask, selectedTaskIsRunning else { return }
+        guard let task = taskSelection.selectedTask, selectedTaskCanStop else { return }
         ScriptExecutor.shared.cancel(taskId: task.id)
         ActionToast.notify(.stopped(taskName: task.name), wantsBanner: task.notifyOnAction)
     }

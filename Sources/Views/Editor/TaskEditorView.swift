@@ -1132,7 +1132,10 @@ struct TaskEditorView: View {
         }
         TaskScheduler.shared.rebuildSchedule()
         let isRunning = TaskScheduler.shared.runningTaskIDs.contains(target.id)
-        if isRunning && (!target.isEnabled || (wasBackgroundService && !target.isBackgroundService)) {
+        let isWaitingForRestart = ScriptExecutor.shared.serviceRestartDates[target.id] != nil
+        if ((isRunning || isWaitingForRestart)
+            && (!target.isEnabled || (wasBackgroundService && !target.isBackgroundService)))
+            || (isWaitingForRestart && target.serviceRestartPolicy == .never) {
             ScriptExecutor.shared.cancel(taskId: target.id)
         }
         EditorState.shared.lastSavedTask = target

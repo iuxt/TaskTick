@@ -44,6 +44,8 @@ func decodeProcessOutput(_ data: Data) -> String {
 final class ScriptExecutor: ObservableObject {
 
     @Published var runningProcesses: [UUID: Process] = [:]
+    /// Separate from running processes so Stop remains available during backoff.
+    @Published private(set) var serviceRestartDates: [UUID: Date] = [:]
 
     /// Processes that were running when a previous TaskTick session ended
     /// and we re-acquired on launch. Retain the PID and start-time fingerprint — no Foundation
@@ -55,6 +57,7 @@ final class ScriptExecutor: ObservableObject {
     private let executionSemaphore = DispatchSemaphore(value: 8)
     private var stoppedServiceIDs: Set<UUID> = []
     private var serviceRestartTasks: [UUID: Task<Void, Never>] = [:]
+    private var serviceRestartBackoffs: [UUID: ServiceRestartBackoff] = [:]
 
     private var adoptedContexts: [UUID: ModelContext] = [:]
     private var adoptedStopTasks: [UUID: Task<Void, Never>] = [:]
@@ -179,12 +182,16 @@ final class ScriptExecutor: ObservableObject {
         if task.isBackgroundService {
             stoppedServiceIDs.remove(task.id)
             serviceRestartTasks.removeValue(forKey: task.id)?.cancel()
+            if triggeredBy == .manual {
+                serviceRestartBackoffs.removeValue(forKey: task.id)
+            }
         }
         // Mark as running so every UI surface (list dot animation, menu bar
         // spinner, detail view stop button) reacts consistently regardless of
         // which entry point triggered the run. Set is idempotent, so callers
         // that also insert (TaskScheduler.fireTask) stay correct.
         TaskScheduler.shared.runningTaskIDs.insert(task.id)
+        serviceRestartDates.removeValue(forKey: task.id)
         let executionTaskID = task.id
         let startTime = Date()
         let log = ExecutionLog(task: task, triggeredBy: triggeredBy)
@@ -465,7 +472,8 @@ final class ScriptExecutor: ObservableObject {
         }
 
         if isBackgroundService {
-            scheduleServiceRestartIfNeeded(taskId: taskId, lastStatus: result.status, context: modelContext)
+            scheduleServiceRestartIfNeeded(taskId: taskId, lastStatus: result.status,
+                                          runDuration: endTime.timeIntervalSince(startTime), context: modelContext)
         }
 
         return completedLog ?? log
@@ -506,36 +514,58 @@ final class ScriptExecutor: ObservableObject {
         try context.save()
     }
 
-    /// Re-launch a managed background command after its configured delay.
+    /// Re-launch a managed background command with exponential backoff.
     /// A user Stop (or app shutdown) records an explicit suppression marker,
     /// so an in-flight process completion can never resurrect the service.
-    private func scheduleServiceRestartIfNeeded(taskId: UUID, lastStatus: ExecutionStatus, context: ModelContext) {
+    private func scheduleServiceRestartIfNeeded(
+        taskId: UUID, lastStatus: ExecutionStatus, runDuration: TimeInterval, context: ModelContext
+    ) {
         guard !isSuspendedForRestore, !stoppedServiceIDs.contains(taskId) else { return }
         let descriptor = FetchDescriptor<ScheduledTask>(predicate: #Predicate { $0.id == taskId })
         guard let service = try? context.fetch(descriptor).first,
               service.isEnabled,
-              service.isBackgroundService else { return }
+              service.isBackgroundService else {
+            serviceRestartBackoffs.removeValue(forKey: taskId)
+            return
+        }
 
         let shouldRestart: Bool = switch service.serviceRestartPolicy {
         case .never: false
         case .onFailure: lastStatus != .success
         case .always: true
         }
-        guard shouldRestart else { return }
+        guard shouldRestart else {
+            serviceRestartBackoffs.removeValue(forKey: taskId)
+            return
+        }
 
-        let delay = max(1, service.serviceRestartDelaySeconds)
+        var backoff = serviceRestartBackoffs[taskId] ?? ServiceRestartBackoff()
+        let delay = backoff.nextDelay(initialDelay: service.serviceRestartDelaySeconds, runDuration: runDuration)
+        serviceRestartBackoffs[taskId] = backoff
         serviceRestartTasks.removeValue(forKey: taskId)?.cancel()
+        serviceRestartDates[taskId] = Date().addingTimeInterval(delay)
         serviceRestartTasks[taskId] = Task { @MainActor [weak self] in
             try? await Task.sleep(for: .seconds(delay))
-            guard !Task.isCancelled, let self,
-                  !self.isSuspendedForRestore,
+            guard !Task.isCancelled, let self else { return }
+            self.serviceRestartTasks.removeValue(forKey: taskId)
+            guard !self.isSuspendedForRestore,
                   !self.stoppedServiceIDs.contains(taskId),
-                  !TaskScheduler.shared.runningTaskIDs.contains(taskId) else { return }
+                  !TaskScheduler.shared.runningTaskIDs.contains(taskId) else {
+                self.serviceRestartDates.removeValue(forKey: taskId)
+                self.serviceRestartBackoffs.removeValue(forKey: taskId)
+                return
+            }
             let descriptor = FetchDescriptor<ScheduledTask>(predicate: #Predicate { $0.id == taskId })
             guard let service = try? context.fetch(descriptor).first,
                   service.isEnabled,
-                  service.isBackgroundService else { return }
-            self.serviceRestartTasks.removeValue(forKey: taskId)
+                  service.isBackgroundService,
+                  service.serviceRestartPolicy == .always
+                    || (service.serviceRestartPolicy == .onFailure && lastStatus != .success) else {
+                self.serviceRestartBackoffs.removeValue(forKey: taskId)
+                self.serviceRestartDates.removeValue(forKey: taskId)
+                return
+            }
+            // execute marks the run active before clearing the waiting state.
             _ = await self.execute(task: service, triggeredBy: .launch, modelContext: context)
         }
     }
@@ -551,6 +581,8 @@ final class ScriptExecutor: ObservableObject {
     func cancel(taskId: UUID) {
         stoppedServiceIDs.insert(taskId)
         serviceRestartTasks.removeValue(forKey: taskId)?.cancel()
+        serviceRestartDates.removeValue(forKey: taskId)
+        serviceRestartBackoffs.removeValue(forKey: taskId)
         // A queued execution has a control too: Stop prevents it from spawning.
         // The worker owns signals and escalation, even after the leader exits.
         executionControls[taskId]?.requestStop(.cancelled)
@@ -586,6 +618,10 @@ final class ScriptExecutor: ObservableObject {
             guard adoptedStopTasks[taskId] == nil, !identity.isCurrent else { continue }
             adoptedProcesses.removeValue(forKey: taskId)
             let owningContext = adoptedContexts.removeValue(forKey: taskId) ?? context
+            let startedAt = activeLogs[taskId]?.startedAt
+                ?? (try? owningContext.fetch(FetchDescriptor<ExecutionLog>(
+                    predicate: #Predicate { $0.task?.id == taskId && $0.statusRaw == "running" }
+                )).first?.startedAt)
             TaskScheduler.shared.runningTaskIDs.remove(taskId)
             finalizeAdoptedLog(taskId: taskId,
                 reason: "[TaskTick] Adopted process \(identity.pid) exited externally.", in: owningContext)
@@ -593,7 +629,9 @@ final class ScriptExecutor: ObservableObject {
             catch { NSLog("⚠️ Adopted process finalization failed: \(error)") }
             // No waitpid relationship survives app restart, so the exit code
             // is unknown. Treat it as an abnormal exit for onFailure/always.
-            scheduleServiceRestartIfNeeded(taskId: taskId, lastStatus: .cancelled, context: owningContext)
+            scheduleServiceRestartIfNeeded(taskId: taskId, lastStatus: .cancelled,
+                                          runDuration: startedAt.map { Date().timeIntervalSince($0) } ?? 0,
+                                          context: owningContext)
             exited.insert(taskId)
         }
         return exited
@@ -662,6 +700,8 @@ final class ScriptExecutor: ObservableObject {
         stoppedServiceIDs.formUnion(adoptedProcesses.keys)
         for restartTask in serviceRestartTasks.values { restartTask.cancel() }
         serviceRestartTasks.removeAll()
+        serviceRestartDates.removeAll()
+        serviceRestartBackoffs.removeAll()
         let processSnapshot = Array(runningProcesses.values)
         // Reuse an in-flight Stop's group proof if its leader already exited.
         let adoptedSnapshot = adoptedProcesses.compactMap { taskId, identity in

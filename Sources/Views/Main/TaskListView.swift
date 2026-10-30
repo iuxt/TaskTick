@@ -33,6 +33,7 @@ enum TaskKindFilter: String, CaseIterable {
 }
 
 struct TaskListView: View {
+    @ObservedObject private var executor = ScriptExecutor.shared
     @Environment(\.modelContext) private var modelContext
     @Environment(\.openWindow) private var openWindow
     @Query(sort: \ScheduledTask.createdAt, order: .reverse) private var tasks: [ScheduledTask]
@@ -203,7 +204,7 @@ struct TaskListView: View {
                 EditorState.shared.openEdit(task)
                 openWindow(id: "editor")
             }
-            if scheduler.runningTaskIDs.contains(task.id) {
+            if scheduler.runningTaskIDs.contains(task.id) || executor.serviceRestartDates[task.id] != nil {
                 Button(L10n.tr("task.detail.stop"), systemImage: "stop.fill") {
                     ScriptExecutor.shared.cancel(taskId: task.id)
                     ActionToast.notify(.stopped(taskName: task.name), wantsBanner: task.notifyOnAction)
@@ -308,6 +309,7 @@ struct TaskListView: View {
 }
 
 struct TaskListRow: View {
+    @ObservedObject private var executor = ScriptExecutor.shared
     let task: ScheduledTask
     let isRunning: Bool
     /// `List(selection:)` paints the selected row in the system accent
@@ -327,10 +329,15 @@ struct TaskListRow: View {
     /// short-circuit to the pause icon before the dot branch.
     private var statusDotFill: Color { .green }
 
+    private var isWaitingForRestart: Bool {
+        task.isBackgroundService && executor.serviceRestartDates[task.id] != nil
+    }
+
     /// Tooltip for the status indicator. The icons carry a lot of meaning for
     /// something this small, so spell it out on hover: running / disabled /
     /// last execution's outcome / enabled-but-never-run.
     private var statusHelpText: String {
+        if isWaitingForRestart { return L10n.tr("service.waiting_restart") }
         if isRunning { return ExecutionStatus.running.displayName }
         if task.isBackgroundService { return L10n.tr("service.stopped") }
         if !task.isEnabled { return L10n.tr("task.status.disabled") }
@@ -358,7 +365,11 @@ struct TaskListRow: View {
             // disabled rows be picked out at a glance. A disabled task can
             // still be run manually, so `isRunning` wins over both.
             ZStack {
-                if let status = isRunning ? .running : (task.isEnabled && !task.isBackgroundService ? latestExecutionStatus : nil) {
+                if isWaitingForRestart {
+                    Image(systemName: "arrow.clockwise.circle.fill")
+                        .font(.system(size: 13))
+                        .foregroundStyle(.orange)
+                } else if let status = isRunning ? .running : (task.isEnabled && !task.isBackgroundService ? latestExecutionStatus : nil) {
                     Image(systemName: status.iconName)
                         .font(.system(size: 13))
                         .scaleEffect(status.iconScale)

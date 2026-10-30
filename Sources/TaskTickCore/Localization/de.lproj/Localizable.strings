@@ -507,6 +507,7 @@
 "service.auto_start" = "Bei Anmeldung starten";
 "service.auto_start.help" = "Aktiviert den automatischen Start von TaskTick, um diesen Prozess bei der Anmeldung zu starten. Das Ausschalten beendet den laufenden Prozess nicht.";
 "service.stopped" = "Gestoppt";
+"service.waiting_restart" = "Warten auf Neustart";
 "service.restart_policy" = "Restart Policy";
 "service.restart.never" = "Never";
 "service.restart.on_failure" = "On Failure";

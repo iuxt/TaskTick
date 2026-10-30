@@ -52,6 +52,8 @@
 
 After creating a background process, configure its restart policy, log path, maximum file size, and retained files under the editor’s Settings tab.
 
+Repeated exits use exponential restart backoff: the configured restart delay doubles after each short-lived run, up to 5 minutes (or the configured delay if longer). A run lasting at least 1 minute resets the delay. Stop remains available while waiting for a restart and cancels it; a manual start begins a fresh backoff sequence.
+
 Use **Start at Login** in the detail view or context menu to launch a background process when you log in. Enabling it also enables TaskTick’s login item. Turning off either the process setting or TaskTick’s login item prevents the process from starting automatically, even when you open TaskTick manually. Turning it off leaves the current process running; use Run and Stop to control it. The editor’s Basic tab has the same auto-start setting.
 
 ### Log files

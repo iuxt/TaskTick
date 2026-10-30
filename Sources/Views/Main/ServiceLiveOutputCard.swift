@@ -6,9 +6,11 @@ struct ServiceLiveOutputCard: View {
     let task: ScheduledTask
     @ObservedObject private var scheduler = TaskScheduler.shared
     @ObservedObject private var liveOutput = LiveOutputManager.shared
+    @ObservedObject private var executor = ScriptExecutor.shared
 
     var body: some View {
         let isRunning = scheduler.runningTaskIDs.contains(task.id)
+        let isWaitingForRestart = executor.serviceRestartDates[task.id] != nil
         let stdout = liveOutput.stdout(for: task.id)
         let stderr = liveOutput.stderr(for: task.id)
         // Keep both streams visible, including errors when stdout has content.
@@ -25,7 +27,7 @@ struct ServiceLiveOutputCard: View {
                     if isRunning {
                         StatusBadge(status: .running, compact: true)
                     } else {
-                        Text(L10n.tr("service.stopped"))
+                        Text(L10n.tr(isWaitingForRestart ? "service.waiting_restart" : "service.stopped"))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }

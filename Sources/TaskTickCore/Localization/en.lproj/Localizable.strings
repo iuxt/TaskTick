@@ -507,6 +507,7 @@
 "service.auto_start" = "Start at Login";
 "service.auto_start.help" = "Start this process when you log in by enabling TaskTick’s login item. Turning this off leaves the current process running.";
 "service.stopped" = "Stopped";
+"service.waiting_restart" = "Waiting to restart";
 "service.restart_policy" = "Restart Policy";
 "service.restart.never" = "Never";
 "service.restart.on_failure" = "On Failure";

@@ -507,6 +507,7 @@
 "service.auto_start" = "Avvia al login";
 "service.auto_start.help" = "Abilita l’avvio di TaskTick al login per avviare questo processo. La disattivazione lascia il processo attuale in esecuzione.";
 "service.stopped" = "Arrestato";
+"service.waiting_restart" = "In attesa del riavvio";
 "service.restart_policy" = "Restart Policy";
 "service.restart.never" = "Never";
 "service.restart.on_failure" = "On Failure";
